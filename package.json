@@ -1,0 +1,8 @@
+{
+  "name": "sitionix-spa",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev:auth": "pnpm --filter auth dev"
+  }
+}
