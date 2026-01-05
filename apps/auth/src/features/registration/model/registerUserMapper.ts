@@ -1,11 +1,7 @@
-import type { RegisterUserRequest, GlobalUserRole} from "@sitionix/contracts";
+import type { RegisterUserRequest} from "@sitionix/contracts";
 
 import type { RegisterFormValues } from "../validation/registerFormSchema";
-
-export type RegisterContext = {
-  siteId?: string;
-  role: GlobalUserRole;
-};
+import type { RegisterContext } from "./RegisterContext";
 
 export function mapFormToRegisterRequest(
   values: RegisterFormValues,
