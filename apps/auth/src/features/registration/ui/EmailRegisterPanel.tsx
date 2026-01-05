@@ -1,31 +1,25 @@
-import type { GlobalUserRole } from "@sitionix/contracts";
 import EmailRegisterForm from "./EmailRegisterForm";
+import type { RegisterContext } from "../model/RegisterContext";
+import type { RegisterHandlers } from "../model/RegisterHandlers";
 
-type Props = {
+export type EmailRegisterPanelProps = {
   isSuccess: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-  siteId?: string;
-  role: GlobalUserRole;
+  ctx: RegisterContext;
+  handlers: RegisterHandlers;
 };
 
-export default function EmailRegistrationPanel({
-  isSuccess,
-  onClose,
-  onSuccess,
-  siteId,
-  role,
-}: Props) {
+export default function EmailRegistrationPanel(props: EmailRegisterPanelProps) {
+  const ctx: RegisterContext = props.ctx;
   return (
     <div className="rounded-2xl bg-gray-200 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">
-          {isSuccess ? "Готово" : "Реєстрація поштою"}
+          {props.isSuccess ? "Готово" : "Реєстрація поштою"}
         </div>
 
         <button
           type="button"
-          onClick={onClose}
+          onClick={props.handlers.onClose}
           className="rounded-md px-2 py-1 text-sm text-gray-600 hover:text-gray-900"
           aria-label="Закрити"
         >
@@ -33,12 +27,16 @@ export default function EmailRegistrationPanel({
         </button>
       </div>
 
-      {isSuccess ? (
+      {props.isSuccess ? (
         <div className="mt-4 rounded-xl bg-white p-4 text-sm text-gray-700">
           Перевір пошту — ми надіслали лист для підтвердження.
         </div>
       ) : (
-        <EmailRegisterForm onSuccess={onSuccess} {...(siteId ? { siteId } : {})} role={role} />
+        <EmailRegisterForm
+          onSuccess={props.handlers.onSuccess}
+          {...(ctx.siteId ? { siteId: ctx.siteId } : {})}
+          role={ctx.role}
+        />
       )}
     </div>
   );
