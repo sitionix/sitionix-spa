@@ -1,0 +1,1 @@
+{"version":3,"file":"SocialAuthButton.d.ts","sourceRoot":"","sources":["../../../src/auth/social-auth/SocialAuthButton.tsx"],"names":[],"mappings":"AAAA,MAAM,MAAM,qBAAqB,GAAG;IAClC,KAAK,EAAE,MAAM,CAAC;IACd,eAAe,EAAE,MAAM,CAAC;IACxB,OAAO,EAAE,MAAM,IAAI,CAAC;CACrB,CAAC;AAEF,wBAAgB,gBAAgB,CAAC,EAC/B,KAAK,EACL,eAAe,EACf,OAAO,GACR,EAAE,qBAAqB,2CAgBvB"}

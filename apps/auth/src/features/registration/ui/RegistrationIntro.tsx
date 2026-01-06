@@ -1,8 +1,11 @@
-type Props = {
-    onEmailOpen: () => void;
-}
+import { SocialAuthPanel, type SocialAuthActions } from "@sitionix/ui";
 
-export default function RegisterIntro({onEmailOpen}: Props) {
+type Props = {
+  onEmailOpen: () => void;
+  socialActions: SocialAuthActions;
+};
+
+export default function RegisterIntro(props: Props) {
 
     return (
         <div className="w-full max-w-md text-center">
@@ -12,9 +15,11 @@ export default function RegisterIntro({onEmailOpen}: Props) {
             </div>
             <button
                 type="button"
-                onClick={onEmailOpen}
+                onClick={props.onEmailOpen}
                 className="mt-6 w-full rounded-lg bg-black py-3 text-sm font-medium text-white shadow"
                 >Реєстрація через пошту</button>
+                
+                <SocialAuthPanel actions={props.socialActions}/>
             </div>
     );
 }

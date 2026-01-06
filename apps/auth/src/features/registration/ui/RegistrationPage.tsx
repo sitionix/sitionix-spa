@@ -3,11 +3,18 @@ import RegisterIntro from "./RegistrationIntro";
 import EmailRegistrationPanel, {
   type EmailRegisterPanelProps,
 } from "./EmailRegisterPanel";
+import type { SocialAuthActions } from "@sitionix/ui";
 
 function readSiteIdFromUrl(): string | undefined {
   const url = new URL(window.location.href);
   return url.searchParams.get("siteId") ?? undefined;
 }
+
+const socialActions: SocialAuthActions = {
+  onGoogle: () => console.log("google"),
+  onFacebook: () => console.log("facebook"),
+  onApple: () => console.log("apple"),
+};
 
 export default function RegisterPage() {
   const [isEmailOpen, setIsEmailOpen] = useState(false);
@@ -29,7 +36,8 @@ export default function RegisterPage() {
 
       <div className="flex w-full items-start justify-center gap-10">
 
-        <RegisterIntro onEmailOpen={() => setIsEmailOpen(true)} />
+        <RegisterIntro onEmailOpen={() => setIsEmailOpen(true)}
+        socialActions={socialActions} />
 
         {isEmailOpen ? (
           <div className="mt-6 w-full max-w-md">
