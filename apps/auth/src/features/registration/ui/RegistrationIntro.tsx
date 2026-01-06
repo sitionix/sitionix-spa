@@ -18,7 +18,7 @@ export default function RegisterIntro(props: Props) {
                 onClick={props.onEmailOpen}
                 className="mt-6 w-full rounded-lg bg-black py-3 text-sm font-medium text-white shadow"
                 >Реєстрація через пошту</button>
-                
+
                 <SocialAuthPanel actions={props.socialActions}/>
             </div>
     );
