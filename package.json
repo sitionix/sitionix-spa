@@ -6,6 +6,9 @@
     "dev:auth": "pnpm --filter auth dev"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "autoprefixer": "^10.4.23",
+    "tailwindcss": "^4.1.18",
     "typescript": "^5.3.3"
   }
 }

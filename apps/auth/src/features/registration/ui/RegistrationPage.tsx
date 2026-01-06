@@ -1,9 +1,8 @@
 import { useState } from "react";
-import RegisterIntro from "./RegistrationIntro";
 import EmailRegistrationPanel, {
   type EmailRegisterPanelProps,
 } from "./EmailRegisterPanel";
-import type { SocialAuthActions } from "@sitionix/ui";
+import { AuthSidePanel, type AuthSidePanelProps, type SocialAuthActions } from "@sitionix/ui";
 
 function readSiteIdFromUrl(): string | undefined {
   const url = new URL(window.location.href);
@@ -29,6 +28,21 @@ export default function RegisterPage() {
     },
   };
 
+  const authProps: AuthSidePanelProps = {
+    title: "Реєстраці",
+    subtitle: "Увійдіть. Керуйте. Процвітайте.",
+    topInputSlot: <input
+        placeholder="Електрона пошта"
+        className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none"
+        autoComplete="email"
+      />,
+    primaryCtaLabel: "Реєстрація через пошту",
+    primaryCtaClick: () => setIsEmailOpen(true),
+    socialAction: socialActions,
+    legalSlot: <div></div>
+    
+  }
+
   return (
     <div className="min-h-screen bg-white text-gray-900">
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center px-6 py-10">
@@ -36,8 +50,7 @@ export default function RegisterPage() {
 
       <div className="flex w-full items-start justify-center gap-10">
 
-        <RegisterIntro onEmailOpen={() => setIsEmailOpen(true)}
-        socialActions={socialActions} />
+        <AuthSidePanel {...authProps}/>
 
         {isEmailOpen ? (
           <div className="mt-6 w-full max-w-md">

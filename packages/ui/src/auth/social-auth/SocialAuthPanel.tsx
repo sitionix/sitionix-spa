@@ -17,10 +17,10 @@ export function SocialAuthPanel({
 }: SocialAuthPanelProps) {
   return (
     <div>
-      <div className="mt-8 flex items-center gap-4 text-gray-500">
-        <div className="h-px flex-1 bg-gray-200" />
-        <div className="text-base">{dividerLabel}</div>
-        <div className="h-px flex-1 bg-gray-200" />
+      <div className="mt-8 grid w-full grid-cols-[1fr_auto_1fr] items-center gap-4 text-gray-500">
+        <div className="h-px bg-gray-200" />
+        <div className="justify-self-center text-base">{dividerLabel}</div>
+        <div className="h-px bg-gray-200" />
       </div>
 
       <div className="mt-6 space-y-4">
