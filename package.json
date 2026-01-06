@@ -4,5 +4,8 @@
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "dev:auth": "pnpm --filter auth dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
   }
 }
