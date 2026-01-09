@@ -10,6 +10,6 @@
     "build": "node -e \"process.exit(0)\""
   },
   "devDependencies": {
-    "tailwindcss": "^3.4.17"
+    "tailwindcss": "^4.1.18"
   }
 }
