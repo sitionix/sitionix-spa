@@ -46,6 +46,9 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-white text-gray-900">
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center px-6 py-10">
+        <div className="mb-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+          Tailwind is working
+        </div>
         <div className="mb-10 text-4xl font-semibold">Sitionix</div>
 
       <div className="flex w-full items-start justify-center gap-10">
