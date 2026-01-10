@@ -14,15 +14,22 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "dev": "tsc -p tsconfig.build.json -w"
+    "dev": "tsc -p tsconfig.build.json -w",
+    "test": "vitest run --coverage"
   },
   "peerDependencies": {
     "react": "^18",
     "react-dom": "^18"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.1",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "typescript": "^5"
+    "@vitest/coverage-v8": "^4.0.16",
+    "jsdom": "^22.1.0",
+    "typescript": "^5",
+    "vitest": "^4.0.16"
   }
 }

@@ -14,3 +14,9 @@ apps/auth dev:   VITE v7.3.0  ready in 204 ms
 apps/auth dev:   ➜  Local:   http://127.0.0.1:3001/
 apps/shell dev:   ➜  Local:   http://127.0.0.1:3000/
 packages/ui dev: 5:34:57 PM - Found 0 errors. Watching for file changes.
+apps/auth dev: Failed
+/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @apps/auth@0.0.0 dev: `vite --port 3001`
+Exit status 143
+apps/shell dev: Failed
+ ELIFECYCLE  Command failed with exit code 143.

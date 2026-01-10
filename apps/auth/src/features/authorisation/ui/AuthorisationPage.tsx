@@ -85,6 +85,7 @@ export default function AuthorisationPage() {
           ].join(" ")}
           role="dialog"
           aria-modal="true"
+          aria-hidden={!isEmailOpen}
         >
           <div className="h-full">
             <div className="flex items-center justify-between">

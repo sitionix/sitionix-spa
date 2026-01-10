@@ -83,6 +83,7 @@ export default function RegistrationPage() {
           ].join(" ")}
           role="dialog"
           aria-modal="true"
+          aria-hidden={!isEmailOpen}
         >
           <EmailRegistrationPanel
             {...props}

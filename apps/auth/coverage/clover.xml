@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1768066833683" clover="3.2.0">
+  <project timestamp="1768066833683" name="All files">
+    <metrics statements="166" coveredstatements="164" conditionals="88" coveredconditionals="80" methods="53" coveredmethods="51" elements="307" coveredelements="295" complexity="0" loc="166" ncloc="166" packages="14" files="20" classes="20"/>
+    <package name="src">
+      <metrics statements="4" coveredstatements="4" conditionals="2" coveredconditionals="2" methods="0" coveredmethods="0"/>
+      <file name="main.tsx" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/main.tsx">
+        <metrics statements="4" coveredstatements="4" conditionals="2" coveredconditionals="2" methods="0" coveredmethods="0"/>
+        <line num="9" count="2" type="stmt"/>
+        <line num="11" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="12" count="1" type="stmt"/>
+        <line num="16" count="1" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.app">
+      <metrics statements="2" coveredstatements="2" conditionals="0" coveredconditionals="0" methods="2" coveredmethods="2"/>
+      <file name="App.tsx" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/app/App.tsx">
+        <metrics statements="1" coveredstatements="1" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+        <line num="4" count="7" type="stmt"/>
+      </file>
+      <file name="router.tsx" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/app/router.tsx">
+        <metrics statements="1" coveredstatements="1" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+        <line num="6" count="11" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.features.authorisation.api">
+      <metrics statements="6" coveredstatements="6" conditionals="6" coveredconditionals="6" methods="1" coveredmethods="1"/>
+      <file name="loginUserApi.ts" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/features/authorisation/api/loginUserApi.ts">
+        <metrics statements="6" coveredstatements="6" conditionals="6" coveredconditionals="6" methods="1" coveredmethods="1"/>
+        <line num="13" count="5" type="stmt"/>
+        <line num="20" count="5" type="cond" truecount="2" falsecount="0"/>
+        <line num="21" count="2" type="stmt"/>
+        <line num="24" count="3" type="cond" truecount="4" falsecount="0"/>
+        <line num="25" count="2" type="stmt"/>
+        <line num="35" count="1" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.features.authorisation.model">
+      <metrics statements="1" coveredstatements="1" conditionals="2" coveredconditionals="2" methods="1" coveredmethods="1"/>
+      <file name="loginUserMapper.ts" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/features/authorisation/model/loginUserMapper.ts">
+        <metrics statements="1" coveredstatements="1" conditionals="2" coveredconditionals="2" methods="1" coveredmethods="1"/>
+        <line num="8" count="4" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.features.authorisation.ui">
+      <metrics statements="46" coveredstatements="46" conditionals="18" coveredconditionals="15" methods="17" coveredmethods="17"/>
+      <file name="AuthorisationPage.tsx" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/features/authorisation/ui/AuthorisationPage.tsx">
+        <metrics statements="20" coveredstatements="20" conditionals="8" coveredconditionals="8" methods="11" coveredmethods="11"/>
+        <line num="14" count="29" type="stmt"/>
+        <line num="15" count="29" type="stmt"/>
+        <line num="18" count="7" type="stmt"/>
+        <line num="19" count="1" type="stmt"/>
+        <line num="20" count="1" type="stmt"/>
+        <line num="21" count="1" type="stmt"/>
+        <line num="25" count="29" type="stmt"/>
+        <line num="26" count="29" type="stmt"/>
+        <line num="27" count="29" type="stmt"/>
+        <line num="29" count="29" type="stmt"/>
+        <line num="30" count="29" type="stmt"/>
+        <line num="32" count="29" type="stmt"/>
+        <line num="36" count="16" type="stmt"/>
+        <line num="40" count="29" type="stmt"/>
+        <line num="44" count="4" type="stmt"/>
+        <line num="49" count="1" type="stmt"/>
+        <line num="52" count="29" type="stmt"/>
+        <line num="70" count="1" type="stmt"/>
+        <line num="96" count="1" type="stmt"/>
+        <line num="105" count="1" type="stmt"/>
+      </file>
+      <file name="EmailAuthorisationForm.tsx" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/features/authorisation/ui/EmailAuthorisationForm.tsx">
+        <metrics statements="26" coveredstatements="26" conditionals="10" coveredconditionals="7" methods="6" coveredmethods="6"/>
+        <line num="25" count="87" type="cond" truecount="1" falsecount="1"/>
+        <line num="26" count="87" type="stmt"/>
+        <line num="27" count="87" type="stmt"/>
+        <line num="28" count="87" type="stmt"/>
+        <line num="29" count="87" type="stmt"/>
+        <line num="31" count="87" type="stmt"/>
+        <line num="32" count="22" type="cond" truecount="1" falsecount="1"/>
+        <line num="33" count="22" type="stmt"/>
+        <line num="37" count="87" type="stmt"/>
+        <line num="41" count="2" type="stmt"/>
+        <line num="42" count="2" type="stmt"/>
+        <line num="43" count="2" type="stmt"/>
+        <line num="45" count="2" type="stmt"/>
+        <line num="46" count="2" type="stmt"/>
+        <line num="47" count="2" type="stmt"/>
+        <line num="53" count="2" type="stmt"/>
+        <line num="54" count="2" type="stmt"/>
+        <line num="56" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="57" count="1" type="stmt"/>
+        <line num="58" count="1" type="stmt"/>
+        <line num="59" count="1" type="stmt"/>
+        <line num="62" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="64" count="2" type="stmt"/>
+        <line num="72" count="16" type="stmt"/>
+        <line num="80" count="20" type="stmt"/>
+        <line num="104" count="1" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.features.registration.api">
+      <metrics statements="4" coveredstatements="4" conditionals="2" coveredconditionals="2" methods="1" coveredmethods="1"/>
+      <file name="registerUserApi.ts" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/features/registration/api/registerUserApi.ts">
+        <metrics statements="4" coveredstatements="4" conditionals="2" coveredconditionals="2" methods="1" coveredmethods="1"/>
+        <line num="9" count="6" type="stmt"/>
+        <line num="16" count="6" type="cond" truecount="2" falsecount="0"/>
+        <line num="17" count="4" type="stmt"/>
+        <line num="20" count="2" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.features.registration.model">
+      <metrics statements="4" coveredstatements="4" conditionals="2" coveredconditionals="2" methods="2" coveredmethods="2"/>
+      <file name="registerUserErrors.ts" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/features/registration/model/registerUserErrors.ts">
+        <metrics statements="3" coveredstatements="3" conditionals="2" coveredconditionals="2" methods="1" coveredmethods="1"/>
+        <line num="4" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="5" count="1" type="stmt"/>
+        <line num="11" count="1" type="stmt"/>
+      </file>
+      <file name="registerUserMapper.ts" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/features/registration/model/registerUserMapper.ts">
+        <metrics statements="1" coveredstatements="1" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+        <line num="10" count="5" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.features.registration.ui">
+      <metrics statements="46" coveredstatements="44" conditionals="20" coveredconditionals="19" methods="19" coveredmethods="17"/>
+      <file name="EmailRegisterForm.tsx" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/features/registration/ui/EmailRegisterForm.tsx">
+        <metrics statements="25" coveredstatements="25" conditionals="6" coveredconditionals="5" methods="7" coveredmethods="7"/>
+        <line num="14" count="186" type="stmt"/>
+        <line num="15" count="186" type="stmt"/>
+        <line num="16" count="186" type="stmt"/>
+        <line num="17" count="186" type="stmt"/>
+        <line num="18" count="186" type="stmt"/>
+        <line num="20" count="186" type="stmt"/>
+        <line num="21" count="186" type="stmt"/>
+        <line num="23" count="186" type="stmt"/>
+        <line num="27" count="4" type="stmt"/>
+        <line num="28" count="4" type="stmt"/>
+        <line num="29" count="4" type="stmt"/>
+        <line num="31" count="4" type="stmt"/>
+        <line num="32" count="4" type="stmt"/>
+        <line num="33" count="4" type="stmt"/>
+        <line num="34" count="4" type="stmt"/>
+        <line num="36" count="4" type="cond" truecount="2" falsecount="0"/>
+        <line num="37" count="3" type="stmt"/>
+        <line num="38" count="3" type="stmt"/>
+        <line num="41" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="43" count="4" type="stmt"/>
+        <line num="51" count="64" type="stmt"/>
+        <line num="59" count="16" type="stmt"/>
+        <line num="67" count="40" type="stmt"/>
+        <line num="75" count="40" type="stmt"/>
+        <line num="99" count="1" type="stmt"/>
+      </file>
+      <file name="EmailRegisterPanel.tsx" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/features/registration/ui/EmailRegisterPanel.tsx">
+        <metrics statements="2" coveredstatements="2" conditionals="6" coveredconditionals="6" methods="1" coveredmethods="1"/>
+        <line num="12" count="18" type="stmt"/>
+        <line num="14" count="18" type="stmt"/>
+      </file>
+      <file name="RegistrationPage.tsx" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/features/registration/ui/RegistrationPage.tsx">
+        <metrics statements="19" coveredstatements="17" conditionals="8" coveredconditionals="8" methods="11" coveredmethods="9"/>
+        <line num="13" count="16" type="stmt"/>
+        <line num="14" count="16" type="stmt"/>
+        <line num="17" count="7" type="stmt"/>
+        <line num="18" count="1" type="stmt"/>
+        <line num="19" count="1" type="stmt"/>
+        <line num="20" count="1" type="stmt"/>
+        <line num="24" count="16" type="stmt"/>
+        <line num="25" count="16" type="stmt"/>
+        <line num="26" count="16" type="stmt"/>
+        <line num="28" count="16" type="stmt"/>
+        <line num="29" count="16" type="stmt"/>
+        <line num="33" count="0" type="stmt"/>
+        <line num="34" count="1" type="stmt"/>
+        <line num="38" count="16" type="stmt"/>
+        <line num="42" count="2" type="stmt"/>
+        <line num="47" count="1" type="stmt"/>
+        <line num="49" count="16" type="stmt"/>
+        <line num="68" count="1" type="stmt"/>
+        <line num="92" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.features.registration.validation">
+      <metrics statements="3" coveredstatements="3" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+      <file name="registerFormSchema.ts" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/features/registration/validation/registerFormSchema.ts">
+        <metrics statements="3" coveredstatements="3" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+        <line num="3" count="1" type="stmt"/>
+        <line num="11" count="1" type="stmt"/>
+        <line num="19" count="3" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.mf">
+      <metrics statements="13" coveredstatements="13" conditionals="6" coveredconditionals="5" methods="2" coveredmethods="2"/>
+      <file name="mount.tsx" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/mf/mount.tsx">
+        <metrics statements="13" coveredstatements="13" conditionals="6" coveredconditionals="5" methods="2" coveredmethods="2"/>
+        <line num="18" count="1" type="stmt"/>
+        <line num="20" count="1" type="stmt"/>
+        <line num="21" count="2" type="stmt"/>
+        <line num="23" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="24" count="1" type="stmt"/>
+        <line num="25" count="1" type="stmt"/>
+        <line num="28" count="2" type="stmt"/>
+        <line num="29" count="2" type="cond" truecount="1" falsecount="1"/>
+        <line num="31" count="2" type="stmt"/>
+        <line num="44" count="2" type="stmt"/>
+        <line num="46" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="47" count="1" type="stmt"/>
+        <line num="48" count="1" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.shared.authTokens">
+      <metrics statements="11" coveredstatements="11" conditionals="6" coveredconditionals="6" methods="2" coveredmethods="2"/>
+      <file name="authTokenStorage.ts" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/shared/authTokens/authTokenStorage.ts">
+        <metrics statements="11" coveredstatements="11" conditionals="6" coveredconditionals="6" methods="2" coveredmethods="2"/>
+        <line num="8" count="8" type="stmt"/>
+        <line num="16" count="4" type="cond" truecount="2" falsecount="0"/>
+        <line num="17" count="1" type="stmt"/>
+        <line num="20" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="24" count="4" type="stmt"/>
+        <line num="25" count="4" type="cond" truecount="2" falsecount="0"/>
+        <line num="26" count="1" type="stmt"/>
+        <line num="29" count="3" type="stmt"/>
+        <line num="30" count="3" type="stmt"/>
+        <line num="31" count="3" type="stmt"/>
+        <line num="35" count="3" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.shared.env">
+      <metrics statements="1" coveredstatements="1" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+      <file name="publicEnv.ts" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/shared/env/publicEnv.ts">
+        <metrics statements="1" coveredstatements="1" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+        <line num="1" count="13" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.shared.http">
+      <metrics statements="8" coveredstatements="8" conditionals="12" coveredconditionals="10" methods="1" coveredmethods="1"/>
+      <file name="httpClient.ts" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/shared/http/httpClient.ts">
+        <metrics statements="8" coveredstatements="8" conditionals="12" coveredconditionals="10" methods="1" coveredmethods="1"/>
+        <line num="32" count="13" type="stmt"/>
+        <line num="42" count="13" type="cond" truecount="1" falsecount="1"/>
+        <line num="43" count="13" type="stmt"/>
+        <line num="45" count="13" type="cond" truecount="2" falsecount="0"/>
+        <line num="46" count="7" type="cond" truecount="1" falsecount="1"/>
+        <line num="47" count="7" type="stmt"/>
+        <line num="50" count="6" type="cond" truecount="2" falsecount="0"/>
+        <line num="51" count="13" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.shared.session">
+      <metrics statements="17" coveredstatements="17" conditionals="12" coveredconditionals="11" methods="4" coveredmethods="4"/>
+      <file name="sessionSourceId.ts" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/shared/session/sessionSourceId.ts">
+        <metrics statements="14" coveredstatements="14" conditionals="8" coveredconditionals="8" methods="3" coveredmethods="3"/>
+        <line num="1" count="8" type="stmt"/>
+        <line num="4" count="1" type="stmt"/>
+        <line num="5" count="1" type="stmt"/>
+        <line num="9" count="4" type="cond" truecount="4" falsecount="0"/>
+        <line num="10" count="3" type="stmt"/>
+        <line num="12" count="1" type="stmt"/>
+        <line num="16" count="6" type="cond" truecount="2" falsecount="0"/>
+        <line num="17" count="1" type="stmt"/>
+        <line num="20" count="5" type="stmt"/>
+        <line num="21" count="5" type="cond" truecount="2" falsecount="0"/>
+        <line num="22" count="2" type="stmt"/>
+        <line num="25" count="3" type="stmt"/>
+        <line num="26" count="3" type="stmt"/>
+        <line num="27" count="3" type="stmt"/>
+      </file>
+      <file name="userAgent.ts" path="/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/src/shared/session/userAgent.ts">
+        <metrics statements="3" coveredstatements="3" conditionals="4" coveredconditionals="3" methods="1" coveredmethods="1"/>
+        <line num="2" count="4" type="cond" truecount="2" falsecount="0"/>
+        <line num="3" count="1" type="stmt"/>
+        <line num="6" count="3" type="cond" truecount="1" falsecount="1"/>
+      </file>
+    </package>
+  </project>
+</coverage>

@@ -1,4 +1,7 @@
-/.idea/
+.idea
+.vscode
+.pnpm-store
+.logs
 
 node_modules
 packages/contracts/node_modules
