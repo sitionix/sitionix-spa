@@ -21,7 +21,7 @@ export default function EmailAuthorisationForm({
   siteId,
   role,
   initialEmail,
-}: Props) {
+}: Readonly<Props>) {
   const [email, setEmail] = useState(initialEmail ?? "");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -103,7 +103,7 @@ export default function EmailAuthorisationForm({
           checked={rememberMe}
           onChange={(event) => setRememberMe(event.target.checked)}
         />
-        Запам’ятати мене
+        <span>Запам’ятати мене</span>
       </label>
     </form>
   );

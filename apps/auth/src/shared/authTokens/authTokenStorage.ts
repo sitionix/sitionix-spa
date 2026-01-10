@@ -13,7 +13,7 @@ export const AUTH_TOKEN_STORAGE_KEYS = {
 } as const;
 
 function getStorage(rememberMe: boolean): Storage | null {
-  if (typeof globalThis.window === "undefined") {
+  if (globalThis.window === undefined) {
     return null;
   }
 
