@@ -1,28 +1,32 @@
 const SESSION_SOURCE_ID_KEY = "sitionix.auth.sessionSourceId";
 
-function fallbackSessionSourceId(): string {
-  const randomPart = Math.random().toString(16).slice(2);
-  return `ssid_${Date.now()}_${randomPart}`;
+function generateCryptoId(): string {
+  // modern browsers
+  if (typeof crypto !== "undefined") {
+    if ("randomUUID" in crypto && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+
+    // fallback: 128-bit random hex
+    if ("getRandomValues" in crypto && typeof crypto.getRandomValues === "function") {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+      return `ssid_${hex}`;
+    }
+  }
+
+  // last resort: no crypto available (very rare / non-browser)
+  return `ssid_${Date.now()}`;
 }
 
-function generateSessionSourceId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return fallbackSessionSourceId();
-}
+export function getOrCreateSessionSourceId(
+  storage: Storage | undefined = typeof window === "undefined" ? undefined : window.localStorage,
+): string {
+  const existing = storage?.getItem(SESSION_SOURCE_ID_KEY);
+  if (existing) return existing;
 
-export function getOrCreateSessionSourceId(): string {
-  if (typeof localStorage === "undefined") {
-    return generateSessionSourceId();
-  }
-
-  const stored = localStorage.getItem(SESSION_SOURCE_ID_KEY);
-  if (stored) {
-    return stored;
-  }
-
-  const nextValue = generateSessionSourceId();
-  localStorage.setItem(SESSION_SOURCE_ID_KEY, nextValue);
-  return nextValue;
+  const id = generateCryptoId();
+  storage?.setItem(SESSION_SOURCE_ID_KEY, id);
+  return id;
 }
