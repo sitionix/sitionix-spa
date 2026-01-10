@@ -10,8 +10,9 @@ export type EmailRegisterPanelProps = {
 
 export default function EmailRegistrationPanel(props: EmailRegisterPanelProps) {
   const ctx: RegisterContext = props.ctx;
+
   return (
-    <div className="rounded-2xl bg-gray-200 p-6 shadow-sm">
+    <div className="h-full">
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">
           {props.isSuccess ? "Готово" : "Реєстрація поштою"}
@@ -28,7 +29,7 @@ export default function EmailRegistrationPanel(props: EmailRegisterPanelProps) {
       </div>
 
       {props.isSuccess ? (
-        <div className="mt-4 rounded-xl bg-white p-4 text-sm text-gray-700">
+        <div className="mt-4 rounded-xl bg-gray-50 p-4 text-sm text-gray-700">
           Перевір пошту — ми надіслали лист для підтвердження.
         </div>
       ) : (

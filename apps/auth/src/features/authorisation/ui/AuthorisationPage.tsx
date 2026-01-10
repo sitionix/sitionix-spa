@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import EmailRegistrationPanel, {
-  type EmailRegisterPanelProps,
-} from "./EmailRegisterPanel";
 import {
+  AuthInput,
   AuthSidePanel,
+  type AuthInputProps,
   type AuthSidePanelProps,
   type SocialAuthActions,
 } from "@sitionix/ui";
+import { useNavigate } from "react-router-dom";
+import type { GlobalUserRole } from "@sitionix/contracts";
+import EmailAuthorisationForm from "./EmailAuthorisationForm";
 
 function readSiteIdFromUrl(): string | null {
   const url = new URL(window.location.href);
@@ -20,31 +21,33 @@ const socialActions: SocialAuthActions = {
   onApple: () => console.log("apple"),
 };
 
-export default function RegistrationPage() {
+export default function AuthorisationPage() {
   const [isEmailOpen, setIsEmailOpen] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [email, setEmail] = useState("");
   const navigate = useNavigate();
 
   const siteId = readSiteIdFromUrl();
-  const props: EmailRegisterPanelProps = {
-    isSuccess,
-    ctx: { role: "SUPER_ADMIN", ...(siteId ? { siteId } : {}) },
-    handlers: {
-      onClose: () => setIsEmailOpen(false),
-      onSuccess: () => setIsSuccess(true),
-    },
+  const role: GlobalUserRole = "SUPER_ADMIN";
+
+  const authInput: AuthInputProps = {
+    type: "email",
+    label: "Електрона пошта",
+    autoComplete: "email",
+    onChange: (event) => setEmail(event.target.value),
+    value: email,
   };
 
   const authProps: AuthSidePanelProps = {
-    title: "Реєстраці",
-    subtitle: "Створюйте. Керуйте. Процвітайте.",
+    title: "Авторизація",
+    subtitle: "Увійдіть. Керуйте. Процвітайте.",
     primaryCtaLabel: "Увійти через пошту",
     primaryCtaClick: () => setIsEmailOpen(true),
     socialAction: socialActions,
     legalSlot: <div>Політика конфіденційності</div>,
-    accoutLabel: "Вже маєте аккаунт?",
-    accountCtaLabel: "Увійти",
-    accountCtaClick: () => navigate("/authorisation"),
+    accoutLabel: "У Вас ще не має аккаунту?",
+    accountCtaLabel: "Зареєструватись",
+    accountCtaClick: () => navigate("/"),
+    topInputSlot: <AuthInput {...authInput} />,
   };
   return (
     <div className="min-h-screen bg-white text-gray-900">
@@ -56,7 +59,6 @@ export default function RegistrationPage() {
         </div>
       </div>
 
-      {/* Оверлей + Drawer (без зсуву основи) */}
       <div
         className={[
           "fixed inset-0 z-50",
@@ -84,13 +86,27 @@ export default function RegistrationPage() {
           role="dialog"
           aria-modal="true"
         >
-          <EmailRegistrationPanel
-            {...props}
-            handlers={{
-              ...props.handlers,
-              onClose: () => setIsEmailOpen(false),
-            }}
-          />
+          <div className="h-full">
+            <div className="flex items-center justify-between">
+              <div className="text-lg font-semibold">Вхід поштою</div>
+
+              <button
+                type="button"
+                onClick={() => setIsEmailOpen(false)}
+                className="rounded-md px-2 py-1 text-sm text-gray-600 hover:text-gray-900"
+                aria-label="Закрити"
+              >
+                ✕
+              </button>
+            </div>
+
+            <EmailAuthorisationForm
+              onSuccess={() => setIsEmailOpen(false)}
+              role={role}
+              {...(siteId ? { siteId } : {})}
+              initialEmail={email}
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -8,13 +8,9 @@ apps/shell dev$ vite --port 3000
 packages/ui dev$ tsc -p tsconfig.build.json -w
 apps/shell dev: You are using Node.js 22.8.0. Vite requires Node.js version 20.19+ or 22.12+. Please upgrade your Node.js version.
 apps/auth dev: You are using Node.js 22.8.0. Vite requires Node.js version 20.19+ or 22.12+. Please upgrade your Node.js version.
-packages/ui dev: [2J[3J[H1:39:19 PM - Starting compilation in watch mode...
-apps/shell dev:   VITE v7.3.0  ready in 128 ms
-apps/shell dev:   ➜  Local:   http://127.0.0.1:3000/
-apps/auth dev:   VITE v7.3.0  ready in 135 ms
+packages/ui dev: [2J[3J[H5:34:57 PM - Starting compilation in watch mode...
+apps/shell dev:   VITE v7.3.0  ready in 204 ms
+apps/auth dev:   VITE v7.3.0  ready in 204 ms
 apps/auth dev:   ➜  Local:   http://127.0.0.1:3001/
-packages/ui dev: 1:39:19 PM - Found 0 errors. Watching for file changes.
-apps/shell dev: 1:39:50 PM [vite] (client) hmr update /src/styles.css
-apps/auth dev: 1:39:50 PM [vite] (client) hmr update /src/style.css, /@fs/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/packages/ui/src/auth/social-auth/SocialAuthButton.tsx
-packages/ui dev: [2J[3J[H1:39:51 PM - File change detected. Starting incremental compilation...
-packages/ui dev: 1:39:51 PM - Found 0 errors. Watching for file changes.
+apps/shell dev:   ➜  Local:   http://127.0.0.1:3000/
+packages/ui dev: 5:34:57 PM - Found 0 errors. Watching for file changes.
