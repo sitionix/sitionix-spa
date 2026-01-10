@@ -1,3 +1,9 @@
 /.idea/
 
 node_modules
+packages/contracts/node_modules
+packages/ui/node_modules
+
+packages/contracts/dist
+packages/ui/dist
+apps/shell/dist

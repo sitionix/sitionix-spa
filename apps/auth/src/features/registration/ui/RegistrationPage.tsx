@@ -1,26 +1,48 @@
 import { useState } from "react";
-import RegisterIntro from "./RegistrationIntro";
 import EmailRegistrationPanel, {
   type EmailRegisterPanelProps,
 } from "./EmailRegisterPanel";
+import { AuthSidePanel, type AuthSidePanelProps, type SocialAuthActions } from "@sitionix/ui";
 
-function readSiteIdFromUrl(): string | undefined {
+function readSiteIdFromUrl(): string | null {
   const url = new URL(window.location.href);
-  return url.searchParams.get("siteId") ?? undefined;
+  return url.searchParams.get("siteId");
 }
+
+const socialActions: SocialAuthActions = {
+  onGoogle: () => console.log("google"),
+  onFacebook: () => console.log("facebook"),
+  onApple: () => console.log("apple"),
+};
 
 export default function RegisterPage() {
   const [isEmailOpen, setIsEmailOpen] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  const siteId = readSiteIdFromUrl();
   const props: EmailRegisterPanelProps = {
     isSuccess,
-    ctx: { role: "SUPER_ADMIN", siteId: readSiteIdFromUrl() },
+    ctx: { role: "SUPER_ADMIN", ...(siteId ? { siteId } : {}) },
     handlers: {
       onClose: () => setIsEmailOpen(false),
       onSuccess: () => setIsSuccess(true),
     },
   };
+
+  const authProps: AuthSidePanelProps = {
+    title: "Реєстраці",
+    subtitle: "Увійдіть. Керуйте. Процвітайте.",
+    topInputSlot: <input
+        placeholder="Електрона пошта"
+        className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none"
+        autoComplete="email"
+      />,
+    primaryCtaLabel: "Реєстрація через пошту",
+    primaryCtaClick: () => setIsEmailOpen(true),
+    socialAction: socialActions,
+    legalSlot: <div></div>
+    
+  }
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
@@ -29,7 +51,7 @@ export default function RegisterPage() {
 
       <div className="flex w-full items-start justify-center gap-10">
 
-        <RegisterIntro onEmailOpen={() => setIsEmailOpen(true)} />
+        <AuthSidePanel {...authProps}/>
 
         {isEmailOpen ? (
           <div className="mt-6 w-full max-w-md">

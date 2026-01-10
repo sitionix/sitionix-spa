@@ -3,6 +3,14 @@
   "private": true,
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev:auth": "pnpm --filter auth dev"
+    "dev": "pnpm -r --parallel --filter @apps/shell --filter @apps/auth dev",
+    "build": "pnpm -r build",
+    "dev:auth": "pnpm --filter @apps/auth dev"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "autoprefixer": "^10.4.23",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.3.3"
   }
 }
