@@ -4,9 +4,9 @@ import EmailRegistrationPanel, {
 } from "./EmailRegisterPanel";
 import { AuthSidePanel, type AuthSidePanelProps, type SocialAuthActions } from "@sitionix/ui";
 
-function readSiteIdFromUrl(): string | undefined {
+function readSiteIdFromUrl(): string | null {
   const url = new URL(window.location.href);
-  return url.searchParams.get("siteId") ?? undefined;
+  return url.searchParams.get("siteId");
 }
 
 const socialActions: SocialAuthActions = {
@@ -19,9 +19,10 @@ export default function RegisterPage() {
   const [isEmailOpen, setIsEmailOpen] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  const siteId = readSiteIdFromUrl();
   const props: EmailRegisterPanelProps = {
     isSuccess,
-    ctx: { role: "SUPER_ADMIN", siteId: readSiteIdFromUrl() },
+    ctx: { role: "SUPER_ADMIN", ...(siteId ? { siteId } : {}) },
     handlers: {
       onClose: () => setIsEmailOpen(false),
       onSuccess: () => setIsSuccess(true),
