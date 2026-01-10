@@ -14,7 +14,8 @@ jobs:
 
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: write
+      checks: write
 
     steps:
       - uses: actions/checkout@v4
@@ -55,7 +56,8 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - name: SonarCloud analyze
+      - name: SonarCloud analyze (push)
+        if: github.event_name == 'push'
         uses: SonarSource/sonarcloud-github-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -65,3 +67,18 @@ jobs:
             -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
+
+      - name: SonarCloud analyze (pull_request)
+        if: github.event_name == 'pull_request'
+        uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: >
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.pullrequest.branch=${{ github.head_ref }}
+            -Dsonar.pullrequest.base=${{ github.base_ref }}
