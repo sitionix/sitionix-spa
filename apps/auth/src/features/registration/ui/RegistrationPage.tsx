@@ -10,7 +10,7 @@ import {
 } from "@sitionix/ui";
 
 function readSiteIdFromUrl(): string | null {
-  const url = new URL(window.location.href);
+  const url = new URL(globalThis.window.location.href);
   return url.searchParams.get("siteId");
 }
 
@@ -73,7 +73,7 @@ export default function RegistrationPage() {
           aria-label="Закрити панель"
         />
 
-        <div
+        <dialog
           className={[
             "absolute right-0 top-0 h-full w-full max-w-md",
             "bg-gray-200 shadow-xl",
@@ -81,8 +81,8 @@ export default function RegistrationPage() {
             isEmailOpen ? "translate-x-0" : "translate-x-full",
             "p-6",
           ].join(" ")}
-          role="dialog"
-          aria-modal="true"
+          open
+          aria-modal={isEmailOpen}
           aria-hidden={!isEmailOpen}
         >
           <EmailRegistrationPanel
@@ -92,7 +92,7 @@ export default function RegistrationPage() {
               onClose: () => setIsEmailOpen(false),
             }}
           />
-        </div>
+        </dialog>
       </div>
     </div>
   );

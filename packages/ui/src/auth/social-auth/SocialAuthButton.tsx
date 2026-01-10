@@ -8,7 +8,7 @@ export function SocialAuthButton({
   label,
   placeholderIcon,
   onClick,
-}: SocialAuthButtonProps) {
+}: Readonly<SocialAuthButtonProps>) {
   return (
     <button
       type="button"

@@ -12,7 +12,7 @@ export function AuthButton({
   disabled = false,
   type = "button",
   onClick,
-}: AuthButtonProps) {
+}: Readonly<AuthButtonProps>) {
   const isDisabled = disabled || isLoading;
 
   return (

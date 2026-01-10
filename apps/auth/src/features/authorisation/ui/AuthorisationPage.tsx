@@ -11,7 +11,7 @@ import type { GlobalUserRole } from "@sitionix/contracts";
 import EmailAuthorisationForm from "./EmailAuthorisationForm";
 
 function readSiteIdFromUrl(): string | null {
-  const url = new URL(window.location.href);
+  const url = new URL(globalThis.window.location.href);
   return url.searchParams.get("siteId");
 }
 
@@ -75,7 +75,7 @@ export default function AuthorisationPage() {
           aria-label="Закрити панель"
         />
 
-        <div
+        <dialog
           className={[
             "absolute right-0 top-0 h-full w-full max-w-md",
             "bg-gray-200 shadow-xl",
@@ -83,8 +83,8 @@ export default function AuthorisationPage() {
             isEmailOpen ? "translate-x-0" : "translate-x-full",
             "p-6",
           ].join(" ")}
-          role="dialog"
-          aria-modal="true"
+          open
+          aria-modal={isEmailOpen}
           aria-hidden={!isEmailOpen}
         >
           <div className="h-full">
@@ -108,7 +108,7 @@ export default function AuthorisationPage() {
               initialEmail={email}
             />
           </div>
-        </div>
+        </dialog>
       </div>
     </div>
   );

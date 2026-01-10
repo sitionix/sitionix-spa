@@ -21,7 +21,8 @@ function generateCryptoId(): string {
 }
 
 export function getOrCreateSessionSourceId(
-  storage: Storage | undefined = typeof window === "undefined" ? undefined : window.localStorage,
+  storage: Storage | undefined =
+    typeof globalThis.window === "undefined" ? undefined : globalThis.window.localStorage,
 ): string {
   const existing = storage?.getItem(SESSION_SOURCE_ID_KEY);
   if (existing) return existing;

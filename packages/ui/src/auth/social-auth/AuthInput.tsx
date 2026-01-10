@@ -8,7 +8,7 @@ export type AuthInputProps = {
   value: string;
 };
 
-export function AuthInput(props: AuthInputProps) {
+export function AuthInput(props: Readonly<AuthInputProps>) {
   return (
     <input
       placeholder={props.label}

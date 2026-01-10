@@ -18,7 +18,7 @@ export type AuthSidePanelProps = {
   accountCtaClick: () => void;
 };
 
-export function AuthSidePanel(props: AuthSidePanelProps) {
+export function AuthSidePanel(props: Readonly<AuthSidePanelProps>) {
   return (
     <div className="w-full max-w-md text-center">
       <div className="text-2xl font-semibold">{props.title}</div>

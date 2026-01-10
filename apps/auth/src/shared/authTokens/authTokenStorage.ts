@@ -13,11 +13,11 @@ export const AUTH_TOKEN_STORAGE_KEYS = {
 } as const;
 
 function getStorage(rememberMe: boolean): Storage | null {
-  if (typeof window === "undefined") {
+  if (typeof globalThis.window === "undefined") {
     return null;
   }
 
-  return rememberMe ? window.localStorage : window.sessionStorage;
+  return rememberMe ? globalThis.window.localStorage : globalThis.window.sessionStorage;
 }
 
 export function saveAuthTokens(tokens: AuthTokens, rememberMe: boolean): void {
