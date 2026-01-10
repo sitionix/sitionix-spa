@@ -4,6 +4,7 @@
 .logs
 .DS_Store
 logs
+AGENTS.md
 
 node_modules
 packages/contracts/node_modules
