@@ -10,7 +10,9 @@
       "@sitionix/ui": ["../../packages/ui/src/index.ts"],
       "@sitionix/ui/*": ["../../packages/ui/src/*"],
       "@sitionix/auth-session": ["../../packages/auth-session/src/index.ts"],
-      "@sitionix/auth-session/*": ["../../packages/auth-session/src/*"]
+      "@sitionix/auth-session/*": ["../../packages/auth-session/src/*"],
+      "@sitionix/http-client": ["../../packages/http-client/src/index.ts"],
+      "@sitionix/http-client/*": ["../../packages/http-client/src/*"]
     },
 
     "strict": true,

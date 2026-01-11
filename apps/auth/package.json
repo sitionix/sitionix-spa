@@ -15,6 +15,7 @@
   "dependencies": {
     "@sitionix/auth-session": "workspace:*",
     "@sitionix/contracts": "workspace:*",
+    "@sitionix/http-client": "workspace:*",
     "@sitionix/ui": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

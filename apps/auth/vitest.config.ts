@@ -4,6 +4,7 @@ import { createVitestConfig } from "@sitionix/build-config";
 
 const uiSrc = path.resolve(__dirname, "../../packages/ui/src");
 const authSessionSrc = path.resolve(__dirname, "../../packages/auth-session/src");
+const httpClientSrc = path.resolve(__dirname, "../../packages/http-client/src");
 
 export default createVitestConfig({
   root: __dirname,
@@ -11,6 +12,7 @@ export default createVitestConfig({
   aliases: {
     "@sitionix/ui": uiSrc,
     "@sitionix/auth-session": authSessionSrc,
+    "@sitionix/http-client": httpClientSrc,
   },
   environment: "jsdom",
   setupFiles: ["./src/test/setupTests.ts"],

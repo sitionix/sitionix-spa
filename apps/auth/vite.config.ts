@@ -7,6 +7,7 @@ import { createViteConfig } from "@sitionix/build-config";
 const workspaceRoot = path.resolve(__dirname, "../..");
 const uiSrc = path.resolve(__dirname, "../../packages/ui/src");
 const authSessionSrc = path.resolve(__dirname, "../../packages/auth-session/src");
+const httpClientSrc = path.resolve(__dirname, "../../packages/http-client/src");
 
 const assetsRemoteEntryCompat = (): Plugin => ({
   name: "auth-assets-remote-entry-compat",
@@ -75,8 +76,13 @@ export default createViteConfig({
   aliases: {
     "@sitionix/ui": uiSrc,
     "@sitionix/auth-session": authSessionSrc,
+    "@sitionix/http-client": httpClientSrc,
   },
-  optimizeDepsExclude: ["@sitionix/ui", "@sitionix/auth-session"],
+  optimizeDepsExclude: [
+    "@sitionix/ui",
+    "@sitionix/auth-session",
+    "@sitionix/http-client",
+  ],
   server: {
     port: 3001,
     strictPort: true,
