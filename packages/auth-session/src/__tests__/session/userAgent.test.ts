@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getUserAgent } from "../../../shared/session/userAgent";
+import { getUserAgent } from "../../session/userAgent";
 
 describe("getUserAgent", () => {
   it("Given navigator with userAgent When called Then returns userAgent string", () => {

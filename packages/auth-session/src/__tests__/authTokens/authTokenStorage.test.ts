@@ -1,7 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { AUTH_TOKEN_STORAGE_KEYS, saveAuthTokens } from "@sitionix/auth-session";
+import { beforeEach, describe, expect, it } from "vitest";
+import { AUTH_TOKEN_STORAGE_KEYS, saveAuthTokens } from "../../authTokens/authTokenStorage";
 
 describe("saveAuthTokens", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
   it("Given rememberMe true When saving tokens Then uses localStorage", () => {
     // Given
     const tokens = {

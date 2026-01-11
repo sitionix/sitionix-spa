@@ -1,7 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
-import { getOrCreateSessionSourceId } from "@sitionix/auth-session";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getOrCreateSessionSourceId } from "../../session/sessionSourceId";
 
 describe("getOrCreateSessionSourceId", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.unstubAllGlobals();
+  });
+
   it("Given stored value When called Then returns stored value", () => {
     // Given
     localStorage.setItem("sitionix.auth.sessionSourceId", "stored-id");
