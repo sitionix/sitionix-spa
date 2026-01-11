@@ -30,7 +30,10 @@ export default function EmailRegisterForm({ onSuccess, siteId, role }: Props) {
 
         try {
           const values = { email, name, password, passwordConfirm, rememberMe };
-          const req = mapFormToRegisterRequest(values, { role });
+          const req = mapFormToRegisterRequest(values, {
+            role,
+            ...(siteId ? { siteId } : {}),
+          });
           const result = await registerUserApi(req);
 
           if (result.ok) {

@@ -31,7 +31,9 @@ describe("RegistrationPage", () => {
     const user = userEvent.setup();
 
     // When
-    await user.click(screen.getByRole("button", { name: "Увійти через пошту" }));
+    await user.click(
+      screen.getByRole("button", { name: "Зареєструватись через пошту" })
+    );
     await user.type(screen.getByPlaceholderText("Електрона пошта"), "user@example.com");
     await user.type(screen.getByPlaceholderText("Ім’я"), "User");
     await user.type(screen.getByPlaceholderText("Пароль"), "Password1!");
@@ -43,6 +45,7 @@ describe("RegistrationPage", () => {
       expect(receivedBody).toEqual({
         email: "user@example.com",
         password: "Password1!",
+        siteId: "site-123",
         role: "SUPER_ADMIN",
       })
     );
@@ -65,7 +68,9 @@ describe("RegistrationPage", () => {
 
     // When
     expect(dialog).toHaveAttribute("aria-hidden", "true");
-    await user.click(screen.getByRole("button", { name: "Увійти через пошту" }));
+    await user.click(
+      screen.getByRole("button", { name: "Зареєструватись через пошту" })
+    );
 
     // Then
     expect(dialog).toHaveAttribute("aria-hidden", "false");
