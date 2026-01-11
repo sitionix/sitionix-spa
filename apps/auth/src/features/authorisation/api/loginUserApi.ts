@@ -14,7 +14,7 @@ export async function loginUserApi(
     method: "POST",
     path: "/api/v1/auth/login",
     body: request,
-    signal,
+    ...(signal ? { signal } : {}),
   });
 
   if (res.ok) {

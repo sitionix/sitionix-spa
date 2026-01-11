@@ -38,7 +38,7 @@ export default function RegistrationPage() {
   const authProps: AuthSidePanelProps = {
     title: "Реєстраці",
     subtitle: "Створюйте. Керуйте. Процвітайте.",
-    primaryCtaLabel: "Увійти через пошту",
+    primaryCtaLabel: "Зареєструватись через пошту",
     primaryCtaClick: () => setIsEmailOpen(true),
     socialAction: socialActions,
     legalSlot: <div>Політика конфіденційності</div>,
@@ -75,13 +75,13 @@ export default function RegistrationPage() {
 
         <dialog
           className={[
-            "absolute right-0 top-0 h-full w-full max-w-md",
+            "absolute right-0 top-0 left-auto bottom-auto h-full w-full max-w-md m-0",
             "bg-gray-200 shadow-xl",
             "transform transition-transform duration-300 ease-out",
             isEmailOpen ? "translate-x-0" : "translate-x-full",
             "p-6",
           ].join(" ")}
-          open
+          open={isEmailOpen}
           aria-modal={isEmailOpen}
           aria-hidden={!isEmailOpen}
         >

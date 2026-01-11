@@ -49,6 +49,12 @@ export default function AuthorisationPage() {
     accountCtaClick: () => navigate("/"),
     topInputSlot: <AuthInput {...authInput} />,
   };
+
+  const handleAuthSuccess = () => {
+    setIsEmailOpen(false);
+    window.location.assign("/workspace");
+  };
+
   return (
     <div className="min-h-screen bg-white text-gray-900">
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center px-6 py-10">
@@ -77,13 +83,13 @@ export default function AuthorisationPage() {
 
         <dialog
           className={[
-            "absolute right-0 top-0 h-full w-full max-w-md",
+            "absolute right-0 top-0 left-auto bottom-auto h-full w-full max-w-md m-0",
             "bg-gray-200 shadow-xl",
             "transform transition-transform duration-300 ease-out",
             isEmailOpen ? "translate-x-0" : "translate-x-full",
             "p-6",
           ].join(" ")}
-          open
+          open={isEmailOpen}
           aria-modal={isEmailOpen}
           aria-hidden={!isEmailOpen}
         >
@@ -102,7 +108,7 @@ export default function AuthorisationPage() {
             </div>
 
             <EmailAuthorisationForm
-              onSuccess={() => setIsEmailOpen(false)}
+              onSuccess={handleAuthSuccess}
               role={role}
               {...(siteId ? { siteId } : {})}
               initialEmail={email}

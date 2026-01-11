@@ -1,13 +1,10 @@
-import path from "node:path";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import federation from "@originjs/vite-plugin-federation";
 
-const uiSrc = path.resolve(__dirname, "../../packages/ui/src");
-
 const assetsRemoteEntryCompat = (): Plugin => ({
-  name: "auth-assets-remote-entry-compat",
+  name: "workspace-assets-remote-entry-compat",
   configureServer(server) {
     server.middlewares.use(async (req, res, next) => {
       if (req.url !== "/assets/remoteEntry.js") {
@@ -35,7 +32,7 @@ export default defineConfig({
     react(),
     assetsRemoteEntryCompat(),
     federation({
-      name: "auth",
+      name: "workspace",
       filename: "remoteEntry.js",
       exposes: {
         "./mount": "./src/mf/mount.tsx",
@@ -69,27 +66,7 @@ export default defineConfig({
       },
     }),
   ],
-  resolve: {
-    alias: {
-      "@sitionix/ui": uiSrc,
-    },
-  },
-  optimizeDeps: {
-    exclude: ["@sitionix/ui"],
-  },
-  server: {
-    port: 3001,
-    strictPort: true,
-    host: "127.0.0.1",
-    fs: {
-      allow: [path.resolve(__dirname, "../..")],
-    },
-  },
-  preview: {
-    port: 3001,
-    strictPort: true,
-    host: "0.0.0.0",
-    cors: true,
-  },
+  server: { port: 3002, strictPort: true, host: "127.0.0.1" },
+  preview: { port: 3002, strictPort: true, host: "0.0.0.0", cors: true },
   build: { target: "esnext" },
 });
