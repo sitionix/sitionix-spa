@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AUTH_TOKEN_STORAGE_KEYS, saveAuthTokens } from "../../../shared/authTokens/authTokenStorage";
+import { AUTH_TOKEN_STORAGE_KEYS, saveAuthTokens } from "@sitionix/auth-session";
 
 describe("saveAuthTokens", () => {
   it("Given rememberMe true When saving tokens Then uses localStorage", () => {

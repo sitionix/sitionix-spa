@@ -11,6 +11,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@sitionix/auth-session": "workspace:*",
     "@sitionix/contracts": "workspace:*",
     "@sitionix/ui": "workspace:*",
     "react": "^18.3.1",
@@ -20,6 +21,7 @@
   },
   "devDependencies": {
     "@originjs/vite-plugin-federation": "^1.4.1",
+    "@sitionix/build-config": "workspace:*",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",

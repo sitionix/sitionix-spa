@@ -8,7 +8,9 @@
     "baseUrl": ".",
     "paths": {
       "@sitionix/ui": ["../../packages/ui/src/index.ts"],
-      "@sitionix/ui/*": ["../../packages/ui/src/*"]
+      "@sitionix/ui/*": ["../../packages/ui/src/*"],
+      "@sitionix/auth-session": ["../../packages/auth-session/src/index.ts"],
+      "@sitionix/auth-session/*": ["../../packages/auth-session/src/*"]
     },
 
     "strict": true,

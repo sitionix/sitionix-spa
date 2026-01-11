@@ -5,7 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { http, HttpResponse } from "msw";
 import AuthorisationPage from "../../../../features/authorisation/ui/AuthorisationPage";
 import { server } from "../../../../test/msw/server";
-import { AUTH_TOKEN_STORAGE_KEYS } from "../../../../shared/authTokens/authTokenStorage";
+import { AUTH_TOKEN_STORAGE_KEYS } from "@sitionix/auth-session";
 import { AuthRoutes } from "../../../../app/router";
 
 describe("AuthorisationPage", () => {

@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import type { GlobalUserRole } from "@sitionix/contracts";
 import { AuthButton, AuthInput } from "@sitionix/ui";
+import { getOrCreateSessionSourceId, saveAuthTokens } from "@sitionix/auth-session";
 import { loginUserApi } from "../api/loginUserApi";
 import { mapFormToLoginRequest } from "../model/loginUserMapper";
 import type { LoginContext } from "../model/LoginContext";
 import type { LoginFormValues } from "../model/loginUserTypes";
-import { getOrCreateSessionSourceId } from "../../../shared/session/sessionSourceId";
 import { getUserAgent } from "../../../shared/session/userAgent";
-import { saveAuthTokens } from "../../../shared/authTokens/authTokenStorage";
 
 type Props = {
   onSuccess: () => void;

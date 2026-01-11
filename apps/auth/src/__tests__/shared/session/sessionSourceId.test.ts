@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { getOrCreateSessionSourceId } from "../../../shared/session/sessionSourceId";
+import { getOrCreateSessionSourceId } from "@sitionix/auth-session";
 
 describe("getOrCreateSessionSourceId", () => {
   it("Given stored value When called Then returns stored value", () => {

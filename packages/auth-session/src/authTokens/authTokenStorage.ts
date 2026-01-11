@@ -28,9 +28,6 @@ export function saveAuthTokens(tokens: AuthTokens, rememberMe: boolean): void {
 
   storage.setItem(AUTH_TOKEN_STORAGE_KEYS.accessToken, tokens.accessToken);
   storage.setItem(AUTH_TOKEN_STORAGE_KEYS.refreshToken, tokens.refreshToken);
-  storage.setItem(
-    AUTH_TOKEN_STORAGE_KEYS.expiresIn,
-    String(tokens.expiresIn)
-  );
+  storage.setItem(AUTH_TOKEN_STORAGE_KEYS.expiresIn, String(tokens.expiresIn));
   storage.setItem(AUTH_TOKEN_STORAGE_KEYS.tokenType, tokens.tokenType);
 }

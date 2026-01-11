@@ -23,6 +23,9 @@ importers:
 
   apps/auth:
     dependencies:
+      '@sitionix/auth-session':
+        specifier: workspace:*
+        version: link:../../packages/auth-session
       '@sitionix/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -45,6 +48,9 @@ importers:
       '@originjs/vite-plugin-federation':
         specifier: ^1.4.1
         version: 1.4.1
+      '@sitionix/build-config':
+        specifier: workspace:*
+        version: link:../../packages/build-config
       '@tailwindcss/postcss':
         specifier: ^4.1.18
         version: 4.1.18
@@ -139,6 +145,9 @@ importers:
 
   apps/workspace:
     dependencies:
+      '@sitionix/auth-session':
+        specifier: workspace:*
+        version: link:../../packages/auth-session
       '@sitionix/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -161,6 +170,9 @@ importers:
       '@originjs/vite-plugin-federation':
         specifier: ^1.4.1
         version: 1.4.1
+      '@sitionix/build-config':
+        specifier: workspace:*
+        version: link:../../packages/build-config
       '@tailwindcss/postcss':
         specifier: ^4.1.18
         version: 4.1.18
@@ -203,6 +215,17 @@ importers:
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
+      vite:
+        specifier: ^7.0.0
+        version: 7.3.0(@types/node@24.10.4)(jiti@2.6.1)(lightningcss@1.30.2)
+      vitest:
+        specifier: ^4.0.16
+        version: 4.0.16(@types/node@24.10.4)(jiti@2.6.1)(jsdom@22.1.0)(lightningcss@1.30.2)(msw@2.12.7(@types/node@24.10.4)(typescript@5.9.3))
+
+  packages/auth-session: {}
+
+  packages/build-config:
+    dependencies:
       vite:
         specifier: ^7.0.0
         version: 7.3.0(@types/node@24.10.4)(jiti@2.6.1)(lightningcss@1.30.2)
