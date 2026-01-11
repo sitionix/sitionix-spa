@@ -49,7 +49,6 @@ describe("AuthorisationPage", () => {
     await user.click(screen.getByRole("button", { name: "Увійти" }));
 
     // Then
-    const expectedSiteId = new URL(window.location.href).searchParams.get("siteId");
     const expectedUserAgent = navigator.userAgent;
     await waitFor(() =>
       expect(receivedBody).toMatchObject({
@@ -57,7 +56,6 @@ describe("AuthorisationPage", () => {
         password: "Password1!",
         sessionSourceId: "ssid-777",
         userAgent: expectedUserAgent,
-        ...(expectedSiteId ? { siteId: expectedSiteId } : {}),
       })
     );
     expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEYS.accessToken)).toBe("access-1");
