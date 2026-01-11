@@ -1,11 +1,16 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import EmailRegistrationPanel, {
   type EmailRegisterPanelProps,
 } from "./EmailRegisterPanel";
-import { AuthSidePanel, type AuthSidePanelProps, type SocialAuthActions } from "@sitionix/ui";
+import {
+  AuthSidePanel,
+  type AuthSidePanelProps,
+  type SocialAuthActions,
+} from "@sitionix/ui";
 
 function readSiteIdFromUrl(): string | null {
-  const url = new URL(window.location.href);
+  const url = new URL(globalThis.window.location.href);
   return url.searchParams.get("siteId");
 }
 
@@ -15,9 +20,10 @@ const socialActions: SocialAuthActions = {
   onApple: () => console.log("apple"),
 };
 
-export default function RegisterPage() {
+export default function RegistrationPage() {
   const [isEmailOpen, setIsEmailOpen] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const navigate = useNavigate();
 
   const siteId = readSiteIdFromUrl();
   const props: EmailRegisterPanelProps = {
@@ -31,34 +37,62 @@ export default function RegisterPage() {
 
   const authProps: AuthSidePanelProps = {
     title: "Реєстраці",
-    subtitle: "Увійдіть. Керуйте. Процвітайте.",
-    topInputSlot: <input
-        placeholder="Електрона пошта"
-        className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none"
-        autoComplete="email"
-      />,
-    primaryCtaLabel: "Реєстрація через пошту",
+    subtitle: "Створюйте. Керуйте. Процвітайте.",
+    primaryCtaLabel: "Зареєструватись через пошту",
     primaryCtaClick: () => setIsEmailOpen(true),
     socialAction: socialActions,
-    legalSlot: <div></div>
-    
-  }
-
+    legalSlot: <div>Політика конфіденційності</div>,
+    accoutLabel: "Вже маєте аккаунт?",
+    accountCtaLabel: "Увійти",
+    accountCtaClick: () => navigate("/authorisation"),
+  };
   return (
     <div className="min-h-screen bg-white text-gray-900">
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center px-6 py-10">
         <div className="mb-10 text-4xl font-semibold">Sitionix</div>
 
-      <div className="flex w-full items-start justify-center gap-10">
-
-        <AuthSidePanel {...authProps}/>
-
-        {isEmailOpen ? (
-          <div className="mt-6 w-full max-w-md">
-            <EmailRegistrationPanel {...props} />
-          </div>
-        ) : null}
+        <div className="flex w-full items-start justify-center">
+          <AuthSidePanel {...authProps} />
         </div>
+      </div>
+
+      {/* Оверлей + Drawer (без зсуву основи) */}
+      <div
+        className={[
+          "fixed inset-0 z-50",
+          isEmailOpen ? "pointer-events-auto" : "pointer-events-none",
+        ].join(" ")}
+      >
+        <button
+          type="button"
+          onClick={() => setIsEmailOpen(false)}
+          className={[
+            "absolute inset-0 bg-black/25 transition-opacity",
+            isEmailOpen ? "opacity-100" : "opacity-0",
+          ].join(" ")}
+          aria-label="Закрити панель"
+        />
+
+        <dialog
+          className={[
+            "absolute right-0 top-0 left-auto bottom-auto h-full w-full max-w-md m-0",
+            "bg-gray-200 shadow-xl",
+            "transform transition-transform duration-300 ease-out",
+            isEmailOpen ? "translate-x-0" : "translate-x-full",
+            "p-6",
+          ].join(" ")}
+          open={isEmailOpen}
+          aria-modal={isEmailOpen}
+          aria-hidden={!isEmailOpen}
+        >
+          <EmailRegistrationPanel
+            {...props}
+            handlers={{
+              ...props.handlers,
+              onClose: () => setIsEmailOpen(false),
+            }}
+          />
+        </dialog>
       </div>
     </div>
   );

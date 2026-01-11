@@ -8,17 +8,18 @@ export function SocialAuthButton({
   label,
   placeholderIcon,
   onClick,
-}: SocialAuthButtonProps) {
+}: Readonly<SocialAuthButtonProps>) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="w-full min-h-12 bg-gray-500"
+      className="relative flex w-full min-h-12 items-center justify-center rounded-xl bg-gray-200 px-4"
     >
-      <span className="flex h-10 w-10 items-center justify-center justify-self-start">
+      <span className="absolute left-4 flex h-10 w-10 items-center justify-center">
         {placeholderIcon}
       </span>
 
+      <span className="text-base font-medium text-gray-900">{label}</span>
     </button>
   );
 }
