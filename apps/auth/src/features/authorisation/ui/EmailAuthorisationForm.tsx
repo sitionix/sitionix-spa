@@ -48,7 +48,6 @@ export default function EmailAuthorisationForm({
           const values: LoginFormValues = { email, password, rememberMe };
           const ctx: LoginContext = {
             role,
-            siteId,
             sessionSourceId: getOrCreateSessionSourceId(),
             userAgent: getUserAgent(),
           };

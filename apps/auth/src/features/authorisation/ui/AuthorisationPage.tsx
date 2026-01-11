@@ -26,7 +26,6 @@ export default function AuthorisationPage() {
   const [email, setEmail] = useState("");
   const navigate = useNavigate();
 
-  const siteId = readSiteIdFromUrl();
   const role: GlobalUserRole = "SUPER_ADMIN";
 
   const authInput: AuthInputProps = {
@@ -52,7 +51,7 @@ export default function AuthorisationPage() {
 
   const handleAuthSuccess = () => {
     setIsEmailOpen(false);
-    window.location.assign("/workspace");
+    globalThis.window.location.assign("/workspace");
   };
 
   return (
@@ -110,7 +109,6 @@ export default function AuthorisationPage() {
             <EmailAuthorisationForm
               onSuccess={handleAuthSuccess}
               role={role}
-              {...(siteId ? { siteId } : {})}
               initialEmail={email}
             />
           </div>

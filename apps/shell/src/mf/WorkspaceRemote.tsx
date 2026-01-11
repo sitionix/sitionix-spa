@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 
 type MountResult = { unmount: () => void };
-type MountFn = (container: Element, options?: { basename?: string }) => MountResult;
+type MountFn = (
+  container: Element,
+  options?: { basename?: string }
+) => MountResult;
 
 type Props = {
   basename: string; // e.g. "/workspace"
 };
 
-export function WorkspaceRemote({ basename }: Props) {
+export function WorkspaceRemote({ basename }: Readonly<Props>) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +35,9 @@ export function WorkspaceRemote({ basename }: Props) {
         if (typeof fn !== "function") {
           const keys = Object.keys(mod ?? {});
           throw new Error(
-            `Remote 'workspace/mount' has no mount function. Exports: [${keys.join(", ")}]`
+            `Remote 'workspace/mount' has no mount function. Exports: [${keys.join(
+              ", "
+            )}]`
           );
         }
 

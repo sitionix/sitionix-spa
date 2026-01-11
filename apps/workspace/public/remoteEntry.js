@@ -1,5 +1,5 @@
 const moduleMap = {
-  "./mount": () => import("/src/mf/mount.tsx")
+  "./mount": () => import("../src/mf/mount.tsx")
 };
 
 export async function get(module) {
