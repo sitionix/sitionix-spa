@@ -7,7 +7,9 @@
     "dev": "vite --port 3001",
     "build": "vite build",
     "preview": "vite preview --port 3001 --strictPort",
+    "pretest": "pnpm --filter @sitionix/build-config build",
     "test": "vitest run",
+    "pretest:coverage": "pnpm --filter @sitionix/build-config build",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
