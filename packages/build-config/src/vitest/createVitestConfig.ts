@@ -6,6 +6,7 @@ export type CreateVitestConfigOptions = {
   root?: string;
   plugins?: Plugin[];
   aliases?: Record<string, string>;
+  cacheDir?: string;
   environment?: NonNullable<UserConfig["test"]>["environment"];
   globals?: NonNullable<UserConfig["test"]>["globals"];
   setupFiles?: string[];
@@ -18,6 +19,7 @@ export function createVitestConfig({
   root,
   plugins = [],
   aliases = {},
+  cacheDir,
   environment,
   globals,
   setupFiles,
@@ -31,6 +33,7 @@ export function createVitestConfig({
     resolve: {
       alias: aliases,
     },
+    cacheDir,
     test: {
       environment,
       globals,

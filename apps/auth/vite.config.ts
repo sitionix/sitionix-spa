@@ -8,6 +8,7 @@ const workspaceRoot = path.resolve(__dirname, "../..");
 const uiSrc = path.resolve(__dirname, "../../packages/ui/src");
 const authSessionSrc = path.resolve(__dirname, "../../packages/auth-session/src");
 const httpClientSrc = path.resolve(__dirname, "../../packages/http-client/src");
+const cacheDir = path.resolve(workspaceRoot, ".cache", "vite-auth");
 
 const assetsRemoteEntryCompat = (): Plugin => ({
   name: "auth-assets-remote-entry-compat",
@@ -35,6 +36,7 @@ const assetsRemoteEntryCompat = (): Plugin => ({
 
 export default createViteConfig({
   root: __dirname,
+  cacheDir,
   plugins: [
     react(),
     assetsRemoteEntryCompat(),

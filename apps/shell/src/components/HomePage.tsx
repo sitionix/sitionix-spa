@@ -15,17 +15,17 @@ interface HomePageProps {
 
 export function HomePage({ onNavigate }: HomePageProps) {
   return (
-    <div>
+    <div className="h-screen overflow-hidden">
       <Header onNavigate={onNavigate} />
-      <main className="pt-20">
+      <main className="h-screen snap-y snap-mandatory scroll-smooth overflow-y-auto pt-20 box-border">
         <HeroSection onNavigate={onNavigate} />
         <BenefitsSection />
         <IntegrationsSection />
         <EcosystemSection />
         <TemplatesSection />
         <FAQSection />
+        <Footer />
       </main>
-      <Footer />
     </div>
   );
 }

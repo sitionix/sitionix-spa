@@ -4,6 +4,8 @@ import react from "@vitejs/plugin-react";
 import federation from "@originjs/vite-plugin-federation";
 import { createViteConfig } from "@sitionix/build-config";
 
+const workspaceRoot = path.resolve(__dirname, "../..");
+const cacheDir = path.resolve(workspaceRoot, ".cache", "vite-workspace");
 const uiSrc = path.resolve(__dirname, "../../packages/ui/src");
 const authSessionSrc = path.resolve(__dirname, "../../packages/auth-session/src");
 const httpClientSrc = path.resolve(__dirname, "../../packages/http-client/src");
@@ -34,6 +36,7 @@ const assetsRemoteEntryCompat = (): Plugin => ({
 
 export default createViteConfig({
   root: __dirname,
+  cacheDir,
   plugins: [
     react(),
     assetsRemoteEntryCompat(),
@@ -82,6 +85,11 @@ export default createViteConfig({
     "@sitionix/auth-session",
     "@sitionix/http-client",
   ],
-  server: { port: 3002, strictPort: true, host: "127.0.0.1" },
+  server: {
+    port: 3002,
+    strictPort: true,
+    host: "127.0.0.1",
+    fs: { allow: [workspaceRoot] },
+  },
   preview: { port: 3002, strictPort: true, host: "0.0.0.0", cors: true },
 });

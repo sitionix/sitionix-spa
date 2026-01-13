@@ -9,7 +9,7 @@ interface HeroSectionProps {
 
 export function HeroSection({ onNavigate }: HeroSectionProps) {
   return (
-    <section className="min-h-[80vh] flex items-center justify-center px-6 py-20">
+    <section className="min-h-screen snap-start snap-always flex items-center justify-center px-6 py-20">
       <div className="max-w-7xl w-full mx-auto">
         {/* Гасло */}
         <motion.h1

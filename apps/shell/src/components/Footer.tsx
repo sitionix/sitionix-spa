@@ -29,7 +29,7 @@ export function Footer() {
       initial={{ opacity: 0 }}
       animate={inView ? { opacity: 1 } : {}}
       transition={{ duration: 0.5 }}
-      className="bg-gray-900 text-white py-12 px-6"
+      className="min-h-screen snap-start snap-always bg-gray-900 text-white py-12 px-6"
     >
       <div className="max-w-6xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">

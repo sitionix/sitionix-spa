@@ -24,7 +24,10 @@ export function EcosystemSection() {
   }, []);
 
   return (
-    <section ref={ref} className="py-20 px-6 bg-gradient-to-b from-blue-50 to-purple-50">
+    <section
+      ref={ref}
+      className="min-h-screen snap-start snap-always py-20 px-6 bg-gradient-to-b from-blue-50 to-purple-50"
+    >
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col lg:flex-row items-center gap-12">
           {/* Анімована картинка зліва */}

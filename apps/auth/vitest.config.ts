@@ -2,13 +2,16 @@ import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { createVitestConfig } from "@sitionix/build-config";
 
+const workspaceRoot = path.resolve(__dirname, "../..");
 const uiSrc = path.resolve(__dirname, "../../packages/ui/src");
 const authSessionSrc = path.resolve(__dirname, "../../packages/auth-session/src");
 const httpClientSrc = path.resolve(__dirname, "../../packages/http-client/src");
+const cacheDir = path.resolve(workspaceRoot, ".cache", "vitest-auth");
 
 export default createVitestConfig({
   root: __dirname,
   plugins: [react()],
+  cacheDir,
   aliases: {
     "@sitionix/ui": uiSrc,
     "@sitionix/auth-session": authSessionSrc,

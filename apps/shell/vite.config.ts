@@ -4,6 +4,9 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import federation from "@originjs/vite-plugin-federation";
 
+const workspaceRoot = path.resolve(__dirname, "../..");
+const cacheDir = path.resolve(workspaceRoot, ".cache", "vite-shell");
+
 const fullReloadOnRemoteChange = (): Plugin => ({
   name: "full-reload-on-remote-change",
   configureServer(server) {
@@ -36,6 +39,7 @@ export default defineConfig(({ command, mode }) => {
     : "http://localhost:3002/assets/remoteEntry.js";
 
   return {
+    cacheDir,
     plugins: [
       react(),
       ...(isDev ? [fullReloadOnRemoteChange()] : []),
@@ -64,7 +68,12 @@ export default defineConfig(({ command, mode }) => {
         },
       }),
     ],
-    server: { port: 3000, strictPort: true, host: "127.0.0.1" },
+    server: {
+      port: 3000,
+      strictPort: true,
+      host: "127.0.0.1",
+      fs: { allow: [workspaceRoot] },
+    },
     preview: { port: 3000, strictPort: true, host: "0.0.0.0" },
     build: { target: "esnext" },
   };

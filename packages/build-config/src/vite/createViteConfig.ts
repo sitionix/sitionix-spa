@@ -6,6 +6,7 @@ export type CreateViteConfigOptions = {
   plugins?: Plugin[];
   aliases?: Record<string, string>;
   optimizeDepsExclude?: string[];
+  cacheDir?: string;
   server?: UserConfig["server"];
   preview?: UserConfig["preview"];
   build?: UserConfig["build"];
@@ -16,6 +17,7 @@ export function createViteConfig({
   plugins = [],
   aliases = {},
   optimizeDepsExclude = [],
+  cacheDir,
   server,
   preview,
   build,
@@ -31,6 +33,7 @@ export function createViteConfig({
     resolve: {
       alias: aliases,
     },
+    cacheDir,
     optimizeDeps: optimizeDepsExclude.length
       ? {
           exclude: optimizeDepsExclude,

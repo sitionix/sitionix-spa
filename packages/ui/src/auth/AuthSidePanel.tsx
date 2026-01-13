@@ -41,7 +41,7 @@ export function AuthSidePanel(props: Readonly<AuthSidePanelProps>) {
         <button
           type="button"
           onClick={props.accountCtaClick}
-          className="font-semibold text-gray-900 hover:underline"
+          className="font-semibold text-brand-600 hover:text-brand-700 hover:underline"
         >
           {props.accountCtaLabel}
         </button>

@@ -102,4 +102,16 @@ describe("RegistrationPage", () => {
     expect(logSpy).toHaveBeenCalledTimes(3);
     expect(screen.getByText("Авторизація")).toBeInTheDocument();
   });
+
+  it("Given page When rendered Then uses shared background", () => {
+    // Given / When
+    const { container } = render(
+      <MemoryRouter>
+        <RegistrationPage />
+      </MemoryRouter>
+    );
+
+    // Then
+    expect(container.firstElementChild).toHaveClass("bg-brand-50");
+  });
 });
