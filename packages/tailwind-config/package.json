@@ -7,9 +7,13 @@
     ".": "./preset.ts"
   },
   "scripts": {
-    "build": "node -e \"process.exit(0)\""
+    "build": "node -e \"process.exit(0)\"",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
-    "tailwindcss": "^4.1.18"
+    "@vitest/coverage-v8": "^4.0.16",
+    "tailwindcss": "^4.1.18",
+    "vitest": "^4.0.16"
   }
 }
