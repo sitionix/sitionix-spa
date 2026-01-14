@@ -9,9 +9,9 @@ import { Footer } from './Footer';
 
 type Page = 'home' | 'register' | 'login';
 
-interface HomePageProps {
+type HomePageProps = Readonly<{
   onNavigate: (page: Page) => void;
-}
+}>;
 
 export function HomePage({ onNavigate }: HomePageProps) {
   return (

@@ -67,7 +67,7 @@ export function BenefitsSection() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           {benefits.slice(0, 3).map((benefit, index) => (
             <BenefitCard
-              key={index}
+              key={benefit.title}
               benefit={benefit}
               index={index}
               direction="left"
@@ -80,7 +80,7 @@ export function BenefitsSection() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
           {benefits.slice(3, 5).map((benefit, index) => (
             <BenefitCard
-              key={index + 3}
+              key={benefit.title}
               benefit={benefit}
               index={index + 3}
               direction="right"
@@ -93,7 +93,7 @@ export function BenefitsSection() {
   );
 }
 
-interface BenefitCardProps {
+type BenefitCardProps = Readonly<{
   benefit: {
     icon: React.ElementType;
     title: string;
@@ -102,7 +102,7 @@ interface BenefitCardProps {
   index: number;
   direction: 'left' | 'right';
   inView: boolean;
-}
+}>;
 
 function BenefitCard({ benefit, index, direction, inView }: BenefitCardProps) {
   const Icon = benefit.icon;

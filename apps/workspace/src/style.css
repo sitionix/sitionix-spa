@@ -1,3 +1,2 @@
 @import "tailwindcss";
 @import "../../../packages/tailwind-config/theme.css";
-@config "../tailwind.config.ts";

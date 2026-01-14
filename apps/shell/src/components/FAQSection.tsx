@@ -62,7 +62,7 @@ export function FAQSection() {
         <div className="space-y-4">
           {faqs.map((faq, index) => (
             <motion.div
-              key={index}
+              key={faq.question}
               initial={{ opacity: 0, y: 20 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.4, delay: index * 0.1 }}

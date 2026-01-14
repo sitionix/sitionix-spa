@@ -61,7 +61,7 @@ export function IntegrationsSection() {
 
             return (
               <motion.div
-                key={index}
+                key={integration.title}
                 initial={{ opacity: 0, y: 30 }}
                 animate={inView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.4, delay: index * 0.2 }}
@@ -93,12 +93,12 @@ export function IntegrationsSection() {
                       <div className="p-4">
                         <p className="text-sm font-medium mb-3 text-gray-500">Підтримувані сервіси:</p>
                         <ul className="space-y-2">
-                          {integration.services.map((service, idx) => (
+                          {integration.services.map((service, serviceIndex) => (
                             <motion.li
-                              key={idx}
+                              key={service}
                               initial={{ opacity: 0, x: -10 }}
                               animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: idx * 0.05 }}
+                              transition={{ delay: serviceIndex * 0.05 }}
                               className="text-sm text-gray-700 flex items-center gap-2"
                             >
                               <div className="w-2 h-2 rounded-full bg-blue-500"></div>

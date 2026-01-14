@@ -4,9 +4,9 @@ import { motion, AnimatePresence } from 'motion/react';
 
 type Page = 'home' | 'register' | 'login';
 
-interface HeaderProps {
+type HeaderProps = Readonly<{
   onNavigate: (page: Page) => void;
-}
+}>;
 
 export function Header({ onNavigate }: HeaderProps) {
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
@@ -32,7 +32,7 @@ export function Header({ onNavigate }: HeaderProps) {
         <div className="flex items-center gap-6">
           {/* Навігація "Тарифи" */}
           <button className="text-gray-700 hover:text-blue-600 transition-colors relative group">
-            Тарифи
+            <span>Тарифи</span>
             <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 group-hover:w-full transition-all duration-300"></span>
           </button>
 

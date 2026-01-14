@@ -3,9 +3,9 @@ import { MousePointer2, Sparkles, Layout } from 'lucide-react';
 
 type Page = 'home' | 'register' | 'login';
 
-interface HeroSectionProps {
+type HeroSectionProps = Readonly<{
   onNavigate: (page: Page) => void;
-}
+}>;
 
 export function HeroSection({ onNavigate }: HeroSectionProps) {
   return (

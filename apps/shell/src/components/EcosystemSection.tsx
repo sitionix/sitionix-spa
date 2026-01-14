@@ -85,7 +85,41 @@ function EcosystemAnimation() {
 
   return (
     <div className="relative w-full h-96">
-      {!isMerged ? (
+      {isMerged ? (
+        <motion.div
+          key="merged"
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1, delay: 0.5 }}
+          className="absolute inset-0 flex items-center justify-center"
+        >
+          {/* Єдина аналітика */}
+          <div className="w-80 bg-white rounded-xl shadow-2xl p-6 border-2 border-gradient-to-r from-blue-500 to-purple-500">
+            <div className="flex items-center gap-3 mb-4">
+              <BarChart3 className="w-8 h-8 text-blue-600" />
+              <span className="text-lg font-semibold">Загальна аналітика</span>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-2 bg-blue-50 rounded">
+                <span className="text-sm text-blue-700">Магазин 1</span>
+                <span className="text-sm font-medium">+45%</span>
+              </div>
+              <div className="flex items-center justify-between p-2 bg-purple-50 rounded">
+                <span className="text-sm text-purple-700">Магазин 2</span>
+                <span className="text-sm font-medium">+32%</span>
+              </div>
+              <div className="flex items-center justify-between p-2 bg-green-50 rounded">
+                <span className="text-sm text-green-700">Магазин 3</span>
+                <span className="text-sm font-medium">+28%</span>
+              </div>
+              <div className="flex items-center justify-between p-2 bg-orange-50 rounded">
+                <span className="text-sm text-orange-700">Магазин 4</span>
+                <span className="text-sm font-medium">+51%</span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      ) : (
         <motion.div
           key="separated"
           initial={{ opacity: 0 }}
@@ -166,40 +200,6 @@ function EcosystemAnimation() {
             <div className="h-2 bg-orange-200 rounded mb-1"></div>
             <div className="h-2 bg-orange-200 rounded w-3/4"></div>
           </motion.div>
-        </motion.div>
-      ) : (
-        <motion.div
-          key="merged"
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1, delay: 0.5 }}
-          className="absolute inset-0 flex items-center justify-center"
-        >
-          {/* Єдина аналітика */}
-          <div className="w-80 bg-white rounded-xl shadow-2xl p-6 border-2 border-gradient-to-r from-blue-500 to-purple-500">
-            <div className="flex items-center gap-3 mb-4">
-              <BarChart3 className="w-8 h-8 text-blue-600" />
-              <span className="text-lg font-semibold">Загальна аналітика</span>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-2 bg-blue-50 rounded">
-                <span className="text-sm text-blue-700">Магазин 1</span>
-                <span className="text-sm font-medium">+45%</span>
-              </div>
-              <div className="flex items-center justify-between p-2 bg-purple-50 rounded">
-                <span className="text-sm text-purple-700">Магазин 2</span>
-                <span className="text-sm font-medium">+32%</span>
-              </div>
-              <div className="flex items-center justify-between p-2 bg-green-50 rounded">
-                <span className="text-sm text-green-700">Магазин 3</span>
-                <span className="text-sm font-medium">+28%</span>
-              </div>
-              <div className="flex items-center justify-between p-2 bg-orange-50 rounded">
-                <span className="text-sm text-orange-700">Магазин 4</span>
-                <span className="text-sm font-medium">+51%</span>
-              </div>
-            </div>
-          </div>
         </motion.div>
       )}
     </div>

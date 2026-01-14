@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import { useState, useEffect, useRef } from 'react';
-import { Facebook, Instagram, Twitter, Mail, Phone } from 'lucide-react';
+import { Mail, Phone, MessageCircle, Send, Share2 } from 'lucide-react';
 
 export function Footer() {
   const [inView, setInView] = useState(false);
@@ -53,17 +53,26 @@ export function Footer() {
             <h3 className="text-xl font-semibold mb-4">Посилання</h3>
             <ul className="space-y-2 text-gray-300">
               <li>
-                <a href="#" className="hover:text-blue-400 transition-colors">
+                <a
+                  href="/privacy-policy"
+                  className="hover:text-blue-400 transition-colors"
+                >
                   Політика конфіденційності
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-400 transition-colors">
+                <a
+                  href="/terms-of-service"
+                  className="hover:text-blue-400 transition-colors"
+                >
                   Умови використання
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-400 transition-colors">
+                <a
+                  href="/faq"
+                  className="hover:text-blue-400 transition-colors"
+                >
                   Часті запитання
                 </a>
               </li>
@@ -75,25 +84,25 @@ export function Footer() {
             <h3 className="text-xl font-semibold mb-4">Соціальні мережі</h3>
             <div className="flex gap-4">
               <motion.a
-                href="#"
+                href="https://sitionix.com/community"
                 whileHover={{ scale: 1.1, color: '#3b5998' }}
                 className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-gray-700 transition-colors"
               >
-                <Facebook className="w-5 h-5" />
+                <MessageCircle className="w-5 h-5" />
               </motion.a>
               <motion.a
-                href="#"
+                href="https://sitionix.com/updates"
                 whileHover={{ scale: 1.1, color: '#E1306C' }}
                 className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-gray-700 transition-colors"
               >
-                <Instagram className="w-5 h-5" />
+                <Send className="w-5 h-5" />
               </motion.a>
               <motion.a
-                href="#"
+                href="https://sitionix.com/connect"
                 whileHover={{ scale: 1.1, color: '#1DA1F2' }}
                 className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-gray-700 transition-colors"
               >
-                <Twitter className="w-5 h-5" />
+                <Share2 className="w-5 h-5" />
               </motion.a>
             </div>
           </div>
