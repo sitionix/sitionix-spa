@@ -9,6 +9,6 @@ describe("HomePage", () => {
     expect(screen.getByText("Ваше коштовне місце в Інтернеті.")).toBeInTheDocument();
     expect(screen.getByText("Переваги платформи")).toBeInTheDocument();
     expect(screen.getByText("Інтеграції")).toBeInTheDocument();
-    expect(screen.getByText("Часті запитання")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Часті запитання" })).toBeInTheDocument();
   });
 });

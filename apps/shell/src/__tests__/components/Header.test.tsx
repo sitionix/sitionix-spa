@@ -24,9 +24,10 @@ describe("Header", () => {
     render(<Header onNavigate={() => undefined} />);
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole("button", { name: /Українська/ }));
+    const languageToggle = screen.getByRole("button", { name: /Українська/ });
+    await user.click(languageToggle);
     await user.click(screen.getByRole("button", { name: "English" }));
 
-    expect(screen.getByRole("button", { name: /English/ })).toBeInTheDocument();
+    expect(languageToggle).toHaveTextContent("English");
   });
 });

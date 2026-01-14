@@ -67,6 +67,8 @@ export function IntegrationsSection() {
                 transition={{ duration: 0.4, delay: index * 0.2 }}
                 onHoverStart={() => setHoveredIndex(index)}
                 onHoverEnd={() => setHoveredIndex(null)}
+                onMouseEnter={() => setHoveredIndex(index)}
+                onMouseLeave={() => setHoveredIndex(null)}
                 className="relative"
               >
                 <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-shadow cursor-pointer">

@@ -1,4 +1,6 @@
 import "@testing-library/jest-dom/vitest";
+import { cleanup } from "@testing-library/react";
+import { afterEach } from "vitest";
 
 class MockIntersectionObserver {
   private readonly callback: IntersectionObserverCallback;
@@ -36,4 +38,8 @@ class MockIntersectionObserver {
 Object.defineProperty(globalThis, "IntersectionObserver", {
   writable: true,
   value: MockIntersectionObserver,
+});
+
+afterEach(() => {
+  cleanup();
 });
