@@ -2,6 +2,7 @@
 .vscode
 .pnpm-store
 .logs
+.cache
 .DS_Store
 logs
 AGENTS.md

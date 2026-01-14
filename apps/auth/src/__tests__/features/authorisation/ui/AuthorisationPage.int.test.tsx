@@ -91,6 +91,37 @@ describe("AuthorisationPage", () => {
     expect(await screen.findByText("Невірна пошта або пароль")).toBeInTheDocument();
   });
 
+  it("Given successful login When submitting Then closes email panel", async () => {
+    // Given
+    server.use(
+      http.post("http://localhost/api/v1/auth/login", () =>
+        HttpResponse.json({
+          accessToken: "access-777",
+          refreshToken: "refresh-777",
+          expiresIn: 3600,
+          tokenType: "Bearer",
+        })
+      )
+    );
+
+    render(
+      <MemoryRouter>
+        <AuthorisationPage />
+      </MemoryRouter>
+    );
+    const user = userEvent.setup();
+    const dialog = screen.getByRole("dialog", { hidden: true });
+
+    // When
+    await user.click(screen.getByRole("button", { name: "Увійти через пошту" }));
+    await user.type(screen.getAllByPlaceholderText("Електрона пошта")[1], "user@example.com");
+    await user.type(screen.getByPlaceholderText("Пароль"), "Password1!");
+    await user.click(screen.getByRole("button", { name: "Увійти" }));
+
+    // Then
+    await waitFor(() => expect(dialog).toHaveAttribute("aria-hidden", "true"));
+  });
+
   it("Given email panel When toggling Then updates dialog aria-hidden", async () => {
     // Given
     render(
@@ -141,5 +172,17 @@ describe("AuthorisationPage", () => {
     // Then
     expect(logSpy).toHaveBeenCalledTimes(3);
     expect(screen.getByText("Реєстраці")).toBeInTheDocument();
+  });
+
+  it("Given page When rendered Then uses shared background", () => {
+    // Given / When
+    const { container } = render(
+      <MemoryRouter>
+        <AuthorisationPage />
+      </MemoryRouter>
+    );
+
+    // Then
+    expect(container.firstElementChild).toHaveClass("bg-brand-50");
   });
 });

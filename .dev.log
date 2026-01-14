@@ -1,0 +1,20 @@
+
+> sitionix-spa@ dev /Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa
+> pnpm -r --parallel --filter @sitionix/ui --filter @apps/shell --filter @apps/auth --filter @apps/workspace dev
+
+Scope: 4 of 10 workspace projects
+apps/auth dev$ vite --port 3001
+apps/shell dev$ vite --port 3000
+apps/workspace dev$ vite --port 3002
+packages/ui dev$ tsc -p tsconfig.build.json -w
+apps/workspace dev: You are using Node.js 22.8.0. Vite requires Node.js version 20.19+ or 22.12+. Please upgrade your Node.js version.
+apps/auth dev: You are using Node.js 22.8.0. Vite requires Node.js version 20.19+ or 22.12+. Please upgrade your Node.js version.
+apps/shell dev: You are using Node.js 22.8.0. Vite requires Node.js version 20.19+ or 22.12+. Please upgrade your Node.js version.
+packages/ui dev: [2J[3J[H17:26:39 - Starting compilation in watch mode...
+apps/shell dev:   VITE v7.3.0  ready in 145 ms
+apps/shell dev:   ➜  Local:   http://127.0.0.1:3000/
+apps/auth dev:   VITE v7.3.0  ready in 150 ms
+apps/auth dev:   ➜  Local:   http://127.0.0.1:3001/
+apps/workspace dev:   VITE v7.3.0  ready in 150 ms
+apps/workspace dev:   ➜  Local:   http://127.0.0.1:3002/
+packages/ui dev: 17:26:40 - Found 0 errors. Watching for file changes.

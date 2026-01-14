@@ -1,6 +1,10 @@
+import path from "node:path";
 import { defineConfig } from "vitest/config";
 
+const cacheDir = path.resolve(__dirname, "..", "..", ".cache", "vitest-ui");
+
 export default defineConfig({
+  cacheDir,
   esbuild: {
     jsx: "automatic",
   },

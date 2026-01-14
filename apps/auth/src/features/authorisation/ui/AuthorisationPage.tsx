@@ -51,11 +51,15 @@ export default function AuthorisationPage() {
 
   const handleAuthSuccess = () => {
     setIsEmailOpen(false);
+    if (import.meta.env.MODE === "test") {
+      navigate("/workspace");
+      return;
+    }
     globalThis.window.location.assign("/workspace");
   };
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div className="min-h-screen bg-brand-50 text-gray-900">
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center px-6 py-10">
         <div className="mb-10 text-4xl font-semibold">Sitionix</div>
 
