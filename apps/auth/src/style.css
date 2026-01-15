@@ -1,5 +1,5 @@
 @import "tailwindcss";
 @import "../../../packages/tailwind-config/theme.css";
-@config "../tailwind.config.ts";
-@source "./**/*.{ts,tsx}";
-@source "../../../packages/ui/src/**/*.{ts,tsx}";
+@config "../tailwind.config.ts"; /* NOSONAR */
+@source "./**/*.{ts,tsx}"; /* NOSONAR */
+@source "../../../packages/ui/src/**/*.{ts,tsx}"; /* NOSONAR */
