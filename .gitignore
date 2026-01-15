@@ -5,6 +5,7 @@
 .cache
 .DS_Store
 logs
+.dev.log
 AGENTS.md
 
 node_modules
