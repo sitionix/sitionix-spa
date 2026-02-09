@@ -17,6 +17,7 @@
     "@sitionix/contracts": "workspace:*",
     "@sitionix/http-client": "workspace:*",
     "@sitionix/ui": "workspace:*",
+    "lucide-react": "^0.487.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",

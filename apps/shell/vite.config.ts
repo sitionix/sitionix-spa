@@ -31,6 +31,7 @@ const fullReloadOnRemoteChange = (): Plugin => ({
 
 export default defineConfig(({ command, mode }) => {
   const isDev = command === "serve" && mode === "development";
+  const host = process.env.VITE_HOST ?? "127.0.0.1";
   const authRemote = isDev
     ? "http://localhost:3001/remoteEntry.js"
     : "http://localhost:3001/assets/remoteEntry.js";
@@ -71,7 +72,7 @@ export default defineConfig(({ command, mode }) => {
     server: {
       port: 3000,
       strictPort: true,
-      host: "127.0.0.1",
+      host,
       fs: { allow: [workspaceRoot] },
     },
     preview: { port: 3000, strictPort: true, host: "0.0.0.0" },
