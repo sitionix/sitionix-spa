@@ -88,7 +88,7 @@ export default createViteConfig({
   server: {
     port: 3002,
     strictPort: true,
-    host: "127.0.0.1",
+    host: process.env.VITE_HOST ?? "127.0.0.1",
     fs: { allow: [workspaceRoot] },
   },
   preview: { port: 3002, strictPort: true, host: "0.0.0.0", cors: true },

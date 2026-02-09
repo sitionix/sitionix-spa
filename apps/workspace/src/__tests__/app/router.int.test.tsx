@@ -1,15 +1,20 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { WorkspaceRoutes } from "../../app/router";
+import { WorkspaceApiProvider } from "../../features/workspace/api/WorkspaceApiProvider";
 
 describe("WorkspaceRoutes", () => {
-  it("renders dashboard on root", () => {
+  it("renders dashboard on root", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
-        <WorkspaceRoutes />
+        <WorkspaceApiProvider>
+          <WorkspaceRoutes />
+        </WorkspaceApiProvider>
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/we're on dashboard/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/sitionix crm/i)
+    ).toBeInTheDocument();
   });
 });
