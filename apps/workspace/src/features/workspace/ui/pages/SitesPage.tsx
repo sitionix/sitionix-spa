@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -111,6 +111,15 @@ export function SitesPage() {
     setSelectedCollectionId(null);
   };
 
+  const navigateToBuilder = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const opened = window.open("/builder", "_blank", "noopener,noreferrer");
+    if (opened) {
+      opened.focus();
+    }
+  };
+
   const confirmRename = async () => {
     if (!selectedSite || !newName.trim()) return;
     await api.updateSite(selectedSite.id, { name: newName.trim() });
@@ -167,7 +176,11 @@ export function SitesPage() {
 
         <div className="flex-1" />
 
-        <button className="flex items-center gap-2 h-10 px-4 min-w-[140px] bg-blue-600 text-white rounded-[10px] hover:bg-blue-700 transition-colors duration-200 active:scale-[0.98] font-medium text-sm">
+        <button
+          type="button"
+          onClick={navigateToBuilder}
+          className="flex items-center gap-2 h-10 px-4 min-w-[140px] bg-blue-600 text-white rounded-[10px] hover:bg-blue-700 transition-colors duration-200 active:scale-[0.98] font-medium text-sm"
+        >
           <Plus className="w-5 h-5" />
           Створити сайт
         </button>
@@ -263,8 +276,10 @@ export function SitesPage() {
 
                 {openMenuId === site.id ? (
                   <>
-                    <div
-                      className="fixed inset-0 z-30"
+                    <button
+                      type="button"
+                      aria-label="Close menu"
+                      className="fixed inset-0 z-30 bg-transparent"
                       onClick={() => setOpenMenuId(null)}
                     />
                     <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-zinc-200 py-2 z-40">
@@ -338,7 +353,12 @@ export function SitesPage() {
 
       {renameModalOpen ? (
         <>
-          <div className="fixed inset-0 bg-black/50 z-50" onClick={closeRenameModal} />
+          <button
+            type="button"
+            aria-label="Close rename modal"
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={closeRenameModal}
+          />
           <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
               <h2 className="text-xl font-bold text-zinc-900 mb-2">
@@ -373,7 +393,12 @@ export function SitesPage() {
 
       {collectionModalOpen ? (
         <>
-          <div className="fixed inset-0 bg-black/50 z-50" onClick={closeCollectionModal} />
+          <button
+            type="button"
+            aria-label="Close collection modal"
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={closeCollectionModal}
+          />
           <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
               <h2 className="text-xl font-bold text-zinc-900 mb-2">
@@ -389,7 +414,7 @@ export function SitesPage() {
                     checked={!selectedCollectionId}
                     onChange={() => setSelectedCollectionId(null)}
                   />
-                  Без колекції
+                  <span>Без колекції</span>
                 </label>
                 {(collectionsQuery.data?.items ?? []).map((collection) => (
                   <label
@@ -401,7 +426,7 @@ export function SitesPage() {
                       checked={selectedCollectionId === collection.id}
                       onChange={() => setSelectedCollectionId(collection.id)}
                     />
-                    {collection.name}
+                    <span>{collection.name}</span>
                   </label>
                 ))}
               </div>

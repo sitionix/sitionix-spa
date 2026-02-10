@@ -15,6 +15,6 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
 RUN pnpm -r build
 
-EXPOSE 3000 3001 3002
+EXPOSE 3000 3001 3002 3003
 
-CMD ["pnpm","-r","--parallel","--filter","@apps/shell","--filter","@apps/auth","--filter","@apps/workspace","preview","--","--host","0.0.0.0"]
+CMD ["pnpm","-r","--parallel","--filter","@apps/shell","--filter","@apps/auth","--filter","@apps/workspace","--filter","@apps/builder","preview","--","--host","0.0.0.0"]
