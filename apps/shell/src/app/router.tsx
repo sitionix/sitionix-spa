@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router-dom";
 import { AuthRemote } from "../mf/AuthRemote";
 import { WorkspaceRemote } from "../mf/WorkspaceRemote";
+import { BuilderRemote } from "../mf/BuilderRemote";
 import { HomePage } from "./HomePage";
 
 export function createShellRouter() {
@@ -11,6 +12,7 @@ export function createShellRouter() {
       // Тут MF буде змонтований всередині Shell
       { path: "/auth/*", element: <AuthRemote basename="/auth" /> },
       { path: "/workspace/*", element: <WorkspaceRemote basename="/workspace" /> },
+      { path: "/builder/*", element: <BuilderRemote basename="/builder" /> },
     ],
     {
       future: {

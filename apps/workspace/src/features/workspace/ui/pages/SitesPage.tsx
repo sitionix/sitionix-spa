@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -111,6 +111,15 @@ export function SitesPage() {
     setSelectedCollectionId(null);
   };
 
+  const navigateToBuilder = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const opened = window.open("/builder", "_blank", "noopener,noreferrer");
+    if (opened) {
+      opened.focus();
+    }
+  };
+
   const confirmRename = async () => {
     if (!selectedSite || !newName.trim()) return;
     await api.updateSite(selectedSite.id, { name: newName.trim() });
@@ -167,7 +176,11 @@ export function SitesPage() {
 
         <div className="flex-1" />
 
-        <button className="flex items-center gap-2 h-10 px-4 min-w-[140px] bg-blue-600 text-white rounded-[10px] hover:bg-blue-700 transition-colors duration-200 active:scale-[0.98] font-medium text-sm">
+        <button
+          type="button"
+          onClick={navigateToBuilder}
+          className="flex items-center gap-2 h-10 px-4 min-w-[140px] bg-blue-600 text-white rounded-[10px] hover:bg-blue-700 transition-colors duration-200 active:scale-[0.98] font-medium text-sm"
+        >
           <Plus className="w-5 h-5" />
           Створити сайт
         </button>

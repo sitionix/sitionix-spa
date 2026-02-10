@@ -12,8 +12,9 @@ const fullReloadOnRemoteChange = (): Plugin => ({
   configureServer(server) {
     const authSrc = path.resolve(__dirname, "../auth/src");
     const workspaceSrc = path.resolve(__dirname, "../workspace/src");
+    const builderSrc = path.resolve(__dirname, "../builder/src");
     const uiSrc = path.resolve(__dirname, "../../packages/ui/src");
-    const watchPaths = [authSrc, workspaceSrc, uiSrc];
+    const watchPaths = [authSrc, workspaceSrc, builderSrc, uiSrc];
 
     server.watcher.add(watchPaths);
     const triggerReload = (file: string) => {
@@ -38,6 +39,9 @@ export default defineConfig(({ command, mode }) => {
   const workspaceRemote = isDev
     ? "http://localhost:3002/remoteEntry.js"
     : "http://localhost:3002/assets/remoteEntry.js";
+  const builderRemote = isDev
+    ? "http://localhost:3003/remoteEntry.js"
+    : "http://localhost:3003/assets/remoteEntry.js";
 
   return {
     cacheDir,
@@ -49,6 +53,7 @@ export default defineConfig(({ command, mode }) => {
         remotes: {
           auth: authRemote,
           workspace: workspaceRemote,
+          builder: builderRemote,
         },
         shared: {
           react: { packagePath: "react" },
