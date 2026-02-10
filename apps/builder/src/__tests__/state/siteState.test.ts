@@ -29,5 +29,33 @@ describe("siteState", () => {
 
     const invalid = { ...valid, activePageId: "missing" };
     expect(isSiteState(invalid)).toBe(false);
+
+    const invalidTypes = { ...valid, pageOrder: "nope" as never };
+    expect(isSiteState(invalidTypes)).toBe(false);
+
+    const invalidOrder = {
+      ...valid,
+      pageOrder: ["page-1"],
+      pages: { "page-1": { ...valid.pages } },
+    } as unknown;
+    expect(isSiteState(invalidOrder)).toBe(false);
+
+    const invalidActive = {
+      activePageId: null,
+      pageOrder: ["page-1"],
+      pages: {
+        "page-1": {
+          name: "Home",
+          slug: "/",
+          isHome: true,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
+      documents: {
+        "page-1": createInitialDocument("page-1"),
+      },
+    };
+    expect(isSiteState(invalidActive)).toBe(false);
   });
 });

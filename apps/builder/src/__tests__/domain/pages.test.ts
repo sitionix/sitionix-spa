@@ -4,9 +4,14 @@ import {
   checkDependency,
   normalizeSlug,
   slugifyNameToSlug,
+  ensureUniqueSlug,
+  applyHomePolicy,
+  ensureHomeExists,
+  validatePageName,
   validateCommand,
   validateSlug,
   validateUniqueSlug,
+  runCommand,
   type SiteState,
 } from "../../domain/pages";
 import { createInitialDocument } from "../../domain/document";
@@ -82,6 +87,8 @@ describe("page domain", () => {
   it("validates slug rules", () => {
     expect(validateSlug("/").ok).toBe(true);
     expect(validateSlug("/docs/getting-started").ok).toBe(true);
+    expect(validateSlug("about").ok).toBe(false);
+    expect(validateSlug(`/${"a".repeat(121)}`).ok).toBe(false);
     expect(validateSlug("/about/").ok).toBe(false);
     expect(validateSlug("/about us").ok).toBe(false);
     expect(validateSlug("//about").ok).toBe(false);
@@ -105,6 +112,32 @@ describe("page domain", () => {
 
     const result = validateUniqueSlug(state, "/about");
     expect(result.ok).toBe(false);
+  });
+
+  it("validates page names", () => {
+    expect(validatePageName("")).toMatchObject({ ok: false });
+    expect(validatePageName("A".repeat(61))).toMatchObject({ ok: false });
+    expect(validatePageName("About").ok).toBe(true);
+  });
+
+  it("ensures unique slugs with home fallback", () => {
+    const unique = ensureUniqueSlug("/", ["/", "/home-2", "/home-3"]);
+    expect(unique).toBe("/home-4");
+  });
+
+  it("applies home policy and ensures home exists", () => {
+    const state = createMultiPageState();
+    const swapped = applyHomePolicy(state.pages, "page-about", 5000);
+    expect(swapped["page-about"].isHome).toBe(true);
+    expect(swapped["page-about"].slug).toBe("/");
+    expect(swapped["page-home"].isHome).toBe(false);
+    expect(swapped["page-home"].slug).toBe("/home");
+
+    const noHome = { ...state.pages };
+    noHome["page-home"] = { ...noHome["page-home"], isHome: false, slug: "/home" };
+    const ensured = ensureHomeExists(noHome, state.pageOrder, 6000);
+    expect(ensured["page-home"].isHome).toBe(true);
+    expect(ensured["page-home"].slug).toBe("/");
   });
 
   it("applies create/update/delete immutably", () => {
@@ -183,6 +216,46 @@ describe("page domain", () => {
     const next = applyCommand(state, command);
     expect(next.pages["page-new-home"].isHome).toBe(true);
     expect(next.pages["page-home"].isHome).toBe(false);
+  });
+
+  it("rejects invalid home slug combinations", () => {
+    const state = createBaseState();
+    const notHomeRoot = validateCommand(state, {
+      type: "CREATE_PAGE",
+      pageId: "page-about",
+      meta: {
+        name: "About",
+        slug: "/",
+        isHome: false,
+        createdAt: 2000,
+        updatedAt: 2000,
+      },
+      document: createInitialDocument("page-about"),
+    });
+    expect(notHomeRoot.ok).toBe(false);
+
+    const homeNonRoot = validateCommand(state, {
+      type: "CREATE_PAGE",
+      pageId: "page-home-2",
+      meta: {
+        name: "Home 2",
+        slug: "/home-2",
+        isHome: true,
+        createdAt: 2000,
+        updatedAt: 2000,
+      },
+      document: createInitialDocument("page-home-2"),
+    });
+    expect(homeNonRoot.ok).toBe(false);
+  });
+
+  it("runs command pipeline with validation", () => {
+    const state = createBaseState();
+    const result = runCommand(state, {
+      type: "DELETE_PAGE",
+      pageId: "missing",
+    });
+    expect(result.ok).toBe(false);
   });
 
   it("checks dependencies", () => {

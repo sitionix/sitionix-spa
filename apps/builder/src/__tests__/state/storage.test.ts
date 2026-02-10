@@ -6,6 +6,7 @@ import {
   saveDraft,
   STORAGE_KEY,
 } from "../../application/storage";
+import { createInitialDocument } from "../../domain/document";
 
 describe("storage", () => {
   it("saves and loads a draft site", () => {
@@ -26,6 +27,18 @@ describe("storage", () => {
   it("returns null for invalid json", () => {
     localStorage.setItem(STORAGE_KEY, "not-json");
     expect(loadDraft()).toBeNull();
+  });
+
+  it("hydrates site state from builder document draft", () => {
+    const doc = createInitialDocument("page-doc");
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(doc));
+    const loaded = loadDraft();
+    expect(loaded?.pageOrder).toHaveLength(1);
+    const pageId = loaded?.pageOrder[0] ?? null;
+    expect(pageId).not.toBeNull();
+    if (pageId && loaded) {
+      expect(loaded.documents[pageId].rootId).toBe(doc.rootId);
+    }
   });
 
   it("handles storage failures gracefully", () => {

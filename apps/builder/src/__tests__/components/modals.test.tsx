@@ -76,4 +76,29 @@ describe("Page modals", () => {
 
     expect(getStore()?.state.site.pageOrder).toHaveLength(0);
   });
+
+  it("shows inline errors on blur", () => {
+    let store: Store | null = null;
+    const getStore = () => store;
+    renderWithProvider(
+      <>
+        <StoreProbe onRender={(s) => (store = s)} />
+        <CreatePageModal />
+      </>
+    );
+
+    openModal(getStore);
+    fireEvent.click(screen.getByRole("checkbox", { name: /set as home page/i }));
+
+    const nameInput = screen.getByPlaceholderText("About");
+    fireEvent.change(nameInput, { target: { value: "" } });
+    fireEvent.blur(nameInput);
+
+    const slugInput = screen.getByPlaceholderText("/about");
+    fireEvent.change(slugInput, { target: { value: "bad slug" } });
+    fireEvent.blur(slugInput);
+
+    expect(screen.getByText("Name is required.")).toBeInTheDocument();
+    expect(screen.getByText("Slug cannot include spaces.")).toBeInTheDocument();
+  });
 });

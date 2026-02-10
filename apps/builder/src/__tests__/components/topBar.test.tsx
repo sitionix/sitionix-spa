@@ -55,6 +55,12 @@ describe("TopBar", () => {
 
     await user.click(screen.getByRole("button", { name: /tablet/i }));
     expect(screen.getByTestId("bp")).toHaveTextContent("tablet");
+
+    await user.click(screen.getByRole("button", { name: /desktop/i }));
+    expect(screen.getByTestId("bp")).toHaveTextContent("desktop");
+
+    await user.click(screen.getByRole("button", { name: /mobile/i }));
+    expect(screen.getByTestId("bp")).toHaveTextContent("mobile");
   });
 
   it("saves draft and shows saved hint", async () => {
