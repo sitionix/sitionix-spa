@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { Eye, Monitor, Save, Smartphone, Tablet, X } from "lucide-react";
-import { useBuilderStore } from "../state/builderStore";
-import { saveDraft } from "../state/storage";
-import { navigateHost } from "../utils/navigateHost";
+import { useBuilderStore } from "../../application/builderStore";
+import { navigateHost } from "../../utils/navigateHost";
 
 export const TopBar = ({ siteId }: { siteId: string }) => {
   const {
-    state: { document, editor },
+    state: { editor },
     actions,
   } = useBuilderStore();
   const [saved, setSaved] = useState(false);
@@ -18,7 +17,7 @@ export const TopBar = ({ siteId }: { siteId: string }) => {
   }, [saved]);
 
   const handleSave = () => {
-    saveDraft(document);
+    actions.saveDraft();
     setSaved(true);
   };
 

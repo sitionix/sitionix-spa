@@ -1,43 +1,64 @@
 import { describe, expect, it } from "vitest";
 import { renderWithProvider } from "../../test/render";
-import { Canvas } from "../../components/Canvas";
-import { useBuilderStore } from "../../state/builderStore";
+import { Canvas } from "../../ui/components/Canvas";
+import { useBuilderStore } from "../../application/builderStore";
 import { act, screen } from "@testing-library/react";
-import { useEffect } from "react";
 
-const BreakpointSetter = ({ value }: { value: "desktop" | "tablet" | "mobile" }) => {
-  const { actions } = useBuilderStore();
-  useEffect(() => {
-    actions.setActiveBreakpoint(value);
-  }, [actions, value]);
+const StoreProbe = ({ onRender }: { onRender: (store: ReturnType<typeof useBuilderStore>) => void }) => {
+  const store = useBuilderStore();
+  onRender(store);
   return null;
 };
 
 describe("Canvas", () => {
-  it("renders empty page placeholder", () => {
+  it("renders empty site placeholder", () => {
     renderWithProvider(<Canvas />);
-    expect(screen.getByText("Empty page")).toBeInTheDocument();
+    expect(screen.getByText("No pages yet")).toBeInTheDocument();
   });
 
   it("adjusts width based on breakpoint", async () => {
+    let store: ReturnType<typeof useBuilderStore> | null = null;
     const { container, unmount } = renderWithProvider(
       <>
-        <BreakpointSetter value="tablet" />
+        <StoreProbe onRender={(s) => (store = s)} />
         <Canvas />
       </>
     );
 
-    await act(async () => {});
+    act(() => {
+      store?.actions.openCreatePageModal();
+    });
+    act(() => {
+      store?.actions.updateCreatePageName("Home");
+    });
+    act(() => {
+      store?.actions.submitCreatePage();
+    });
+    act(() => {
+      store?.actions.setActiveBreakpoint("tablet");
+    });
     expect(container.querySelector('.w-\\[768px\\]')).toBeTruthy();
     unmount();
 
+    let mobileStore: ReturnType<typeof useBuilderStore> | null = null;
     const { container: mobileContainer } = renderWithProvider(
       <>
-        <BreakpointSetter value="mobile" />
+        <StoreProbe onRender={(s) => (mobileStore = s)} />
         <Canvas />
       </>
     );
-    await act(async () => {});
+    act(() => {
+      mobileStore?.actions.openCreatePageModal();
+    });
+    act(() => {
+      mobileStore?.actions.updateCreatePageName("Home");
+    });
+    act(() => {
+      mobileStore?.actions.submitCreatePage();
+    });
+    act(() => {
+      mobileStore?.actions.setActiveBreakpoint("mobile");
+    });
     expect(mobileContainer.querySelector('.w-\\[375px\\]')).toBeTruthy();
   });
 });

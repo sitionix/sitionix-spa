@@ -1,23 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
-import { createInitialDocument } from "../../state/document";
+import { createEmptySiteState } from "../../application/siteState";
 import {
   clearDraft,
   loadDraft,
   saveDraft,
   STORAGE_KEY,
-} from "../../state/storage";
+} from "../../application/storage";
 
 describe("storage", () => {
-  it("saves and loads a draft document", () => {
-    const doc = createInitialDocument("site-1");
-    saveDraft(doc);
+  it("saves and loads a draft site", () => {
+    const site = createEmptySiteState();
+    saveDraft(site);
     const loaded = loadDraft();
-    expect(loaded).toEqual(doc);
+    expect(loaded).toEqual(site);
   });
 
   it("clears a stored draft", () => {
-    const doc = createInitialDocument("site-2");
-    saveDraft(doc);
+    const site = createEmptySiteState();
+    saveDraft(site);
     clearDraft();
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
     expect(loadDraft()).toBeNull();
@@ -34,7 +34,7 @@ describe("storage", () => {
       .mockImplementation(() => {
         throw new Error("fail");
       });
-    expect(() => saveDraft(createInitialDocument())).not.toThrow();
+    expect(() => saveDraft(createEmptySiteState())).not.toThrow();
     setItem.mockRestore();
   });
 });

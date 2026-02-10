@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialDocument, isBuilderDocument } from "../../state/document";
+import { createInitialDocument, isBuilderDocument } from "../../domain/document";
 
 describe("document", () => {
   it("creates a minimal document with a page root", () => {
