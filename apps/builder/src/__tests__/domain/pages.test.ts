@@ -12,15 +12,17 @@ import {
   validateSlug,
   validateUniqueSlug,
   runCommand,
+  asPageId,
+  asSlug,
   type SiteState,
 } from "../../domain/pages";
 import { createInitialDocument } from "../../domain/document";
 
 const createBaseState = (): SiteState => {
-  const pageId = "page-home";
+  const pageId = asPageId("page-home");
   const meta = {
     name: "Home",
-    slug: "/",
+    slug: asSlug("/"),
     isHome: true,
     createdAt: 1000,
     updatedAt: 1000,
@@ -35,29 +37,29 @@ const createBaseState = (): SiteState => {
 };
 
 const createMultiPageState = (): SiteState => {
-  const firstId = "page-home";
-  const secondId = "page-about";
-  const thirdId = "page-contact";
+  const firstId = asPageId("page-home");
+  const secondId = asPageId("page-about");
+  const thirdId = asPageId("page-contact");
   return {
     activePageId: secondId,
     pages: {
       [firstId]: {
         name: "Home",
-        slug: "/",
+        slug: asSlug("/"),
         isHome: true,
         createdAt: 1000,
         updatedAt: 1000,
       },
       [secondId]: {
         name: "About",
-        slug: "/about",
+        slug: asSlug("/about"),
         isHome: false,
         createdAt: 2000,
         updatedAt: 2000,
       },
       [thirdId]: {
         name: "Contact",
-        slug: "/contact",
+        slug: asSlug("/contact"),
         isHome: false,
         createdAt: 3000,
         updatedAt: 3000,
@@ -99,10 +101,10 @@ describe("page domain", () => {
 
   it("rejects duplicate slugs", () => {
     const state = createBaseState();
-    const aboutId = "page-about";
+    const aboutId = asPageId("page-about");
     state.pages[aboutId] = {
       name: "About",
-      slug: "/about",
+      slug: asSlug("/about"),
       isHome: false,
       createdAt: 2000,
       updatedAt: 2000,
@@ -110,7 +112,7 @@ describe("page domain", () => {
     state.pageOrder.push(aboutId);
     state.documents[aboutId] = createInitialDocument(aboutId);
 
-    const result = validateUniqueSlug(state, "/about");
+    const result = validateUniqueSlug(state, asSlug("/about"));
     expect(result.ok).toBe(false);
   });
 
@@ -127,28 +129,31 @@ describe("page domain", () => {
 
   it("applies home policy and ensures home exists", () => {
     const state = createMultiPageState();
-    const swapped = applyHomePolicy(state.pages, "page-about", 5000);
-    expect(swapped["page-about"].isHome).toBe(true);
-    expect(swapped["page-about"].slug).toBe("/");
-    expect(swapped["page-home"].isHome).toBe(false);
-    expect(swapped["page-home"].slug).toBe("/home");
+    const aboutId = asPageId("page-about");
+    const homeId = asPageId("page-home");
+    const swapped = applyHomePolicy(state.pages, aboutId, 5000);
+    expect(swapped[aboutId].isHome).toBe(true);
+    expect(swapped[aboutId].slug).toBe(asSlug("/"));
+    expect(swapped[homeId].isHome).toBe(false);
+    expect(swapped[homeId].slug).toBe(asSlug("/home"));
 
     const noHome = { ...state.pages };
-    noHome["page-home"] = { ...noHome["page-home"], isHome: false, slug: "/home" };
+    noHome[homeId] = { ...noHome[homeId], isHome: false, slug: asSlug("/home") };
     const ensured = ensureHomeExists(noHome, state.pageOrder, 6000);
-    expect(ensured["page-home"].isHome).toBe(true);
-    expect(ensured["page-home"].slug).toBe("/");
+    expect(ensured[homeId].isHome).toBe(true);
+    expect(ensured[homeId].slug).toBe(asSlug("/"));
   });
 
   it("applies create/update/delete immutably", () => {
     const state = createBaseState();
     const originalOrder = [...state.pageOrder];
+    const page2Id = asPageId("page-2");
     const created = applyCommand(state, {
       type: "CREATE_PAGE",
-      pageId: "page-2",
+      pageId: page2Id,
       meta: {
         name: "Pricing",
-        slug: "/pricing",
+        slug: asSlug("/pricing"),
         isHome: false,
         createdAt: 3000,
         updatedAt: 3000,
@@ -159,26 +164,26 @@ describe("page domain", () => {
     expect(created).not.toBe(state);
     expect(state.pageOrder).toEqual(["page-home"]);
     expect(created.pageOrder).toEqual(["page-home", "page-2"]);
-    expect(state.pages["page-2"]).toBeUndefined();
-    expect(created.pages["page-2"]).toBeDefined();
+    expect(state.pages[page2Id]).toBeUndefined();
+    expect(created.pages[page2Id]).toBeDefined();
 
     const updated = applyCommand(created, {
       type: "UPDATE_PAGE_META",
-      pageId: "page-2",
+      pageId: page2Id,
       patch: { name: "Pricing Plus" },
       timestamp: 4000,
     });
     expect(updated).not.toBe(created);
-    expect(created.pages["page-2"].name).toBe("Pricing");
-    expect(updated.pages["page-2"].name).toBe("Pricing Plus");
+    expect(created.pages[page2Id].name).toBe("Pricing");
+    expect(updated.pages[page2Id].name).toBe("Pricing Plus");
 
     const deleted = applyCommand(updated, {
       type: "DELETE_PAGE",
-      pageId: "page-2",
+      pageId: page2Id,
     });
     expect(deleted).not.toBe(updated);
-    expect(deleted.pages["page-2"]).toBeUndefined();
-    expect(updated.pages["page-2"]).toBeDefined();
+    expect(deleted.pages[page2Id]).toBeUndefined();
+    expect(updated.pages[page2Id]).toBeDefined();
     expect(state.pageOrder).toEqual(originalOrder);
   });
 
@@ -186,25 +191,25 @@ describe("page domain", () => {
     const state = createMultiPageState();
     const deletedMiddle = applyCommand(state, {
       type: "DELETE_PAGE",
-      pageId: "page-about",
+      pageId: asPageId("page-about"),
     });
-    expect(deletedMiddle.activePageId).toBe("page-contact");
+    expect(deletedMiddle.activePageId).toBe(asPageId("page-contact"));
 
     const deletedLast = applyCommand(
-      { ...deletedMiddle, activePageId: "page-contact" },
-      { type: "DELETE_PAGE", pageId: "page-contact" }
+      { ...deletedMiddle, activePageId: asPageId("page-contact") },
+      { type: "DELETE_PAGE", pageId: asPageId("page-contact") }
     );
-    expect(deletedLast.activePageId).toBe("page-home");
+    expect(deletedLast.activePageId).toBe(asPageId("page-home"));
   });
 
   it("allows home swap on create", () => {
     const state = createBaseState();
     const command = {
       type: "CREATE_PAGE",
-      pageId: "page-new-home",
+      pageId: asPageId("page-new-home"),
       meta: {
         name: "New Home",
-        slug: "/",
+        slug: asSlug("/"),
         isHome: true,
         createdAt: 2000,
         updatedAt: 2000,
@@ -214,18 +219,20 @@ describe("page domain", () => {
 
     expect(validateCommand(state, command).ok).toBe(true);
     const next = applyCommand(state, command);
-    expect(next.pages["page-new-home"].isHome).toBe(true);
-    expect(next.pages["page-home"].isHome).toBe(false);
+    const newHomeId = asPageId("page-new-home");
+    const homeId = asPageId("page-home");
+    expect(next.pages[newHomeId].isHome).toBe(true);
+    expect(next.pages[homeId].isHome).toBe(false);
   });
 
   it("rejects invalid home slug combinations", () => {
     const state = createBaseState();
     const notHomeRoot = validateCommand(state, {
       type: "CREATE_PAGE",
-      pageId: "page-about",
+      pageId: asPageId("page-about"),
       meta: {
         name: "About",
-        slug: "/",
+        slug: asSlug("/"),
         isHome: false,
         createdAt: 2000,
         updatedAt: 2000,
@@ -236,10 +243,10 @@ describe("page domain", () => {
 
     const homeNonRoot = validateCommand(state, {
       type: "CREATE_PAGE",
-      pageId: "page-home-2",
+      pageId: asPageId("page-home-2"),
       meta: {
         name: "Home 2",
-        slug: "/home-2",
+        slug: asSlug("/home-2"),
         isHome: true,
         createdAt: 2000,
         updatedAt: 2000,
@@ -253,7 +260,7 @@ describe("page domain", () => {
     const state = createBaseState();
     const result = runCommand(state, {
       type: "DELETE_PAGE",
-      pageId: "missing",
+      pageId: asPageId("missing"),
     });
     expect(result.ok).toBe(false);
   });

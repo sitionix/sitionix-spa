@@ -97,7 +97,7 @@ describe("LeftPanel", () => {
     const aboutItem =
       aboutButtons.find((node) => node.getAttribute("aria-pressed") !== null) ??
       aboutButtons[0];
-    fireEvent.keyDown(aboutItem, { key: "Enter" });
+    fireEvent.click(aboutItem);
 
     const aboutName = screen.getAllByText("About")[0];
     fireEvent.doubleClick(aboutName);

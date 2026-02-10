@@ -7,6 +7,7 @@ import type {
   Slug,
 } from "./types";
 import { slugifyNameToSlug } from "./slug";
+import { asSlug } from "./types";
 
 export const ensureUniqueSlug = (baseSlug: Slug, existingSlugs: Slug[]): Slug => {
   const existing = new Set(existingSlugs);
@@ -14,11 +15,11 @@ export const ensureUniqueSlug = (baseSlug: Slug, existingSlugs: Slug[]): Slug =>
   const root = baseSlug === "/" ? "/home" : baseSlug;
   let index = 2;
   let candidate = `${root}-${index}`;
-  while (existing.has(candidate)) {
+  while (existing.has(asSlug(candidate))) {
     index += 1;
     candidate = `${root}-${index}`;
   }
-  return candidate;
+  return asSlug(candidate);
 };
 
 export const checkDependency = (
@@ -29,7 +30,10 @@ export const checkDependency = (
     case "REQUIRES_AT_LEAST_ONE_PAGE":
       return state.pageOrder.length > 0 ? { ok: true } : { ok: false, reason: check };
     case "REQUIRES_ACTIVE_PAGE":
-      return state.activePageId && state.pages[state.activePageId]
+      if (!state.activePageId) {
+        return { ok: false, reason: check };
+      }
+      return state.pages[state.activePageId]
         ? { ok: true }
         : { ok: false, reason: check };
     default:
@@ -69,7 +73,7 @@ export const applyHomePolicy = (
     updatedPages[newHomeId] = {
       ...nextHome,
       isHome: true,
-      slug: "/",
+      slug: asSlug("/"),
       updatedAt: timestamp ?? nextHome.updatedAt,
     };
   }

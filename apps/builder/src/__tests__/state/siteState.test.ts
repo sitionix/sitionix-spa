@@ -5,6 +5,7 @@ import {
   isSiteState,
 } from "../../application/siteState";
 import { createInitialDocument } from "../../domain/document";
+import { asPageId, asSlug } from "../../domain/pages";
 
 describe("siteState", () => {
   it("creates empty site state", () => {
@@ -35,25 +36,25 @@ describe("siteState", () => {
 
     const invalidOrder = {
       ...valid,
-      pageOrder: ["page-1"],
-      pages: { "page-1": { ...valid.pages } },
+      pageOrder: [asPageId("page-1")],
+      pages: { [asPageId("page-1")]: { ...valid.pages } },
     } as unknown;
     expect(isSiteState(invalidOrder)).toBe(false);
 
     const invalidActive = {
       activePageId: null,
-      pageOrder: ["page-1"],
+      pageOrder: [asPageId("page-1")],
       pages: {
-        "page-1": {
+        [asPageId("page-1")]: {
           name: "Home",
-          slug: "/",
+          slug: asSlug("/"),
           isHome: true,
           createdAt: 1,
           updatedAt: 1,
         },
       },
       documents: {
-        "page-1": createInitialDocument("page-1"),
+        [asPageId("page-1")]: createInitialDocument("page-1"),
       },
     };
     expect(isSiteState(invalidActive)).toBe(false);

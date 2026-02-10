@@ -1,10 +1,13 @@
-import { createInitialDocument, isBuilderDocument } from "../domain/document";
+import { isBuilderDocument } from "../domain/document";
 import type { BuilderDocument } from "../domain/document";
 import {
+  asPageId,
+  asSlug,
   ensureUniqueSlug,
   slugifyNameToSlug,
   type PageId,
   type PageMeta,
+  type Slug,
   type SiteState,
 } from "../domain/pages";
 
@@ -14,7 +17,7 @@ export const createPageId = (): PageId => {
   const random =
     globalThis.crypto?.randomUUID?.() ??
     `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-  return `page-${random}`;
+  return asPageId(`page-${random}`);
 };
 
 export const createEmptySiteState = (): SiteState => ({
@@ -32,7 +35,7 @@ export const createSiteStateFromDocument = (
   const pageId = createPageId();
   const meta: PageMeta = {
     name: options?.name ?? DEFAULT_HOME_NAME,
-    slug: "/",
+    slug: asSlug("/"),
     isHome: true,
     createdAt: now,
     updatedAt: now,
@@ -79,7 +82,7 @@ export const isSiteState = (value: unknown): value is SiteState => {
 
 export const deriveUniqueSlugFromName = (
   name: string,
-  existingSlugs: string[]
+  existingSlugs: Slug[]
 ) => {
   const baseSlug = slugifyNameToSlug(name);
   return ensureUniqueSlug(baseSlug, existingSlugs);

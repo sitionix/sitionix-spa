@@ -14,7 +14,7 @@ export const DeletePageModal = () => {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
         className="absolute inset-0 bg-black/40"
-        role="presentation"
+        aria-hidden="true"
         onClick={actions.cancelDeletePage}
       />
       <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl border border-zinc-200">

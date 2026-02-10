@@ -8,6 +8,7 @@ import {
 import {
   applyCommand,
   checkDependency,
+  asSlug,
   normalizeCommand,
   normalizeSlug,
   validateCommand,
@@ -151,38 +152,53 @@ const createInspectorDraft = (site: SiteState): InspectorDraftState => {
   };
 };
 
+const getConflictName = (site: SiteState, conflictId?: PageId) => {
+  if (!conflictId) return null;
+  return site.pages[conflictId]?.name ?? null;
+};
+
+const deriveSlugError = ({
+  site,
+  normalizedSlug,
+  isHome,
+  pageId,
+}: {
+  site: SiteState;
+  normalizedSlug: string;
+  isHome: boolean;
+  pageId?: PageId;
+}): string | null => {
+  if (isHome) return null;
+  const slugResult = validateSlug(normalizedSlug);
+  if (!slugResult.ok) return slugResult.error.message;
+  if (normalizedSlug === "/") return "Only the home page can use /.";
+  const uniqueResult = validateUniqueSlug(site, normalizedSlug, pageId);
+  if (!uniqueResult.ok) {
+    const conflictName = getConflictName(site, uniqueResult.error.conflictId);
+    return conflictName
+      ? `Slug already used by ${conflictName}.`
+      : uniqueResult.error.message;
+  }
+  return null;
+};
+
 const deriveCreatePageValidation = (
   site: SiteState,
   modal: CreatePageModalState
 ) => {
   const normalizedSlug = normalizeSlug(modal.draftSlug);
   const nameResult = validatePageName(modal.draftName);
-  let slugError: string | null = null;
-
-  if (!modal.isHome) {
-    const slugResult = validateSlug(normalizedSlug);
-    if (!slugResult.ok) {
-      slugError = slugResult.error.message;
-    } else if (normalizedSlug === "/") {
-      slugError = "Only the home page can use /.";
-    } else {
-      const uniqueResult = validateUniqueSlug(site, normalizedSlug);
-      if (!uniqueResult.ok) {
-        const conflictName = uniqueResult.error.conflictId
-          ? site.pages[uniqueResult.error.conflictId]?.name
-          : null;
-        slugError = conflictName
-          ? `Slug already used by ${conflictName}.`
-          : uniqueResult.error.message;
-      }
-    }
-  }
+  const slugError = deriveSlugError({
+    site,
+    normalizedSlug,
+    isHome: modal.isHome,
+  });
 
   return {
     normalizedSlug,
     nameError: nameResult.ok ? null : nameResult.error.message,
     slugError,
-    canSubmit: nameResult.ok && (!slugError || modal.isHome),
+    canSubmit: nameResult.ok && (modal.isHome || !slugError),
   };
 };
 
@@ -226,30 +242,12 @@ const deriveInspectorValidation = (
 
   const normalizedSlug = normalizeSlug(inspector.draftSlug);
   const nameResult = validatePageName(inspector.draftName);
-  let slugError: string | null = null;
-
-  if (!page.isHome) {
-    const slugResult = validateSlug(normalizedSlug);
-    if (!slugResult.ok) {
-      slugError = slugResult.error.message;
-    } else if (normalizedSlug === "/") {
-      slugError = "Only the home page can use /.";
-    } else {
-      const uniqueResult = validateUniqueSlug(
-        site,
-        normalizedSlug,
-        site.activePageId ?? undefined
-      );
-      if (!uniqueResult.ok) {
-        const conflictName = uniqueResult.error.conflictId
-          ? site.pages[uniqueResult.error.conflictId]?.name
-          : null;
-        slugError = conflictName
-          ? `Slug already used by ${conflictName}.`
-          : uniqueResult.error.message;
-      }
-    }
-  }
+  const slugError = deriveSlugError({
+    site,
+    normalizedSlug,
+    isHome: page.isHome,
+    pageId: site.activePageId ?? undefined,
+  });
 
   const trimmedName = inspector.draftName.trim();
   const canCommitName = nameResult.ok && trimmedName !== page.name;
@@ -262,6 +260,21 @@ const deriveInspectorValidation = (
     canCommitName,
     canCommitSlug,
   };
+};
+
+const deriveToggleHomeSlug = (
+  site: SiteState,
+  modal: CreatePageModalState,
+  isHome: boolean
+) => {
+  if (isHome) return "/";
+  if (modal.slugManuallyEdited) return modal.draftSlug;
+  const trimmedName = modal.draftName.trim();
+  if (!trimmedName) return "";
+  return deriveUniqueSlugFromName(
+    modal.draftName,
+    Object.values(site.pages).map((page) => page.slug)
+  );
 };
 
 export const createInitialState = (siteId: string): BuilderState => {
@@ -277,7 +290,7 @@ export const createInitialState = (siteId: string): BuilderState => {
       selectedNodeId: null,
     },
     ui: {
-      createPageModal: emptyCreatePageModal(hasPages ? false : true),
+      createPageModal: emptyCreatePageModal(!hasPages),
       inlineRename: null,
       confirmDelete: null,
       inspector: createInspectorDraft(site),
@@ -498,20 +511,12 @@ export const BuilderStoreProvider = ({
         dispatch({ type: "ui/setCreatePageModal", modal });
       },
       toggleCreatePageHome: (isHome) => {
+        const nextSlug = deriveToggleHomeSlug(state.site, state.ui.createPageModal, isHome);
         const modal = {
           ...state.ui.createPageModal,
           isHome,
           slugManuallyEdited: isHome ? false : state.ui.createPageModal.slugManuallyEdited,
-          draftSlug: isHome
-            ? "/"
-            : state.ui.createPageModal.slugManuallyEdited
-            ? state.ui.createPageModal.draftSlug
-            : state.ui.createPageModal.draftName.trim()
-            ? deriveUniqueSlugFromName(
-                state.ui.createPageModal.draftName,
-                Object.values(state.site.pages).map((page) => page.slug)
-              )
-            : "",
+          draftSlug: nextSlug,
         };
         dispatch({ type: "ui/setCreatePageModal", modal });
       },
@@ -533,7 +538,7 @@ export const BuilderStoreProvider = ({
         const now = Date.now();
         const name = state.ui.createPageModal.draftName.trim();
         const isHome = state.ui.createPageModal.isHome;
-        const slug = isHome ? "/" : validation.normalizedSlug;
+        const slug = isHome ? asSlug("/") : validation.normalizedSlug;
         const meta: PageMeta = {
           name,
           slug,
@@ -705,7 +710,7 @@ export const BuilderStoreProvider = ({
           {
             type: "UPDATE_PAGE_META",
             pageId,
-            patch: { isHome: true, slug: "/" },
+            patch: { isHome: true, slug: asSlug("/") },
             timestamp: Date.now(),
           },
         ]);

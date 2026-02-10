@@ -11,6 +11,7 @@ export type {
   DependencyResult,
   PageMetaPatch,
 } from "./types";
+export { asPageId, asSlug } from "./types";
 
 export {
   normalizeSlug,

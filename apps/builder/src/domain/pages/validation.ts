@@ -52,26 +52,33 @@ export const validateSlug = (slug: string): ValidationResult => {
     };
   }
 
-  if (/\s/.test(slug)) {
-    return {
-      ok: false,
-      error: {
-        code: "invalid",
-        field: "slug",
-        message: "Slug cannot include spaces.",
-      },
-    };
+  for (const char of slug) {
+    if (char === " " || char === "\t" || char === "\n" || char === "\r") {
+      return {
+        ok: false,
+        error: {
+          code: "invalid",
+          field: "slug",
+          message: "Slug cannot include spaces.",
+        },
+      };
+    }
   }
 
-  if (!/^\/[a-z0-9\/-]*$/.test(slug)) {
-    return {
-      ok: false,
-      error: {
-        code: "invalid",
-        field: "slug",
-        message: "Slug contains invalid characters.",
-      },
-    };
+  for (const char of slug) {
+    const isAlpha = char >= "a" && char <= "z";
+    const isDigit = char >= "0" && char <= "9";
+    const isAllowed = isAlpha || isDigit || char === "/" || char === "-";
+    if (!isAllowed) {
+      return {
+        ok: false,
+        error: {
+          code: "invalid",
+          field: "slug",
+          message: "Slug contains invalid characters.",
+        },
+      };
+    }
   }
 
   if (slug !== "/") {

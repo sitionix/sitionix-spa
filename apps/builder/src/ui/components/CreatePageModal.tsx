@@ -22,7 +22,7 @@ export const CreatePageModal = () => {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
         className="absolute inset-0 bg-black/40"
-        role="presentation"
+        aria-hidden="true"
         onClick={actions.closeCreatePageModal}
       />
       <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl border border-zinc-200">
@@ -81,6 +81,7 @@ export const CreatePageModal = () => {
           <label className="flex items-start gap-3 rounded-lg border border-zinc-200 px-3 py-2">
             <input
               type="checkbox"
+              aria-label="Set as home page"
               className="mt-1"
               checked={createPageModal.isHome}
               onChange={(event) => actions.toggleCreatePageHome(event.target.checked)}

@@ -82,6 +82,7 @@ export const PageInspectorContent = ({
       <label className="flex items-start gap-3 rounded-lg border border-zinc-200 px-3 py-2">
         <input
           type="checkbox"
+          aria-label="Home page"
           className="mt-1"
           checked={isHome}
           disabled={isHome}

@@ -54,228 +54,246 @@ export const normalizeCommand = (command: Command): Command => {
   }
 };
 
+const validatePageExists = (state: SiteState, pageId: PageId): ValidationResult => {
+  if (!state.pages[pageId]) {
+    return {
+      ok: false,
+      error: { code: "not_found", message: "Page not found." },
+    };
+  }
+  return { ok: true };
+};
+
+const validateHomeSlugPolicy = (isHome: boolean, slug: string): ValidationResult => {
+  if (isHome && slug !== "/") {
+    return {
+      ok: false,
+      error: {
+        code: "home_only",
+        field: "slug",
+        message: "Home page must use /.",
+      },
+    };
+  }
+  if (!isHome && slug === "/") {
+    return {
+      ok: false,
+      error: {
+        code: "home_only",
+        field: "slug",
+        message: "Only the home page can use /.",
+      },
+    };
+  }
+  return { ok: true };
+};
+
+const canSwapHome = (isHome: boolean, slug: string, conflict?: PageMeta) =>
+  isHome && slug === "/" && conflict?.isHome;
+
+const validateCreatePage = (state: SiteState, command: Extract<Command, { type: "CREATE_PAGE" }>) => {
+  if (state.pages[command.pageId]) {
+    return {
+      ok: false,
+      error: { code: "duplicate", message: "Page already exists." },
+    };
+  }
+  const nameResult = validatePageName(command.meta.name);
+  if (!nameResult.ok) return nameResult;
+
+  const slugResult = validateSlug(command.meta.slug);
+  if (!slugResult.ok) return slugResult;
+
+  const homePolicy = validateHomeSlugPolicy(command.meta.isHome, command.meta.slug);
+  if (!homePolicy.ok) return homePolicy;
+
+  const uniqueResult = validateUniqueSlug(state, command.meta.slug);
+  if (!uniqueResult.ok) {
+    const conflict = uniqueResult.error.conflictId
+      ? state.pages[uniqueResult.error.conflictId]
+      : undefined;
+    if (!canSwapHome(command.meta.isHome, command.meta.slug, conflict)) {
+      return uniqueResult;
+    }
+  }
+
+  if (
+    !command.document ||
+    !command.document.rootId ||
+    !command.document.nodes?.[command.document.rootId]
+  ) {
+    return {
+      ok: false,
+      error: { code: "invalid", message: "Document is invalid." },
+    };
+  }
+
+  return { ok: true };
+};
+
+const validateUpdatePageMeta = (
+  state: SiteState,
+  command: Extract<Command, { type: "UPDATE_PAGE_META" }>
+): ValidationResult => {
+  const current = state.pages[command.pageId];
+  if (!current) {
+    return {
+      ok: false,
+      error: { code: "not_found", message: "Page not found." },
+    };
+  }
+
+  const nextIsHome = command.patch.isHome ?? current.isHome;
+  const nextSlug = command.patch.slug ?? current.slug;
+
+  if (typeof command.patch.name === "string") {
+    const nameResult = validatePageName(command.patch.name);
+    if (!nameResult.ok) return nameResult;
+  }
+
+  if (typeof command.patch.slug === "string") {
+    const slugResult = validateSlug(command.patch.slug);
+    if (!slugResult.ok) return slugResult;
+  }
+
+  const homePolicy = validateHomeSlugPolicy(nextIsHome, nextSlug);
+  if (!homePolicy.ok) return homePolicy;
+
+  if (typeof command.patch.slug === "string") {
+    const uniqueResult = validateUniqueSlug(state, nextSlug, command.pageId);
+    if (!uniqueResult.ok) {
+      const conflict = uniqueResult.error.conflictId
+        ? state.pages[uniqueResult.error.conflictId]
+        : undefined;
+      if (!canSwapHome(nextIsHome, nextSlug, conflict)) {
+        return uniqueResult;
+      }
+    }
+  }
+
+  return { ok: true };
+};
+
 export const validateCommand = (state: SiteState, command: Command): ValidationResult => {
   switch (command.type) {
-    case "CREATE_PAGE": {
-      if (state.pages[command.pageId]) {
-        return {
-          ok: false,
-          error: { code: "duplicate", message: "Page already exists." },
-        };
-      }
-      const nameResult = validatePageName(command.meta.name);
-      if (!nameResult.ok) return nameResult;
-
-      const slugResult = validateSlug(command.meta.slug);
-      if (!slugResult.ok) return slugResult;
-
-      if (command.meta.isHome && command.meta.slug !== "/") {
-        return {
-          ok: false,
-          error: {
-            code: "home_only",
-            field: "slug",
-            message: "Home page must use /.",
-          },
-        };
-      }
-
-      if (!command.meta.isHome && command.meta.slug === "/") {
-        return {
-          ok: false,
-          error: {
-            code: "home_only",
-            field: "slug",
-            message: "Only the home page can use /.",
-          },
-        };
-      }
-
-      const uniqueResult = validateUniqueSlug(state, command.meta.slug);
-      if (!uniqueResult.ok) {
-        const conflict =
-          uniqueResult.error.conflictId && state.pages[uniqueResult.error.conflictId];
-        const canSwapHome = command.meta.isHome && command.meta.slug === "/" && conflict?.isHome;
-        if (!canSwapHome) return uniqueResult;
-      }
-
-      if (
-        !command.document ||
-        !command.document.rootId ||
-        !command.document.nodes?.[command.document.rootId]
-      ) {
-        return {
-          ok: false,
-          error: { code: "invalid", message: "Document is invalid." },
-        };
-      }
-
-      return { ok: true };
-    }
-    case "DELETE_PAGE": {
-      if (!state.pages[command.pageId]) {
-        return {
-          ok: false,
-          error: { code: "not_found", message: "Page not found." },
-        };
-      }
-      return { ok: true };
-    }
-    case "SET_ACTIVE_PAGE": {
-      if (!state.pages[command.pageId]) {
-        return {
-          ok: false,
-          error: { code: "not_found", message: "Page not found." },
-        };
-      }
-      return { ok: true };
-    }
-    case "UPDATE_PAGE_META": {
-      const current = state.pages[command.pageId];
-      if (!current) {
-        return {
-          ok: false,
-          error: { code: "not_found", message: "Page not found." },
-        };
-      }
-
-      const nextIsHome = command.patch.isHome ?? current.isHome;
-      const nextSlug = command.patch.slug ?? current.slug;
-
-      if (typeof command.patch.name === "string") {
-        const nameResult = validatePageName(command.patch.name);
-        if (!nameResult.ok) return nameResult;
-      }
-
-      if (typeof command.patch.slug === "string") {
-        const slugResult = validateSlug(command.patch.slug);
-        if (!slugResult.ok) return slugResult;
-      }
-
-      if (nextIsHome && nextSlug !== "/") {
-        return {
-          ok: false,
-          error: {
-            code: "home_only",
-            field: "slug",
-            message: "Home page must use /.",
-          },
-        };
-      }
-
-      if (!nextIsHome && nextSlug === "/") {
-        return {
-          ok: false,
-          error: {
-            code: "home_only",
-            field: "slug",
-            message: "Only the home page can use /.",
-          },
-        };
-      }
-
-      if (typeof command.patch.slug === "string") {
-        const uniqueResult = validateUniqueSlug(state, nextSlug, command.pageId);
-        if (!uniqueResult.ok) {
-          const conflict =
-            uniqueResult.error.conflictId && state.pages[uniqueResult.error.conflictId];
-          const canSwapHome = nextIsHome && nextSlug === "/" && conflict?.isHome;
-          if (!canSwapHome) return uniqueResult;
-        }
-      }
-
-      return { ok: true };
-    }
+    case "CREATE_PAGE":
+      return validateCreatePage(state, command);
+    case "DELETE_PAGE":
+      return validatePageExists(state, command.pageId);
+    case "SET_ACTIVE_PAGE":
+      return validatePageExists(state, command.pageId);
+    case "UPDATE_PAGE_META":
+      return validateUpdatePageMeta(state, command);
     default:
       return { ok: true };
   }
 };
 
+const applyCreatePage = (
+  state: SiteState,
+  command: Extract<Command, { type: "CREATE_PAGE" }>
+): SiteState => {
+  const nextPages = {
+    ...state.pages,
+    [command.pageId]: command.meta,
+  };
+  const nextDocuments = {
+    ...state.documents,
+    [command.pageId]: command.document,
+  };
+  const nextOrder = [...state.pageOrder, command.pageId];
+  const pagesWithHome = command.meta.isHome
+    ? applyHomePolicy(nextPages, command.pageId, command.meta.updatedAt)
+    : nextPages;
+  const ensuredHome = ensureHomeExists(pagesWithHome, nextOrder, command.meta.updatedAt);
+  return {
+    ...state,
+    pages: ensuredHome,
+    documents: nextDocuments,
+    pageOrder: nextOrder,
+  };
+};
+
+const applyDeletePage = (
+  state: SiteState,
+  command: Extract<Command, { type: "DELETE_PAGE" }>
+): SiteState => {
+  if (!state.pages[command.pageId]) return state;
+  const nextPages = { ...state.pages };
+  const nextDocuments = { ...state.documents };
+  delete nextPages[command.pageId];
+  delete nextDocuments[command.pageId];
+  const nextOrder = state.pageOrder.filter((id) => id !== command.pageId);
+
+  let nextActive = state.activePageId;
+  if (state.activePageId === command.pageId) {
+    const index = state.pageOrder.indexOf(command.pageId);
+    // Deterministic: pick next page in order, otherwise previous, otherwise null.
+    const nextCandidate = nextOrder[index] ?? nextOrder[index - 1] ?? null;
+    nextActive = nextCandidate ?? null;
+  }
+
+  const pagesWithHome = ensureHomeExists(nextPages, nextOrder);
+
+  return {
+    ...state,
+    activePageId: nextActive,
+    pages: pagesWithHome,
+    documents: nextDocuments,
+    pageOrder: nextOrder,
+  };
+};
+
+const applySetActivePage = (
+  state: SiteState,
+  command: Extract<Command, { type: "SET_ACTIVE_PAGE" }>
+): SiteState => {
+  if (state.activePageId === command.pageId) return state;
+  return {
+    ...state,
+    activePageId: command.pageId,
+  };
+};
+
+const applyUpdatePageMeta = (
+  state: SiteState,
+  command: Extract<Command, { type: "UPDATE_PAGE_META" }>
+): SiteState => {
+  const current = state.pages[command.pageId];
+  if (!current) return state;
+  const timestamp = command.timestamp ?? current.updatedAt;
+  const nextMeta: PageMeta = {
+    ...current,
+    ...command.patch,
+    updatedAt: timestamp,
+  };
+  let nextPages = {
+    ...state.pages,
+    [command.pageId]: nextMeta,
+  };
+
+  if (command.patch.isHome) {
+    nextPages = applyHomePolicy(nextPages, command.pageId, timestamp);
+  }
+
+  nextPages = ensureHomeExists(nextPages, state.pageOrder, timestamp);
+
+  return {
+    ...state,
+    pages: nextPages,
+  };
+};
+
 export const applyCommand = (state: SiteState, command: Command): SiteState => {
   switch (command.type) {
-    case "CREATE_PAGE": {
-      const nextPages = {
-        ...state.pages,
-        [command.pageId]: command.meta,
-      };
-      const nextDocuments = {
-        ...state.documents,
-        [command.pageId]: command.document,
-      };
-      const nextOrder = [...state.pageOrder, command.pageId];
-      const pagesWithHome = command.meta.isHome
-        ? applyHomePolicy(nextPages, command.pageId, command.meta.updatedAt)
-        : nextPages;
-      const ensuredHome = ensureHomeExists(
-        pagesWithHome,
-        nextOrder,
-        command.meta.updatedAt
-      );
-      return {
-        ...state,
-        pages: ensuredHome,
-        documents: nextDocuments,
-        pageOrder: nextOrder,
-      };
-    }
-    case "DELETE_PAGE": {
-      if (!state.pages[command.pageId]) return state;
-      const nextPages = { ...state.pages };
-      const nextDocuments = { ...state.documents };
-      delete nextPages[command.pageId];
-      delete nextDocuments[command.pageId];
-      const nextOrder = state.pageOrder.filter((id) => id !== command.pageId);
-
-      let nextActive = state.activePageId;
-      if (state.activePageId === command.pageId) {
-        const index = state.pageOrder.indexOf(command.pageId);
-        // Deterministic: pick next page in order, otherwise previous, otherwise null.
-        const nextCandidate = nextOrder[index] ?? nextOrder[index - 1] ?? null;
-        nextActive = nextCandidate ?? null;
-      }
-
-      const pagesWithHome = ensureHomeExists(nextPages, nextOrder);
-
-      return {
-        ...state,
-        activePageId: nextActive,
-        pages: pagesWithHome,
-        documents: nextDocuments,
-        pageOrder: nextOrder,
-      };
-    }
-    case "SET_ACTIVE_PAGE": {
-      if (state.activePageId === command.pageId) return state;
-      return {
-        ...state,
-        activePageId: command.pageId,
-      };
-    }
-    case "UPDATE_PAGE_META": {
-      const current = state.pages[command.pageId];
-      if (!current) return state;
-      const timestamp = command.timestamp ?? current.updatedAt;
-      const nextMeta: PageMeta = {
-        ...current,
-        ...command.patch,
-        updatedAt: timestamp,
-      };
-      let nextPages = {
-        ...state.pages,
-        [command.pageId]: nextMeta,
-      };
-
-      if (command.patch.isHome) {
-        nextPages = applyHomePolicy(nextPages, command.pageId, timestamp);
-      }
-
-      nextPages = ensureHomeExists(nextPages, state.pageOrder, timestamp);
-
-      return {
-        ...state,
-        pages: nextPages,
-      };
-    }
+    case "CREATE_PAGE":
+      return applyCreatePage(state, command);
+    case "DELETE_PAGE":
+      return applyDeletePage(state, command);
+    case "SET_ACTIVE_PAGE":
+      return applySetActivePage(state, command);
+    case "UPDATE_PAGE_META":
+      return applyUpdatePageMeta(state, command);
     default:
       return state;
   }

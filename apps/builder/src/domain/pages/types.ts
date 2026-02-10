@@ -1,8 +1,13 @@
 /* istanbul ignore file -- type-only module */
 import type { BuilderDocument } from "../document";
 
-export type PageId = string;
-export type Slug = string;
+type Brand<T, Tag extends string> = T & { readonly __brand: Tag };
+
+export type PageId = Brand<string, "PageId">;
+export type Slug = Brand<string, "Slug">;
+
+export const asPageId = (value: string): PageId => value as PageId;
+export const asSlug = (value: string): Slug => value as Slug;
 
 export type PageMeta = {
   name: string;

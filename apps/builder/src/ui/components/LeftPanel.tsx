@@ -107,25 +107,14 @@ export const LeftPanel = () => {
                         ) : null}
                       </div>
                     ) : (
-                      <div
-                        role="button"
-                        tabIndex={switchingDisabled ? -1 : 0}
-                        aria-pressed={isActive}
-                        aria-disabled={switchingDisabled}
-                        onClick={() => {
-                          if (switchingDisabled) return;
-                          actions.setActivePage(id);
-                        }}
-                        onKeyDown={(event) => {
-                          if (switchingDisabled) return;
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            actions.setActivePage(id);
-                          }
-                        }}
-                        className="w-full px-3 py-2 text-left"
-                      >
-                        <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start justify-between gap-3 px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => actions.setActivePage(id)}
+                          disabled={switchingDisabled}
+                          aria-pressed={isActive}
+                          className="min-w-0 flex-1 text-left disabled:cursor-not-allowed"
+                        >
                           <div className="min-w-0 flex flex-col gap-1">
                             <span
                               className="truncate text-sm font-medium text-zinc-900"
@@ -140,30 +129,25 @@ export const LeftPanel = () => {
                               {meta.slug}
                             </div>
                           </div>
-                          <div className="flex flex-col items-end gap-2 flex-none">
-                            <span
-                              className={`text-[10px] font-semibold uppercase tracking-wide ${
-                                meta.isHome
-                                  ? "text-blue-600"
-                                  : "text-blue-600 opacity-0"
-                              }`}
-                              aria-hidden={!meta.isHome}
-                            >
-                              Home
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                actions.requestDeletePage(id);
-                              }}
-                              disabled={switchingDisabled}
-                              className="h-7 w-7 inline-flex items-center justify-center rounded-md text-zinc-400 opacity-0 transition-opacity hover:text-rose-600 group-hover:opacity-100 disabled:opacity-0"
-                              aria-label={`Delete ${meta.name}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
+                        </button>
+                        <div className="flex flex-col items-end gap-2 flex-none">
+                          <span
+                            className={`text-[10px] font-semibold uppercase tracking-wide ${
+                              meta.isHome ? "text-blue-600" : "text-blue-600 opacity-0"
+                            }`}
+                            aria-hidden={!meta.isHome}
+                          >
+                            Home
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => actions.requestDeletePage(id)}
+                            disabled={switchingDisabled}
+                            className="h-7 w-7 inline-flex items-center justify-center rounded-md text-zinc-400 opacity-0 transition-opacity hover:text-rose-600 group-hover:opacity-100 disabled:opacity-0"
+                            aria-label={`Delete ${meta.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       </div>
                     )}
@@ -188,11 +172,7 @@ export const LeftPanel = () => {
                   <button
                     type="button"
                     disabled
-                    className={`h-8 px-3 rounded-lg text-xs font-semibold cursor-not-allowed ${
-                      disabled
-                        ? "bg-zinc-200 text-zinc-500"
-                        : "bg-zinc-200 text-zinc-500"
-                    }`}
+                    className="h-8 px-3 rounded-lg text-xs font-semibold cursor-not-allowed bg-zinc-200 text-zinc-500"
                   >
                     + New component
                   </button>
