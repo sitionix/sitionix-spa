@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { render } from "@testing-library/react";
-import { BuilderStoreProvider } from "../state/builderStore";
+import { BuilderStoreProvider } from "../application/builderStore";
 
 type RenderOptions = {
   siteId?: string;

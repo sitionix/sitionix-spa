@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProvider } from "../../test/render";
-import { TopBar } from "../../components/TopBar";
+import { TopBar } from "../../ui/components/TopBar";
 import { act, fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useBuilderStore } from "../../state/builderStore";
+import { useBuilderStore } from "../../application/builderStore";
 
-vi.mock("../../state/storage", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../state/storage")>();
+vi.mock("../../application/storage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../application/storage")>();
   return {
     ...actual,
     saveDraft: vi.fn(),
@@ -17,7 +17,7 @@ vi.mock("../../utils/navigateHost", () => ({
   navigateHost: vi.fn(),
 }));
 
-import { saveDraft } from "../../state/storage";
+import { saveDraft } from "../../application/storage";
 import { navigateHost } from "../../utils/navigateHost";
 
 const BreakpointProbe = () => {
@@ -55,11 +55,18 @@ describe("TopBar", () => {
 
     await user.click(screen.getByRole("button", { name: /tablet/i }));
     expect(screen.getByTestId("bp")).toHaveTextContent("tablet");
+
+    await user.click(screen.getByRole("button", { name: /desktop/i }));
+    expect(screen.getByTestId("bp")).toHaveTextContent("desktop");
+
+    await user.click(screen.getByRole("button", { name: /mobile/i }));
+    expect(screen.getByTestId("bp")).toHaveTextContent("mobile");
   });
 
   it("saves draft and shows saved hint", async () => {
     vi.useFakeTimers();
     renderWithProvider(<TopBar siteId="local" />);
+    saveDraft.mockClear();
 
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
     expect(saveDraft).toHaveBeenCalledTimes(1);

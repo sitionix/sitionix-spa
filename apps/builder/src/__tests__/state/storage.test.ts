@@ -1,23 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
-import { createInitialDocument } from "../../state/document";
+import { createEmptySiteState } from "../../application/siteState";
 import {
   clearDraft,
   loadDraft,
   saveDraft,
   STORAGE_KEY,
-} from "../../state/storage";
+} from "../../application/storage";
+import { createInitialDocument } from "../../domain/document";
 
 describe("storage", () => {
-  it("saves and loads a draft document", () => {
-    const doc = createInitialDocument("site-1");
-    saveDraft(doc);
+  it("saves and loads a draft site", () => {
+    const site = createEmptySiteState();
+    saveDraft(site);
     const loaded = loadDraft();
-    expect(loaded).toEqual(doc);
+    expect(loaded).toEqual(site);
   });
 
   it("clears a stored draft", () => {
-    const doc = createInitialDocument("site-2");
-    saveDraft(doc);
+    const site = createEmptySiteState();
+    saveDraft(site);
     clearDraft();
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
     expect(loadDraft()).toBeNull();
@@ -28,13 +29,25 @@ describe("storage", () => {
     expect(loadDraft()).toBeNull();
   });
 
+  it("hydrates site state from builder document draft", () => {
+    const doc = createInitialDocument("page-doc");
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(doc));
+    const loaded = loadDraft();
+    expect(loaded?.pageOrder).toHaveLength(1);
+    const pageId = loaded?.pageOrder[0] ?? null;
+    expect(pageId).not.toBeNull();
+    if (pageId && loaded) {
+      expect(loaded.documents[pageId].rootId).toBe(doc.rootId);
+    }
+  });
+
   it("handles storage failures gracefully", () => {
     const setItem = vi
       .spyOn(window.localStorage.__proto__, "setItem")
       .mockImplementation(() => {
         throw new Error("fail");
       });
-    expect(() => saveDraft(createInitialDocument())).not.toThrow();
+    expect(() => saveDraft(createEmptySiteState())).not.toThrow();
     setItem.mockRestore();
   });
 });

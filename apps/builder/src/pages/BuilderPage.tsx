@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
-import { BuilderShell } from "../components/BuilderShell";
-import { BuilderStoreProvider } from "../state/builderStore";
+import { BuilderShell } from "../ui/components/BuilderShell";
+import { BuilderStoreProvider } from "../application/builderStore";
 
 export const BuilderPage = () => {
   const { siteId } = useParams();

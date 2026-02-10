@@ -11,12 +11,13 @@ describe("App", () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText("Empty page")).toBeInTheDocument();
+    expect(screen.getByText("No pages yet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pages" })).toBeInTheDocument();
     expect(
-      screen.getByText("Component library will appear here.")
+      screen.getByRole("button", { name: "+ New page" })
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Select an element to inspect its properties.")
+      screen.getByText("No page selected")
     ).toBeInTheDocument();
   });
 });

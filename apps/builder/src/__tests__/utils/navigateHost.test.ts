@@ -33,4 +33,14 @@ describe("navigateHost", () => {
       value: originalLocation,
     });
   });
+
+  it("no-ops when window is missing", () => {
+    const originalWindow = globalThis.window;
+    // @ts-expect-error - simulate missing window
+    delete (globalThis as unknown as { window?: Window }).window;
+
+    expect(() => navigateHost("/workspace/sites")).not.toThrow();
+
+    globalThis.window = originalWindow;
+  });
 });
