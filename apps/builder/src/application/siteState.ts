@@ -12,12 +12,29 @@ import {
 } from "../domain/pages";
 
 const DEFAULT_HOME_NAME = "Home";
+let fallbackCounter = 0;
+
+const createRandomToken = () => {
+  const cryptoRef = globalThis.crypto;
+  if (cryptoRef?.randomUUID) {
+    return cryptoRef.randomUUID();
+  }
+  if (cryptoRef?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    cryptoRef.getRandomValues(bytes);
+    let value = "";
+    for (const byte of bytes) {
+      value += byte.toString(16).padStart(2, "0");
+    }
+    return value;
+  }
+  fallbackCounter += 1;
+  return `${Date.now().toString(36)}-${fallbackCounter}`;
+};
 
 export const createPageId = (): PageId => {
-  const random =
-    globalThis.crypto?.randomUUID?.() ??
-    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-  return asPageId(`page-${random}`);
+  const token = createRandomToken();
+  return asPageId(`page-${token}`);
 };
 
 export const createEmptySiteState = (): SiteState => ({
