@@ -13,8 +13,8 @@ export const TopBar = ({ siteId }: { siteId: string }) => {
 
   useEffect(() => {
     if (!saved) return;
-    const timer = window.setTimeout(() => setSaved(false), 2000);
-    return () => window.clearTimeout(timer);
+    const timer = globalThis.setTimeout(() => setSaved(false), 2000);
+    return () => globalThis.clearTimeout(timer);
   }, [saved]);
 
   const handleSave = () => {

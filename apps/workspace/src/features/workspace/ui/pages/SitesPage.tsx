@@ -276,8 +276,10 @@ export function SitesPage() {
 
                 {openMenuId === site.id ? (
                   <>
-                    <div
-                      className="fixed inset-0 z-30"
+                    <button
+                      type="button"
+                      aria-label="Close menu"
+                      className="fixed inset-0 z-30 bg-transparent"
                       onClick={() => setOpenMenuId(null)}
                     />
                     <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-zinc-200 py-2 z-40">
@@ -351,7 +353,12 @@ export function SitesPage() {
 
       {renameModalOpen ? (
         <>
-          <div className="fixed inset-0 bg-black/50 z-50" onClick={closeRenameModal} />
+          <button
+            type="button"
+            aria-label="Close rename modal"
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={closeRenameModal}
+          />
           <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
               <h2 className="text-xl font-bold text-zinc-900 mb-2">
@@ -386,7 +393,12 @@ export function SitesPage() {
 
       {collectionModalOpen ? (
         <>
-          <div className="fixed inset-0 bg-black/50 z-50" onClick={closeCollectionModal} />
+          <button
+            type="button"
+            aria-label="Close collection modal"
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={closeCollectionModal}
+          />
           <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
               <h2 className="text-xl font-bold text-zinc-900 mb-2">
@@ -402,7 +414,7 @@ export function SitesPage() {
                     checked={!selectedCollectionId}
                     onChange={() => setSelectedCollectionId(null)}
                   />
-                  Без колекції
+                  <span>Без колекції</span>
                 </label>
                 {(collectionsQuery.data?.items ?? []).map((collection) => (
                   <label
@@ -414,7 +426,7 @@ export function SitesPage() {
                       checked={selectedCollectionId === collection.id}
                       onChange={() => setSelectedCollectionId(collection.id)}
                     />
-                    {collection.name}
+                    <span>{collection.name}</span>
                   </label>
                 ))}
               </div>

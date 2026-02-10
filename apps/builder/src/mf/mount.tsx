@@ -26,8 +26,9 @@ export const mount: MountFn = (container, options) => {
 
   const basename = options?.basename;
   const resolveInitialEntry = () => {
-    if (typeof window === "undefined") return basename ?? "/";
-    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const win = globalThis.window;
+    if (!win) return basename ?? "/";
+    const currentPath = `${win.location.pathname}${win.location.search}${win.location.hash}`;
     if (basename && currentPath.startsWith(basename)) return currentPath;
     return basename ?? (currentPath || "/");
   };

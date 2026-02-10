@@ -1,10 +1,11 @@
 export const navigateHost = (path: string) => {
-  if (typeof window === "undefined") return;
+  const win = globalThis.window;
+  if (!win) return;
 
-  if (window.history?.pushState) {
-    window.history.pushState({}, "", path);
-    window.dispatchEvent(new PopStateEvent("popstate"));
+  if (win.history?.pushState) {
+    win.history.pushState({}, "", path);
+    win.dispatchEvent(new PopStateEvent("popstate"));
   } else {
-    window.location.assign(path);
+    win.location.assign(path);
   }
 };

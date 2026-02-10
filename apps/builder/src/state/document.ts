@@ -1,17 +1,16 @@
 export type Breakpoint = "desktop" | "tablet" | "mobile";
-export type NodeId = string;
 
 export type BuilderNode = {
-  id: NodeId;
+  id: string;
   type: "Page";
-  children?: NodeId[];
+  children?: string[];
 };
 
 export type BuilderDocument = {
   pageId: string;
   version: number;
-  rootId: NodeId;
-  nodes: Record<NodeId, BuilderNode>;
+  rootId: string;
+  nodes: Record<string, BuilderNode>;
 };
 
 const DEFAULT_PAGE_ID = "local";

@@ -6,12 +6,18 @@ export const Canvas = () => {
     state: { editor },
   } = useBuilderStore();
 
-  const canvasWidth =
-    editor.activeBreakpoint === "desktop"
-      ? "w-full"
-      : editor.activeBreakpoint === "tablet"
-      ? "w-[768px]"
-      : "w-[375px]";
+  const getCanvasWidth = (breakpoint: typeof editor.activeBreakpoint) => {
+    switch (breakpoint) {
+      case "tablet":
+        return "w-[768px]";
+      case "mobile":
+        return "w-[375px]";
+      case "desktop":
+      default:
+        return "w-full";
+    }
+  };
+  const canvasWidth = getCanvasWidth(editor.activeBreakpoint);
 
   return (
     <div className="flex-1 overflow-auto bg-zinc-50 p-6">
