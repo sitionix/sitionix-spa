@@ -6,8 +6,8 @@
     "dev": "pnpm -r --parallel --filter @sitionix/ui --filter @apps/shell --filter @apps/auth --filter @apps/workspace dev",
     "build": "pnpm -r build",
     "dev:auth": "pnpm --filter @apps/auth dev",
-    "test": "pnpm -r --filter @apps/auth --filter @apps/workspace --filter @apps/shell --filter @sitionix/auth-session --filter @sitionix/ui --filter @packages/tailwind-config test",
-    "test:coverage": "pnpm -r --filter @apps/auth --filter @apps/workspace --filter @apps/shell --filter @sitionix/auth-session --filter @sitionix/ui --filter @packages/tailwind-config test:coverage"
+    "test": "pnpm -r --filter @apps/auth --filter @apps/workspace --filter @apps/shell --filter @apps/builder --filter @sitionix/auth-session --filter @sitionix/ui --filter @packages/tailwind-config test",
+    "test:coverage": "pnpm -r --filter @apps/auth --filter @apps/workspace --filter @apps/shell --filter @apps/builder --filter @sitionix/auth-session --filter @sitionix/ui --filter @packages/tailwind-config test:coverage"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
