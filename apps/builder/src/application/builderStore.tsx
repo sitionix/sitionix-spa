@@ -23,7 +23,19 @@ import {
   type PageMeta,
   type SiteState,
 } from "../domain/pages";
-import { createInitialDocument, type Breakpoint, type BuilderDocument } from "../domain/document";
+import {
+  createInitialDocument,
+  type Breakpoint,
+  type BuilderDocument,
+  type NodeId,
+  type SectionHeight,
+} from "../domain/document";
+import {
+  applySectionCommand,
+  computeNextHeightOnDrag,
+  convertPointerDeltaToPagePx,
+  validateSectionCommand,
+} from "../domain/sections";
 import { loadDraft, saveDraft } from "./storage";
 import {
   createEmptySiteState,
@@ -65,6 +77,21 @@ type InspectorDraftState = {
   slugTouched: boolean;
 };
 
+type SectionInspectorDraftState = {
+  sectionId: NodeId | null;
+  mode: SectionHeight["mode"];
+  draftHeightPx: string;
+  draftMinPx: string;
+  draftMaxPx: string;
+};
+
+type SectionResizeState = {
+  sectionId: NodeId;
+  startHeightPx: number;
+  scale: number;
+  snapUnitPx: number;
+} | null;
+
 type FocusTarget = "inspector-name" | null;
 
 export type BuilderUIState = {
@@ -72,6 +99,8 @@ export type BuilderUIState = {
   inlineRename: InlineRenameState;
   confirmDelete: ConfirmDeleteState;
   inspector: InspectorDraftState;
+  sectionInspector: SectionInspectorDraftState;
+  sectionResize: SectionResizeState;
   focusTarget: FocusTarget;
 };
 
@@ -109,10 +138,13 @@ export type BuilderDerivedState = {
 type BuilderAction =
   | { type: "editor/setBreakpoint"; breakpoint: Breakpoint }
   | { type: "editor/toggleMode" }
+  | { type: "editor/selectNode"; nodeId: NodeId | null }
   | { type: "ui/setCreatePageModal"; modal: CreatePageModalState }
   | { type: "ui/setInlineRename"; inlineRename: InlineRenameState }
   | { type: "ui/setConfirmDelete"; confirmDelete: ConfirmDeleteState }
   | { type: "ui/setInspector"; inspector: InspectorDraftState }
+  | { type: "ui/setSectionInspector"; sectionInspector: SectionInspectorDraftState }
+  | { type: "ui/setSectionResize"; sectionResize: SectionResizeState }
   | { type: "ui/setFocusTarget"; target: FocusTarget }
   | {
       type: "site/commit";
@@ -137,6 +169,29 @@ const emptyInspectorDraft = (): InspectorDraftState => ({
   draftSlug: "",
   nameTouched: false,
   slugTouched: false,
+});
+
+const emptySectionInspectorDraft = (): SectionInspectorDraftState => ({
+  sectionId: null,
+  mode: "auto",
+  draftHeightPx: "",
+  draftMinPx: "",
+  draftMaxPx: "",
+});
+
+const toDraftNumber = (value?: number) =>
+  typeof value === "number" && Number.isFinite(value) ? String(value) : "";
+
+const createSectionInspectorDraft = (
+  sectionId: NodeId,
+  height: SectionHeight
+): SectionInspectorDraftState => ({
+  sectionId,
+  mode: height.mode,
+  draftHeightPx:
+    height.mode === "manual" ? toDraftNumber(height.heightPx) : "",
+  draftMinPx: toDraftNumber(height.minPx),
+  draftMaxPx: toDraftNumber(height.maxPx),
 });
 
 const createInspectorDraft = (site: SiteState): InspectorDraftState => {
@@ -277,6 +332,56 @@ const deriveToggleHomeSlug = (
   );
 };
 
+const getActiveDocument = (site: SiteState): BuilderDocument | null => {
+  if (!site.activePageId) {
+    return null;
+  }
+  return site.documents[site.activePageId] ?? null;
+};
+
+const getSectionNode = (
+  site: SiteState,
+  sectionId: NodeId | null
+): { pageId: PageId; document: BuilderDocument; sectionId: NodeId; height: SectionHeight } | null => {
+  if (!sectionId || !site.activePageId) {
+    return null;
+  }
+
+  const document = site.documents[site.activePageId];
+  const node = document?.nodes?.[sectionId];
+  if (!document || !node || node.type !== "Section") {
+    return null;
+  }
+
+  return {
+    pageId: site.activePageId,
+    document,
+    sectionId,
+    height: node.section.height,
+  };
+};
+
+const parseOptionalPxDraft = (value: string): number | undefined | null => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const parseRequiredPxDraft = (value: string): number | null => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+};
+
 export const createInitialState = (siteId: string): BuilderState => {
   const draft = siteId === "local" ? loadDraft() : null;
   const site = draft ?? createEmptySiteState();
@@ -294,6 +399,8 @@ export const createInitialState = (siteId: string): BuilderState => {
       inlineRename: null,
       confirmDelete: null,
       inspector: createInspectorDraft(site),
+      sectionInspector: emptySectionInspectorDraft(),
+      sectionResize: null,
       focusTarget: null,
     },
   };
@@ -317,6 +424,11 @@ export const builderReducer = (
           mode: state.editor.mode === "edit" ? "preview" : "edit",
         },
       };
+    case "editor/selectNode":
+      return {
+        ...state,
+        editor: { ...state.editor, selectedNodeId: action.nodeId },
+      };
     case "ui/setCreatePageModal":
       return {
         ...state,
@@ -336,6 +448,16 @@ export const builderReducer = (
       return {
         ...state,
         ui: { ...state.ui, inspector: action.inspector },
+      };
+    case "ui/setSectionInspector":
+      return {
+        ...state,
+        ui: { ...state.ui, sectionInspector: action.sectionInspector },
+      };
+    case "ui/setSectionResize":
+      return {
+        ...state,
+        ui: { ...state.ui, sectionResize: action.sectionResize },
       };
     case "ui/setFocusTarget":
       return {
@@ -390,6 +512,22 @@ type BuilderStoreValue = {
     commitInspectorSlug: () => void;
     setHomePage: () => void;
     clearFocusTarget: () => void;
+    selectNode: (nodeId: NodeId | null) => void;
+    addSection: (initialHeightPx: number) => void;
+    startSectionResize: (
+      sectionId: NodeId,
+      startHeightPx: number,
+      startPointerYPx: number,
+      scale: number
+    ) => void;
+    updateSectionResize: (deltaPointerYPx: number) => void;
+    endSectionResize: () => void;
+    updateSectionMode: (mode: SectionHeight["mode"]) => void;
+    updateSectionHeight: (value: string) => void;
+    commitSectionHeight: () => void;
+    updateSectionMin: (value: string) => void;
+    updateSectionMax: (value: string) => void;
+    commitSectionConstraints: (field: "min" | "max") => void;
   };
 };
 
@@ -422,6 +560,31 @@ export const BuilderStoreProvider = ({
     };
   }, [state.site, state.ui.createPageModal, state.ui.inlineRename, state.ui.inspector]);
 
+  const commitSite = (
+    nextSite: SiteState,
+    options?: {
+      ui?: Partial<BuilderUIState>;
+      editor?: Partial<BuilderEditorState>;
+    }
+  ) => {
+    if (siteId === "local") {
+      saveDraft(nextSite);
+    }
+
+    const activeChanged = state.site.activePageId !== nextSite.activePageId;
+    const editorPatch = {
+      ...options?.editor,
+      ...(activeChanged ? { selectedNodeId: null } : {}),
+    };
+
+    dispatch({
+      type: "site/commit",
+      site: nextSite,
+      ui: options?.ui,
+      editor: Object.keys(editorPatch).length ? editorPatch : undefined,
+    });
+  };
+
   const applyCommands = (
     commands: Command[],
     options?: {
@@ -439,22 +602,7 @@ export const BuilderStoreProvider = ({
       nextSite = applyCommand(nextSite, normalized);
     }
 
-    if (siteId === "local") {
-      saveDraft(nextSite);
-    }
-
-    const activeChanged = state.site.activePageId !== nextSite.activePageId;
-    const editorPatch = {
-      ...options?.editor,
-      ...(activeChanged ? { selectedNodeId: null } : {}),
-    };
-
-    dispatch({
-      type: "site/commit",
-      site: nextSite,
-      ui: options?.ui,
-      editor: Object.keys(editorPatch).length ? editorPatch : undefined,
-    });
+    commitSite(nextSite, options);
 
     return { ok: true, state: nextSite } as CommandResult;
   };
@@ -717,6 +865,267 @@ export const BuilderStoreProvider = ({
       },
       clearFocusTarget: () => {
         dispatch({ type: "ui/setFocusTarget", target: null });
+      },
+      selectNode: (nodeId) => {
+        dispatch({ type: "editor/selectNode", nodeId });
+        const section = getSectionNode(state.site, nodeId);
+        dispatch({
+          type: "ui/setSectionInspector",
+          sectionInspector: section
+            ? createSectionInspectorDraft(section.sectionId, section.height)
+            : emptySectionInspectorDraft(),
+        });
+      },
+      addSection: () => {
+        const pageId = state.site.activePageId;
+        const document = getActiveDocument(state.site);
+        if (!pageId || !document) {
+          return;
+        }
+
+        const sectionId = `section-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 8)}`;
+        const command = {
+          type: "ADD_SECTION" as const,
+          pageId,
+          sectionId,
+          initialHeight: { mode: "auto" as const },
+        };
+
+        const validation = validateSectionCommand(document, command);
+        if (!validation.ok) {
+          return;
+        }
+
+        const nextDocument = applySectionCommand(document, command);
+        const nextSite: SiteState = {
+          ...state.site,
+          documents: {
+            ...state.site.documents,
+            [pageId]: nextDocument,
+          },
+        };
+        commitSite(nextSite, {
+          editor: { selectedNodeId: sectionId },
+          ui: {
+            sectionInspector: createSectionInspectorDraft(sectionId, {
+              mode: "auto",
+            }),
+            sectionResize: null,
+          },
+        });
+      },
+      startSectionResize: (sectionId, startHeightPx, _startPointerYPx, scale) => {
+        const section = getSectionNode(state.site, sectionId);
+        if (!section) {
+          return;
+        }
+
+        dispatch({
+          type: "ui/setSectionResize",
+          sectionResize: {
+            sectionId,
+            startHeightPx,
+            scale,
+            snapUnitPx: 10,
+          },
+        });
+      },
+      updateSectionResize: (deltaPointerYPx) => {
+        const resize = state.ui.sectionResize;
+        if (!resize) {
+          return;
+        }
+
+        const section = getSectionNode(state.site, resize.sectionId);
+        if (!section) {
+          return;
+        }
+
+        const deltaPx = convertPointerDeltaToPagePx(deltaPointerYPx, resize.scale);
+        const nextHeight = computeNextHeightOnDrag({
+          current: section.height,
+          startHeightPx: resize.startHeightPx,
+          deltaPx,
+          snapUnitPx: resize.snapUnitPx,
+        });
+        const command = {
+          type: "UPDATE_SECTION_HEIGHT" as const,
+          sectionId: section.sectionId,
+          height: nextHeight,
+        };
+        const validation = validateSectionCommand(section.document, command);
+        if (!validation.ok) {
+          return;
+        }
+
+        const nextDocument = applySectionCommand(section.document, command);
+        const nextSite: SiteState = {
+          ...state.site,
+          documents: {
+            ...state.site.documents,
+            [section.pageId]: nextDocument,
+          },
+        };
+        commitSite(nextSite, {
+          ui: {
+            sectionInspector: createSectionInspectorDraft(
+              section.sectionId,
+              nextHeight
+            ),
+          },
+        });
+      },
+      endSectionResize: () => {
+        dispatch({ type: "ui/setSectionResize", sectionResize: null });
+      },
+      updateSectionMode: (mode) => {
+        dispatch({
+          type: "ui/setSectionInspector",
+          sectionInspector: {
+            ...state.ui.sectionInspector,
+            mode,
+          },
+        });
+      },
+      updateSectionHeight: (value) => {
+        dispatch({
+          type: "ui/setSectionInspector",
+          sectionInspector: {
+            ...state.ui.sectionInspector,
+            draftHeightPx: value,
+          },
+        });
+      },
+      commitSectionHeight: () => {
+        const section = getSectionNode(
+          state.site,
+          state.ui.sectionInspector.sectionId ?? state.editor.selectedNodeId
+        );
+        if (!section) {
+          return;
+        }
+
+        const nextHeight: SectionHeight =
+          state.ui.sectionInspector.mode === "auto"
+            ? {
+                mode: "auto",
+                minPx: section.height.minPx,
+                maxPx: section.height.maxPx,
+              }
+            : {
+                mode: "manual",
+                heightPx: parseRequiredPxDraft(
+                  state.ui.sectionInspector.draftHeightPx
+                ) ?? section.height.heightPx,
+                minPx: section.height.minPx,
+                maxPx: section.height.maxPx,
+              };
+
+        if (
+          nextHeight.mode === "manual" &&
+          !parseRequiredPxDraft(state.ui.sectionInspector.draftHeightPx)
+        ) {
+          return;
+        }
+
+        const command = {
+          type: "UPDATE_SECTION_HEIGHT" as const,
+          sectionId: section.sectionId,
+          height: nextHeight,
+        };
+        const validation = validateSectionCommand(section.document, command);
+        if (!validation.ok) {
+          return;
+        }
+
+        const nextDocument = applySectionCommand(section.document, command);
+        const nextSite: SiteState = {
+          ...state.site,
+          documents: {
+            ...state.site.documents,
+            [section.pageId]: nextDocument,
+          },
+        };
+        commitSite(nextSite, {
+          ui: {
+            sectionInspector: createSectionInspectorDraft(
+              section.sectionId,
+              nextHeight
+            ),
+          },
+        });
+      },
+      updateSectionMin: (value) => {
+        dispatch({
+          type: "ui/setSectionInspector",
+          sectionInspector: {
+            ...state.ui.sectionInspector,
+            draftMinPx: value,
+          },
+        });
+      },
+      updateSectionMax: (value) => {
+        dispatch({
+          type: "ui/setSectionInspector",
+          sectionInspector: {
+            ...state.ui.sectionInspector,
+            draftMaxPx: value,
+          },
+        });
+      },
+      commitSectionConstraints: (field) => {
+        const section = getSectionNode(
+          state.site,
+          state.ui.sectionInspector.sectionId ?? state.editor.selectedNodeId
+        );
+        if (!section) {
+          return;
+        }
+
+        const minValue = parseOptionalPxDraft(state.ui.sectionInspector.draftMinPx);
+        const maxValue = parseOptionalPxDraft(state.ui.sectionInspector.draftMaxPx);
+        if (minValue === null || maxValue === null) {
+          return;
+        }
+
+        const patch =
+          field === "min"
+            ? ({ minPx: minValue } as { minPx?: number; maxPx?: number })
+            : ({ maxPx: maxValue } as { minPx?: number; maxPx?: number });
+
+        const command = {
+          type: "UPDATE_SECTION_CONSTRAINTS" as const,
+          sectionId: section.sectionId,
+          patch,
+        };
+        const validation = validateSectionCommand(section.document, command);
+        if (!validation.ok) {
+          return;
+        }
+
+        const nextDocument = applySectionCommand(section.document, command);
+        const nextSectionNode = nextDocument.nodes[section.sectionId];
+        if (!nextSectionNode || nextSectionNode.type !== "Section") {
+          return;
+        }
+
+        const nextSite: SiteState = {
+          ...state.site,
+          documents: {
+            ...state.site.documents,
+            [section.pageId]: nextDocument,
+          },
+        };
+        commitSite(nextSite, {
+          ui: {
+            sectionInspector: createSectionInspectorDraft(
+              section.sectionId,
+              nextSectionNode.section.height
+            ),
+          },
+        });
       },
     }),
     [state, siteId]

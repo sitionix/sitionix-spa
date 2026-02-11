@@ -1,16 +1,34 @@
 export type Breakpoint = "desktop" | "tablet" | "mobile";
 
-export type BuilderNode = {
-  id: string;
-  type: "Page";
-  children?: string[];
+export type NodeId = string;
+
+export type SectionHeight = {
+  mode: "auto" | "manual";
+  heightPx?: number;
+  minPx?: number;
+  maxPx?: number;
 };
+
+export type BuilderNode =
+  | {
+      id: NodeId;
+      type: "Page";
+      children: NodeId[];
+    }
+  | {
+      id: NodeId;
+      type: "Section";
+      children?: NodeId[];
+      section: {
+        height: SectionHeight;
+      };
+    };
 
 export type BuilderDocument = {
   pageId: string;
   version: number;
-  rootId: string;
-  nodes: Record<string, BuilderNode>;
+  rootId: NodeId;
+  nodes: Record<NodeId, BuilderNode>;
 };
 
 const DEFAULT_PAGE_ID = "local";
