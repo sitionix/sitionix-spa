@@ -4,7 +4,6 @@ import { LeftPanel } from "./LeftPanel";
 import { RightPanel } from "./RightPanel";
 import { CreatePageModal } from "./CreatePageModal";
 import { DeletePageModal } from "./DeletePageModal";
-import { FullscreenPreview } from "./FullscreenPreview";
 
 export const BuilderShell = ({ siteId }: { siteId: string }) => {
   return (
@@ -12,7 +11,6 @@ export const BuilderShell = ({ siteId }: { siteId: string }) => {
       <TopBar siteId={siteId} />
       <CreatePageModal />
       <DeletePageModal />
-      <FullscreenPreview />
       <div className="flex-1 grid grid-cols-[280px_minmax(0,1fr)_320px] min-h-0">
         <div className="border-r border-zinc-200">
           <LeftPanel />
