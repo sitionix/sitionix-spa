@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -17,8 +17,8 @@ const getFirstMenuButton = (container: HTMLElement) => {
   return button;
 };
 
-const { api, siteNames } = vi.hoisted(() => {
-  let sites: WorkspaceSite[] = [
+const { api, resetSites, createSiteMock } = vi.hoisted(() => {
+  const initialSites: WorkspaceSite[] = [
     {
       id: "site-1",
       name: "Портфоліо агенції",
@@ -52,6 +52,14 @@ const { api, siteNames } = vi.hoisted(() => {
       thumbnailUrl: null,
     },
   ];
+
+  const createSiteMock = vi.fn();
+  const cloneSites = () => initialSites.map((site) => ({ ...site }));
+  let sites = cloneSites();
+
+  const resetSites = () => {
+    sites = cloneSites();
+  };
 
   const collections: WorkspaceCollection[] = [
     { id: "col-1", name: "Клієнтські проекти", color: "blue", sitesCount: 1 },
@@ -105,7 +113,7 @@ const { api, siteNames } = vi.hoisted(() => {
     removeFromCollection: vi.fn().mockResolvedValue(undefined),
   } as unknown as WorkspaceApi;
 
-  return { api, siteNames: sites.map((site) => site.name) };
+  return { api, resetSites, createSiteMock };
 });
 
 vi.mock("../../../../../features/workspace/api/WorkspaceApiProvider", () => ({
@@ -113,7 +121,27 @@ vi.mock("../../../../../features/workspace/api/WorkspaceApiProvider", () => ({
   useWorkspaceApi: () => api,
 }));
 
+vi.mock("../../../../../features/workspace/api/sitesApi", () => ({
+  createSite: createSiteMock,
+  sitesApi: {
+    createSite: createSiteMock,
+  },
+}));
+
 describe("SitesPage", () => {
+  let windowOpenSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    resetSites();
+    createSiteMock.mockReset();
+    createSiteMock.mockResolvedValue({ id: "site-new" });
+    windowOpenSpy = vi.spyOn(window, "open").mockReturnValue(null);
+  });
+
+  afterEach(() => {
+    windowOpenSpy.mockRestore();
+  });
+
   it("renders sites and supports rename/delete/collection actions", async () => {
     const user = userEvent.setup();
 
@@ -163,6 +191,149 @@ describe("SitesPage", () => {
 
     await waitFor(() => {
       expect(screen.queryByText("Колекції")).not.toBeInTheDocument();
+    });
+  });
+
+  it("opens create sheet, validates form, prevents double submit, and opens builder in new tab", async () => {
+    const user = userEvent.setup();
+    let resolveCreate: ((value: { id: string }) => void) | null = null;
+
+    createSiteMock.mockImplementation(
+      () =>
+        new Promise<{ id: string }>((resolve) => {
+          resolveCreate = resolve;
+        })
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/sites"]}>
+        <WorkspaceApiProvider>
+          <Routes>
+            <Route path="/sites" element={<SitesPage />} />
+          </Routes>
+        </WorkspaceApiProvider>
+      </MemoryRouter>
+    );
+
+    await user.click(screen.getByRole("button", { name: "Створити сайт" }));
+
+    expect(await screen.findByRole("heading", { name: "Створити сайт" })).toBeInTheDocument();
+    const nameInput = screen.getByLabelText("Site name");
+    const createButton = screen.getByRole("button", { name: "Створити" });
+
+    expect(createButton).toBeDisabled();
+
+    await user.type(nameInput, "   ");
+    await user.tab();
+    expect(await screen.findByText("Введіть назву сайту")).toBeInTheDocument();
+
+    await user.clear(nameInput);
+    await user.type(nameInput, "  New Project  ");
+    expect(createButton).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "Розширені налаштування" }));
+    await user.selectOptions(screen.getByLabelText("Type"), "business");
+    await user.type(screen.getByLabelText("Description"), "Сайт для бізнесу");
+    await user.selectOptions(screen.getByLabelText("Template"), "portfolio");
+
+    await user.click(createButton);
+    await user.click(createButton);
+
+    expect(createSiteMock).toHaveBeenCalledTimes(1);
+    expect(createSiteMock).toHaveBeenCalledWith({
+      name: "New Project",
+      type: "business",
+      description: "Сайт для бізнесу",
+      template: "portfolio",
+    });
+    expect(screen.getByRole("button", { name: "Створення..." })).toBeDisabled();
+
+    if (!resolveCreate) {
+      throw new Error("createSite resolver was not captured");
+    }
+    resolveCreate({ id: "site-new" });
+
+    await waitFor(() => {
+      expect(windowOpenSpy).toHaveBeenCalledWith(
+        "/builder/site-new?siteName=New%20Project",
+        "_blank"
+      );
+    });
+    expect(screen.getByRole("button", { name: "Створити сайт" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Створити сайт" })).not.toBeInTheDocument();
+  });
+
+  it("shows a toast when create request fails and keeps sheet open", async () => {
+    const user = userEvent.setup();
+    createSiteMock.mockRejectedValueOnce(new Error("boom"));
+
+    render(
+      <MemoryRouter initialEntries={["/sites"]}>
+        <WorkspaceApiProvider>
+          <Routes>
+            <Route path="/sites" element={<SitesPage />} />
+          </Routes>
+        </WorkspaceApiProvider>
+      </MemoryRouter>
+    );
+
+    await user.click(screen.getByRole("button", { name: "Створити сайт" }));
+    const nameInput = await screen.findByLabelText("Site name");
+    await user.type(nameInput, "Test site");
+    await user.click(screen.getByRole("button", { name: "Створити" }));
+
+    expect(
+      await screen.findByText("Не вдалося створити сайт. Спробуйте ще раз.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(windowOpenSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "Створити сайт" })).toBeInTheDocument();
+  });
+
+  it("closes create sheet on Escape", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={["/sites"]}>
+        <WorkspaceApiProvider>
+          <Routes>
+            <Route path="/sites" element={<SitesPage />} />
+          </Routes>
+        </WorkspaceApiProvider>
+      </MemoryRouter>
+    );
+
+    await user.click(screen.getByRole("button", { name: "Створити сайт" }));
+    expect(await screen.findByRole("heading", { name: "Створити сайт" })).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "Створити сайт" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("closes create sheet on Cancel without creating a site", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={["/sites"]}>
+        <WorkspaceApiProvider>
+          <Routes>
+            <Route path="/sites" element={<SitesPage />} />
+          </Routes>
+        </WorkspaceApiProvider>
+      </MemoryRouter>
+    );
+
+    await user.click(screen.getByRole("button", { name: "Створити сайт" }));
+    const nameInput = await screen.findByLabelText("Site name");
+    await user.type(nameInput, "Will be canceled");
+    await user.click(screen.getByRole("button", { name: "Скасувати" }));
+
+    expect(createSiteMock).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "Створити сайт" })).not.toBeInTheDocument();
     });
   });
 });

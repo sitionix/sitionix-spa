@@ -28,6 +28,17 @@ const BreakpointProbe = () => {
 };
 
 describe("TopBar", () => {
+  it("renders provided site name from query param", () => {
+    const originalUrl = globalThis.window.location.href;
+    globalThis.window.history.pushState({}, "", "/builder/site-1?siteName=My%20Landing");
+
+    renderWithProvider(<TopBar siteId="site-1" />, { siteId: "site-1" });
+
+    expect(screen.getByText("My Landing")).toBeInTheDocument();
+
+    globalThis.window.history.pushState({}, "", originalUrl);
+  });
+
   it("renders title and toggles preview state", async () => {
     const user = userEvent.setup();
     renderWithProvider(

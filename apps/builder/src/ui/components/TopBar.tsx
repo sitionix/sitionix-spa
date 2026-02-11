@@ -25,7 +25,10 @@ export const TopBar = ({ siteId }: { siteId: string }) => {
     navigateHost("/workspace/sites");
   };
 
-  const title = siteId === "local" ? "New site" : `Site: ${siteId}`;
+  const siteNameFromQuery = new URLSearchParams(globalThis.window.location.search).get(
+    "siteName"
+  );
+  const title = siteId === "local" ? "New site" : siteNameFromQuery || `Site: ${siteId}`;
 
   return (
     <div className="h-16 bg-white border-b border-zinc-200 flex items-center justify-between px-6">

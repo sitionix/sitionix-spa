@@ -1,4 +1,4 @@
-import { useMemo, useState, type MouseEvent } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -17,6 +17,7 @@ import { useWorkspaceQuery } from "../../model/useWorkspaceQuery";
 import { formatDate } from "../../model/formatters";
 import { PageHeader } from "../components/PageHeader";
 import { ConfirmationDialog } from "../components/ConfirmationDialog";
+import { CreateSiteSheet } from "../components/CreateSiteSheet";
 import { toneClasses } from "../colorTokens";
 
 type MenuAction =
@@ -45,6 +46,7 @@ export function SitesPage() {
   const [selectedSite, setSelectedSite] = useState<WorkspaceSite | null>(null);
   const [newName, setNewName] = useState("");
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
+  const [createSheetOpen, setCreateSheetOpen] = useState(false);
 
   const sitesQuery = useWorkspaceQuery(
     () => api.getSites({ search, sortBy }),
@@ -111,10 +113,13 @@ export function SitesPage() {
     setSelectedCollectionId(null);
   };
 
-  const navigateToBuilder = (event: MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const opened = window.open("/builder", "_blank", "noopener,noreferrer");
+  const handleSiteCreated = (siteId: string, siteName: string) => {
+    setCreateSheetOpen(false);
+    const encodedName = encodeURIComponent(siteName.trim());
+    const opened = window.open(
+      `/builder/${siteId}?siteName=${encodedName}`,
+      "_blank"
+    );
     if (opened) {
       opened.focus();
     }
@@ -178,7 +183,7 @@ export function SitesPage() {
 
         <button
           type="button"
-          onClick={navigateToBuilder}
+          onClick={() => setCreateSheetOpen(true)}
           className="flex items-center gap-2 h-10 px-4 min-w-[140px] bg-blue-600 text-white rounded-[10px] hover:bg-blue-700 transition-colors duration-200 active:scale-[0.98] font-medium text-sm"
         >
           <Plus className="w-5 h-5" />
@@ -349,6 +354,12 @@ export function SitesPage() {
           setSelectedSite(null);
         }}
         onConfirm={confirmDelete}
+      />
+
+      <CreateSiteSheet
+        open={createSheetOpen}
+        onClose={() => setCreateSheetOpen(false)}
+        onCreated={handleSiteCreated}
       />
 
       {renameModalOpen ? (
