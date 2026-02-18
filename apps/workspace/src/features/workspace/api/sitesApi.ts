@@ -1,3 +1,7 @@
+import { AUTH_TOKEN_STORAGE_KEYS } from "@sitionix/auth-session";
+import type { ApiError } from "@sitionix/contracts";
+import { requestJson } from "../../../shared/http/httpClient";
+
 export type CreateSiteRequest = {
   name: string;
   type?: "portfolio" | "business" | "blog" | "store" | "landing" | "other";
@@ -9,31 +13,60 @@ export type CreateSiteResponse = {
   id: string;
 };
 
-const MOCK_DELAY_MS = 400;
-
-let createSiteCallCount = 0;
-
-const parseFailureEveryN = (value: string | undefined): number | null => {
-  if (!value) {
-    return null;
-  }
-
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return null;
-  }
-
-  return parsed;
+type CreateSiteApiRequest = {
+  name: string;
+  type?: "PORTFOLIO" | "BUSINESS" | "BLOG" | "STORE" | "LANDING" | "OTHER";
+  description?: string;
+  template?: "BLANK" | "PORTFOLIO" | "BUSINESS";
 };
 
-const mockFailureEveryN = parseFailureEveryN(
-  import.meta.env.VITE_CREATE_SITE_FAIL_EVERY_N
-);
+type CreateSiteApiResponse = {
+  siteId: string;
+  name: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+};
 
-const sleep = (ms: number) =>
-  new Promise<void>((resolve) => {
-    setTimeout(resolve, ms);
-  });
+const SITE_TYPE_TO_API: Record<NonNullable<CreateSiteRequest["type"]>, NonNullable<CreateSiteApiRequest["type"]>> = {
+  portfolio: "PORTFOLIO",
+  business: "BUSINESS",
+  blog: "BLOG",
+  store: "STORE",
+  landing: "LANDING",
+  other: "OTHER",
+};
+
+const SITE_TEMPLATE_TO_API: Record<NonNullable<CreateSiteRequest["template"]>, NonNullable<CreateSiteApiRequest["template"]>> = {
+  blank: "BLANK",
+  portfolio: "PORTFOLIO",
+  business: "BUSINESS",
+};
+
+const readStoredTokenValue = (key: string): string | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const localValue = window.localStorage.getItem(key);
+  if (localValue) {
+    return localValue;
+  }
+
+  return window.sessionStorage.getItem(key);
+};
+
+const resolveAuthorizationHeader = (): string | null => {
+  const accessToken = readStoredTokenValue(AUTH_TOKEN_STORAGE_KEYS.accessToken)?.trim();
+  if (!accessToken) {
+    return null;
+  }
+
+  const tokenType =
+    readStoredTokenValue(AUTH_TOKEN_STORAGE_KEYS.tokenType)?.trim() || "Bearer";
+
+  return `${tokenType} ${accessToken}`;
+};
 
 export async function createSite(
   payload: CreateSiteRequest
@@ -43,18 +76,38 @@ export async function createSite(
     throw new Error("Site name is required");
   }
 
-  await sleep(MOCK_DELAY_MS);
+  const apiPayload: CreateSiteApiRequest = {
+    name,
+    ...(payload.type ? { type: SITE_TYPE_TO_API[payload.type] } : {}),
+    ...(payload.description?.trim() ? { description: payload.description.trim() } : {}),
+    ...(payload.template ? { template: SITE_TEMPLATE_TO_API[payload.template] } : {}),
+  };
 
-  createSiteCallCount += 1;
-  if (
-    mockFailureEveryN &&
-    createSiteCallCount % mockFailureEveryN === 0
-  ) {
-    throw new Error("Mock create site request failed");
+  const authorizationHeader = resolveAuthorizationHeader();
+
+  const result = await requestJson<CreateSiteApiResponse, ApiError, CreateSiteApiRequest>({
+    method: "POST",
+    path: "/api/v1/sites",
+    body: apiPayload,
+    ...(authorizationHeader
+      ? {
+          headers: {
+            Authorization: authorizationHeader,
+          },
+        }
+      : {}),
+  });
+
+  if (!result.ok) {
+    throw result.error ?? new Error("Create site request failed");
+  }
+
+  if (!result.data.siteId) {
+    throw new Error("Invalid create site response");
   }
 
   return {
-    id: `site_${Date.now()}`,
+    id: result.data.siteId,
   };
 }
 
