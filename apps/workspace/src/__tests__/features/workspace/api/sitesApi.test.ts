@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AUTH_TOKEN_STORAGE_KEYS } from "@sitionix/auth-session";
 import { requestJson } from "../../../../shared/http/httpClient";
-import { createSite } from "../../../../features/workspace/api/sitesApi";
+import { createSite, getSites } from "../../../../features/workspace/api/sitesApi";
 
 vi.mock("../../../../shared/http/httpClient", () => ({
   requestJson: vi.fn(),
@@ -121,5 +121,60 @@ describe("sitesApi.createSite", () => {
     await expect(createSite({ name: "Site" })).rejects.toThrow(
       "Invalid create site response"
     );
+  });
+});
+
+describe("sitesApi.getSites", () => {
+  beforeEach(() => {
+    requestJsonMock.mockReset();
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  it("calls real workspace sites endpoint with paging and auth header", async () => {
+    sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.accessToken, "access-token");
+    sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.tokenType, "Bearer");
+
+    const response = {
+      items: [],
+      meta: {
+        page: 0,
+        size: 20,
+        totalItems: 0,
+        totalPages: 0,
+      },
+    };
+
+    requestJsonMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      data: response,
+    });
+
+    await getSites({ page: 0, size: 20, sortBy: "date" });
+
+    expect(requestJsonMock).toHaveBeenCalledWith({
+      method: "GET",
+      path: "/api/v1/workspace/sites?sortBy=date&page=0&size=20",
+      headers: {
+        Authorization: "Bearer access-token",
+      },
+    });
+  });
+
+  it("throws api error when sites request fails", async () => {
+    const apiError = {
+      code: 401,
+      title: "Unauthorized",
+      details: "Missing bearer token",
+    };
+
+    requestJsonMock.mockResolvedValue({
+      ok: false,
+      status: 401,
+      error: apiError,
+    });
+
+    await expect(getSites({ page: 0, size: 20 })).rejects.toEqual(apiError);
   });
 });

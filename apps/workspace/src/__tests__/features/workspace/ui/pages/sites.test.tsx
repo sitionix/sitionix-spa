@@ -17,7 +17,34 @@ const getFirstMenuButton = (container: HTMLElement) => {
   return button;
 };
 
-const { api, resetSites, createSiteMock } = vi.hoisted(() => {
+const createSiteItem = (id: string, name: string): WorkspaceSite => ({
+  id,
+  name,
+  domain: "",
+  description: null,
+  seoTitle: null,
+  seoDescription: null,
+  type: "standalone",
+  status: "draft",
+  createdAt: "2026-02-01T12:00:00.000Z",
+  updatedAt: "2026-02-01T12:00:00.000Z",
+  visits: 0,
+  ecosystemName: null,
+  collectionId: null,
+  thumbnailUrl: null,
+});
+
+const createPageResponse = (items: WorkspaceSite[]) => ({
+  items,
+  meta: {
+    page: 0,
+    size: 20,
+    totalItems: items.length,
+    totalPages: 1,
+  },
+});
+
+const { api, resetSites, createSiteMock, getSitesMock } = vi.hoisted(() => {
   const initialSites: WorkspaceSite[] = [
     {
       id: "site-1",
@@ -54,6 +81,17 @@ const { api, resetSites, createSiteMock } = vi.hoisted(() => {
   ];
 
   const createSiteMock = vi.fn();
+  const getSitesMock = vi.fn().mockImplementation(() =>
+    Promise.resolve({
+      items: sites,
+      meta: {
+        page: 1,
+        size: sites.length,
+        totalItems: sites.length,
+        totalPages: 1,
+      },
+    })
+  );
   const cloneSites = () => initialSites.map((site) => ({ ...site }));
   let sites = cloneSites();
 
@@ -66,17 +104,7 @@ const { api, resetSites, createSiteMock } = vi.hoisted(() => {
   ];
 
   const api: WorkspaceApi = {
-    getSites: vi.fn().mockImplementation(() =>
-      Promise.resolve({
-        items: sites,
-        meta: {
-          page: 1,
-          size: sites.length,
-          totalItems: sites.length,
-          totalPages: 1,
-        },
-      })
-    ),
+    getSites: getSitesMock,
     getCollections: vi.fn().mockResolvedValue({
       items: collections,
       meta: {
@@ -113,7 +141,7 @@ const { api, resetSites, createSiteMock } = vi.hoisted(() => {
     removeFromCollection: vi.fn().mockResolvedValue(undefined),
   } as unknown as WorkspaceApi;
 
-  return { api, resetSites, createSiteMock };
+  return { api, resetSites, createSiteMock, getSitesMock };
 });
 
 vi.mock("../../../../../features/workspace/api/WorkspaceApiProvider", () => ({
@@ -123,7 +151,9 @@ vi.mock("../../../../../features/workspace/api/WorkspaceApiProvider", () => ({
 
 vi.mock("../../../../../features/workspace/api/sitesApi", () => ({
   createSite: createSiteMock,
+  getSites: getSitesMock,
   sitesApi: {
+    getSites: getSitesMock,
     createSite: createSiteMock,
   },
 }));
@@ -135,6 +165,7 @@ describe("SitesPage", () => {
     resetSites();
     createSiteMock.mockReset();
     createSiteMock.mockResolvedValue({ id: "site-new" });
+    getSitesMock.mockClear();
     windowOpenSpy = vi.spyOn(window, "open").mockReturnValue(null);
   });
 
@@ -261,6 +292,51 @@ describe("SitesPage", () => {
     });
     expect(screen.getByRole("button", { name: "Створити сайт" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Створити сайт" })).not.toBeInTheDocument();
+  });
+
+  it("refreshes sites list and prevents overlapping refresh requests", async () => {
+    const user = userEvent.setup();
+    const initialItems = [createSiteItem("site-1", "Початковий сайт")];
+    let resolveRefresh: ((value: ReturnType<typeof createPageResponse>) => void) | null = null;
+
+    getSitesMock.mockReset();
+    getSitesMock
+      .mockResolvedValueOnce(createPageResponse(initialItems))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRefresh = resolve;
+          })
+      );
+
+    render(
+      <MemoryRouter initialEntries={["/sites"]}>
+        <WorkspaceApiProvider>
+          <Routes>
+            <Route path="/sites" element={<SitesPage />} />
+          </Routes>
+        </WorkspaceApiProvider>
+      </MemoryRouter>
+    );
+
+    await screen.findByRole("heading", { name: "Початковий сайт" });
+    const refreshButton = screen.getByRole("button", { name: "Refresh" });
+
+    await user.click(refreshButton);
+    expect(getSitesMock).toHaveBeenCalledTimes(2);
+    expect(refreshButton).toBeDisabled();
+
+    await user.click(refreshButton);
+    expect(getSitesMock).toHaveBeenCalledTimes(2);
+
+    if (!resolveRefresh) {
+      throw new Error("refresh resolver was not captured");
+    }
+    resolveRefresh(createPageResponse(initialItems));
+
+    await waitFor(() => {
+      expect(refreshButton).toBeEnabled();
+    });
   });
 
   it("shows a toast when create request fails and keeps sheet open", async () => {

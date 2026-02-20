@@ -1,5 +1,5 @@
 import { AUTH_TOKEN_STORAGE_KEYS } from "@sitionix/auth-session";
-import type { ApiError } from "@sitionix/contracts";
+import type { ApiError, Page, WorkspaceSite } from "@sitionix/contracts";
 import { requestJson } from "../../../shared/http/httpClient";
 
 export type CreateSiteRequest = {
@@ -11,6 +11,13 @@ export type CreateSiteRequest = {
 
 export type CreateSiteResponse = {
   id: string;
+};
+
+export type GetSitesQuery = {
+  search?: string;
+  sortBy?: "date" | "name" | "edited";
+  page?: number;
+  size?: number;
 };
 
 type CreateSiteApiRequest = {
@@ -68,6 +75,50 @@ const resolveAuthorizationHeader = (): string | null => {
   return `${tokenType} ${accessToken}`;
 };
 
+const withAuthorizationHeader = (): { headers: { Authorization: string } } | {} => {
+  const authorizationHeader = resolveAuthorizationHeader();
+  if (!authorizationHeader) {
+    return {};
+  }
+
+  return {
+    headers: {
+      Authorization: authorizationHeader,
+    },
+  };
+};
+
+export async function getSites(
+  query?: GetSitesQuery
+): Promise<Page<WorkspaceSite>> {
+  const params = new URLSearchParams();
+  if (query?.search) {
+    params.set("search", query.search);
+  }
+  if (query?.sortBy) {
+    params.set("sortBy", query.sortBy);
+  }
+  if (typeof query?.page === "number") {
+    params.set("page", query.page.toString());
+  }
+  if (typeof query?.size === "number") {
+    params.set("size", query.size.toString());
+  }
+
+  const queryString = params.toString();
+  const result = await requestJson<Page<WorkspaceSite>, ApiError, undefined>({
+    method: "GET",
+    path: `/api/v1/workspace/sites${queryString ? `?${queryString}` : ""}`,
+    ...withAuthorizationHeader(),
+  });
+
+  if (!result.ok) {
+    throw result.error ?? new Error("Get sites request failed");
+  }
+
+  return result.data;
+}
+
 export async function createSite(
   payload: CreateSiteRequest
 ): Promise<CreateSiteResponse> {
@@ -83,19 +134,11 @@ export async function createSite(
     ...(payload.template ? { template: SITE_TEMPLATE_TO_API[payload.template] } : {}),
   };
 
-  const authorizationHeader = resolveAuthorizationHeader();
-
   const result = await requestJson<CreateSiteApiResponse, ApiError, CreateSiteApiRequest>({
     method: "POST",
     path: "/api/v1/sites",
     body: apiPayload,
-    ...(authorizationHeader
-      ? {
-          headers: {
-            Authorization: authorizationHeader,
-          },
-        }
-      : {}),
+    ...withAuthorizationHeader(),
   });
 
   if (!result.ok) {
@@ -112,5 +155,6 @@ export async function createSite(
 }
 
 export const sitesApi = {
+  getSites,
   createSite,
 };

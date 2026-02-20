@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -10,9 +10,11 @@ import {
   FolderInput,
   Trash2,
   ExternalLink,
+  RefreshCw,
 } from "lucide-react";
-import type { WorkspaceCollection, WorkspaceSite } from "@sitionix/contracts";
+import type { Page, WorkspaceCollection, WorkspaceSite } from "@sitionix/contracts";
 import { useWorkspaceApi } from "../../api/WorkspaceApiProvider";
+import { getSites } from "../../api/sitesApi";
 import { useWorkspaceQuery } from "../../model/useWorkspaceQuery";
 import { formatDate } from "../../model/formatters";
 import { PageHeader } from "../components/PageHeader";
@@ -34,9 +36,45 @@ const sortLabels: Record<string, string> = {
   edited: "Останнє редагування",
 };
 
+const SITES_PAGE_SIZE = 20;
+const AUTO_REFETCH_DELAYS_MS = [0, 500, 1000, 2000, 4000] as const;
+
+const dedupeSitesById = (items: WorkspaceSite[]): WorkspaceSite[] => {
+  const seenIds = new Set<string>();
+  return items.filter((site) => {
+    if (seenIds.has(site.id)) {
+      return false;
+    }
+    seenIds.add(site.id);
+    return true;
+  });
+};
+
+const hasNextSitesPage = (page: Page<WorkspaceSite>): boolean => {
+  return page.meta.page + 1 < page.meta.totalPages;
+};
+
+const toErrorMessage = (error: unknown): string => {
+  return error instanceof Error ? error.message : "Unexpected error";
+};
+
+const delay = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+
 export function SitesPage() {
   const api = useWorkspaceApi();
   const navigate = useNavigate();
+  const isMountedRef = useRef(true);
+  const refreshPromiseRef = useRef<Promise<Page<WorkspaceSite> | null> | null>(null);
+  const refreshQueryKeyRef = useRef<string | null>(null);
+  const requestTokenRef = useRef(0);
+  const isLoadingNextPageRef = useRef(false);
+  const nextPageRef = useRef(1);
+  const hasNextPageRef = useRef(false);
+  const autoRefetchSequenceRef = useRef(0);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"date" | "name" | "edited">("date");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -47,15 +85,195 @@ export function SitesPage() {
   const [newName, setNewName] = useState("");
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
   const [createSheetOpen, setCreateSheetOpen] = useState(false);
-
-  const sitesQuery = useWorkspaceQuery(
-    () => api.getSites({ search, sortBy }),
-    [api, search, sortBy]
+  const [sites, setSites] = useState<WorkspaceSite[]>([]);
+  const [sitesStatus, setSitesStatus] = useState<"idle" | "loading" | "ready" | "error">(
+    "idle"
   );
+  const [sitesError, setSitesError] = useState<string | null>(null);
+  const [isRefreshingSites, setIsRefreshingSites] = useState(false);
+  const [isLoadingNextPage, setIsLoadingNextPage] = useState(false);
+  const [hasNextPage, setHasNextPage] = useState(false);
   const collectionsQuery = useWorkspaceQuery(
     () => api.getCollections(),
     [api]
   );
+
+  const refreshSitesPageZero = useCallback(async (): Promise<Page<WorkspaceSite> | null> => {
+    const queryKey = `${search}\u0000${sortBy}`;
+    if (refreshPromiseRef.current && refreshQueryKeyRef.current === queryKey) {
+      return refreshPromiseRef.current;
+    }
+
+    const requestToken = requestTokenRef.current + 1;
+    requestTokenRef.current = requestToken;
+    refreshQueryKeyRef.current = queryKey;
+    const request = (async () => {
+      if (isMountedRef.current) {
+        setSitesStatus("loading");
+        setSitesError(null);
+        setIsRefreshingSites(true);
+        setIsLoadingNextPage(false);
+      }
+      isLoadingNextPageRef.current = false;
+
+      try {
+        const firstPage = await getSites({
+          page: 0,
+          size: SITES_PAGE_SIZE,
+          search,
+          sortBy,
+        });
+
+        if (!isMountedRef.current || requestTokenRef.current !== requestToken) {
+          return null;
+        }
+
+        const nextPage = firstPage.meta.page + 1;
+        const hasNext = hasNextSitesPage(firstPage);
+
+        setSites(dedupeSitesById(firstPage.items));
+        setSitesStatus("ready");
+        setHasNextPage(hasNext);
+        nextPageRef.current = nextPage;
+        hasNextPageRef.current = hasNext;
+        return firstPage;
+      } catch (error) {
+        if (isMountedRef.current && requestTokenRef.current === requestToken) {
+          setSitesStatus("error");
+          setSitesError(toErrorMessage(error));
+        }
+        return null;
+      } finally {
+        if (refreshPromiseRef.current === request) {
+          refreshPromiseRef.current = null;
+          refreshQueryKeyRef.current = null;
+        }
+        if (isMountedRef.current && requestTokenRef.current === requestToken) {
+          setIsRefreshingSites(false);
+        }
+      }
+    })();
+
+    refreshPromiseRef.current = request;
+    return request;
+  }, [search, sortBy]);
+
+  const loadNextSitesPage = useCallback(async () => {
+    if (
+      !hasNextPageRef.current ||
+      isLoadingNextPageRef.current ||
+      refreshPromiseRef.current
+    ) {
+      return;
+    }
+
+    const requestToken = requestTokenRef.current;
+    isLoadingNextPageRef.current = true;
+    if (isMountedRef.current) {
+      setIsLoadingNextPage(true);
+      setSitesError(null);
+    }
+
+    try {
+      const page = nextPageRef.current;
+      const nextPageResult = await getSites({
+        page,
+        size: SITES_PAGE_SIZE,
+        search,
+        sortBy,
+      });
+      if (!isMountedRef.current || requestTokenRef.current !== requestToken) {
+        return;
+      }
+      const nextPage = nextPageResult.meta.page + 1;
+      const hasNext = hasNextSitesPage(nextPageResult);
+
+      setSites((previous) =>
+        dedupeSitesById([...previous, ...nextPageResult.items])
+      );
+      setSitesStatus("ready");
+      setHasNextPage(hasNext);
+      nextPageRef.current = nextPage;
+      hasNextPageRef.current = hasNext;
+    } catch (error) {
+      if (isMountedRef.current && requestTokenRef.current === requestToken) {
+        setSitesStatus("error");
+        setSitesError(toErrorMessage(error));
+      }
+    } finally {
+      if (requestTokenRef.current === requestToken) {
+        isLoadingNextPageRef.current = false;
+      }
+      if (isMountedRef.current && requestTokenRef.current === requestToken) {
+        setIsLoadingNextPage(false);
+      }
+    }
+  }, [search, sortBy]);
+
+  const runAutoRefetchAfterCreate = useCallback(
+    async (siteId: string) => {
+      const sequenceId = autoRefetchSequenceRef.current + 1;
+      autoRefetchSequenceRef.current = sequenceId;
+      let previousDelayMs = 0;
+
+      for (const delayMs of AUTO_REFETCH_DELAYS_MS) {
+        if (!isMountedRef.current || autoRefetchSequenceRef.current !== sequenceId) {
+          return;
+        }
+
+        const waitTime = delayMs - previousDelayMs;
+        previousDelayMs = delayMs;
+
+        if (waitTime > 0) {
+          await delay(waitTime);
+        }
+
+        if (!isMountedRef.current || autoRefetchSequenceRef.current !== sequenceId) {
+          return;
+        }
+
+        const firstPage = await refreshSitesPageZero();
+        if (firstPage?.items.some((site) => site.id === siteId)) {
+          return;
+        }
+      }
+    },
+    [refreshSitesPageZero]
+  );
+
+  useEffect(() => {
+    void refreshSitesPageZero();
+  }, [refreshSitesPageZero]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      autoRefetchSequenceRef.current += 1;
+    };
+  }, []);
+
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel || typeof window === "undefined" || !("IntersectionObserver" in window)) {
+      return;
+    }
+
+    const observer = new window.IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          void loadNextSitesPage();
+        }
+      },
+      {
+        rootMargin: "300px 0px",
+      }
+    );
+
+    observer.observe(sentinel);
+    return () => {
+      observer.disconnect();
+    };
+  }, [loadNextSitesPage, hasNextPage]);
 
   const collectionsById = useMemo(() => {
     const map = new Map<string, WorkspaceCollection>();
@@ -64,6 +282,8 @@ export function SitesPage() {
     });
     return map;
   }, [collectionsQuery.data]);
+
+  const displayedSites = sites;
 
   const handleMenuAction = (action: MenuAction, site: WorkspaceSite) => {
     setOpenMenuId(null);
@@ -81,7 +301,9 @@ export function SitesPage() {
         setRenameModalOpen(true);
         break;
       case "duplicate":
-        api.duplicateSite(site.id).then(() => sitesQuery.refresh());
+        api.duplicateSite(site.id).then(() => {
+          void refreshSitesPageZero();
+        });
         break;
       case "collection":
         setSelectedCollectionId(site.collectionId ?? null);
@@ -96,7 +318,7 @@ export function SitesPage() {
   const confirmDelete = async () => {
     if (!selectedSite) return;
     await api.deleteSite(selectedSite.id);
-    await sitesQuery.refresh();
+    await refreshSitesPageZero();
     setDeleteModalOpen(false);
     setSelectedSite(null);
   };
@@ -123,12 +345,13 @@ export function SitesPage() {
     if (opened) {
       opened.focus();
     }
+    void runAutoRefetchAfterCreate(siteId);
   };
 
   const confirmRename = async () => {
     if (!selectedSite || !newName.trim()) return;
     await api.updateSite(selectedSite.id, { name: newName.trim() });
-    await sitesQuery.refresh();
+    await refreshSitesPageZero();
     setRenameModalOpen(false);
     setSelectedSite(null);
     setNewName("");
@@ -141,7 +364,7 @@ export function SitesPage() {
     } else {
       await api.removeFromCollection(selectedSite.id);
     }
-    await Promise.all([sitesQuery.refresh(), collectionsQuery.refresh()]);
+    await Promise.all([refreshSitesPageZero(), collectionsQuery.refresh()]);
     setCollectionModalOpen(false);
     setSelectedSite(null);
     setSelectedCollectionId(null);
@@ -149,7 +372,7 @@ export function SitesPage() {
 
   return (
     <div className="max-w-[1400px] mx-auto">
-      <PageHeader title={`Мої сайти (${sitesQuery.data?.meta.totalItems ?? 0})`} />
+      <PageHeader title={`Мої сайти (${displayedSites.length})`} />
 
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <div className="relative w-[360px]">
@@ -183,6 +406,18 @@ export function SitesPage() {
 
         <button
           type="button"
+          onClick={() => {
+            void refreshSitesPageZero();
+          }}
+          disabled={isRefreshingSites || isLoadingNextPage}
+          className="flex items-center gap-2 h-10 px-4 border border-zinc-200 text-zinc-700 rounded-[10px] hover:bg-zinc-50 transition-colors duration-200 active:scale-[0.98] font-medium text-sm disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <RefreshCw className={`w-4 h-4 ${isRefreshingSites ? "animate-spin" : ""}`} />
+          Refresh
+        </button>
+
+        <button
+          type="button"
           onClick={() => setCreateSheetOpen(true)}
           className="flex items-center gap-2 h-10 px-4 min-w-[140px] bg-blue-600 text-white rounded-[10px] hover:bg-blue-700 transition-colors duration-200 active:scale-[0.98] font-medium text-sm"
         >
@@ -191,12 +426,12 @@ export function SitesPage() {
         </button>
       </div>
 
-      {sitesQuery.status === "error" ? (
-        <div className="text-sm text-red-600">{sitesQuery.error}</div>
+      {sitesStatus === "error" ? (
+        <div className="text-sm text-red-600">{sitesError}</div>
       ) : null}
 
       <div className="space-y-4">
-        {(sitesQuery.data?.items ?? []).map((site) => {
+        {displayedSites.map((site) => {
           const collection = site.collectionId
             ? collectionsById.get(site.collectionId)
             : null;
@@ -223,15 +458,19 @@ export function SitesPage() {
                   {site.name}
                 </h3>
 
-                <a
-                  href={`https://${site.domain}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 mb-2 w-fit"
-                >
-                  {site.domain}
-                  <ExternalLink className="w-4 h-4" />
-                </a>
+                {site.domain ? (
+                  <a
+                    href={`https://${site.domain}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 mb-2 w-fit"
+                  >
+                    {site.domain}
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                ) : (
+                  <p className="text-sm text-zinc-500 mb-2">Домен не налаштовано</p>
+                )}
 
                 <div className="mb-4 flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center h-[22px] px-2.5 rounded-md bg-zinc-100 text-zinc-700 text-[12px] font-medium">
@@ -338,6 +577,12 @@ export function SitesPage() {
           );
         })}
       </div>
+
+      {isLoadingNextPage ? (
+        <div className="mt-4 text-sm text-zinc-500">Завантаження...</div>
+      ) : null}
+
+      {hasNextPage ? <div ref={loadMoreSentinelRef} className="h-2" /> : null}
 
       <ConfirmationDialog
         open={deleteModalOpen}
