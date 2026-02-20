@@ -55,12 +55,12 @@ const readStoredTokenValue = (key: string): string | null => {
     return null;
   }
 
-  const localValue = window.localStorage.getItem(key);
-  if (localValue) {
-    return localValue;
+  const sessionValue = window.sessionStorage.getItem(key);
+  if (sessionValue) {
+    return sessionValue;
   }
 
-  return window.sessionStorage.getItem(key);
+  return window.localStorage.getItem(key);
 };
 
 const resolveAuthorizationHeader = (): string | null => {

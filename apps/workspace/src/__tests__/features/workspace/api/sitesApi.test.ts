@@ -84,6 +84,38 @@ describe("sitesApi.createSite", () => {
     });
   });
 
+  it("prefers session storage token when both storages have values", async () => {
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.accessToken, "access-local-old");
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.tokenType, "Bearer");
+    sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.accessToken, "access-session-new");
+    sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.tokenType, "Bearer");
+
+    requestJsonMock.mockResolvedValue({
+      ok: true,
+      status: 201,
+      data: {
+        siteId: "site-888",
+        name: "Site",
+        status: "DRAFT",
+        createdAt: "2026-02-18T00:00:00.000Z",
+        updatedAt: "2026-02-18T00:00:00.000Z",
+      },
+    });
+
+    await createSite({ name: "Site" });
+
+    expect(requestJsonMock).toHaveBeenCalledWith({
+      method: "POST",
+      path: "/api/v1/sites",
+      headers: {
+        Authorization: "Bearer access-session-new",
+      },
+      body: {
+        name: "Site",
+      },
+    });
+  });
+
   it("throws when site name is blank", async () => {
     await expect(createSite({ name: "   " })).rejects.toThrow("Site name is required");
     expect(requestJsonMock).not.toHaveBeenCalled();
