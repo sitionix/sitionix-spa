@@ -9,6 +9,20 @@ vi.mock("../../../../shared/http/httpClient", () => ({
 
 const requestJsonMock = vi.mocked(requestJson);
 
+const setSessionTokens = (accessToken: string, refreshToken: string, tokenType = "Bearer") => {
+  sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.accessToken, accessToken);
+  sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.refreshToken, refreshToken);
+  sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.tokenType, tokenType);
+  sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.expiresIn, "3600");
+};
+
+const setLocalTokens = (accessToken: string, refreshToken: string, tokenType = "Bearer") => {
+  localStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.accessToken, accessToken);
+  localStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.refreshToken, refreshToken);
+  localStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.tokenType, tokenType);
+  localStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.expiresIn, "3600");
+};
+
 describe("sitesApi.createSite", () => {
   beforeEach(() => {
     requestJsonMock.mockReset();
@@ -17,8 +31,7 @@ describe("sitesApi.createSite", () => {
   });
 
   it("sends mapped payload and returns created site id", async () => {
-    localStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.accessToken, "access-local");
-    localStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.tokenType, "Bearer");
+    setLocalTokens("access-local", "refresh-local");
 
     requestJsonMock.mockResolvedValue({
       ok: true,
@@ -57,6 +70,7 @@ describe("sitesApi.createSite", () => {
 
   it("uses session storage token and defaults token type to Bearer", async () => {
     sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.accessToken, "access-session");
+    sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.refreshToken, "refresh-session");
 
     requestJsonMock.mockResolvedValue({
       ok: true,
@@ -85,10 +99,8 @@ describe("sitesApi.createSite", () => {
   });
 
   it("prefers session storage token when both storages have values", async () => {
-    localStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.accessToken, "access-local-old");
-    localStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.tokenType, "Bearer");
-    sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.accessToken, "access-session-new");
-    sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.tokenType, "Bearer");
+    setLocalTokens("access-local-old", "refresh-local-old");
+    setSessionTokens("access-session-new", "refresh-session-new");
 
     requestJsonMock.mockResolvedValue({
       ok: true,
@@ -114,6 +126,111 @@ describe("sitesApi.createSite", () => {
         name: "Site",
       },
     });
+  });
+
+  it("refreshes access token and retries create request on 401", async () => {
+    const unauthorizedError = {
+      code: 401,
+      title: "Unauthorized",
+      details: "Invalid access token",
+    };
+    setSessionTokens("access-old", "refresh-old");
+
+    requestJsonMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        error: unauthorizedError,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        data: {
+          accessToken: "access-new",
+          refreshToken: "refresh-new",
+          expiresIn: 3600,
+          tokenType: "Bearer",
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        data: {
+          siteId: "site-999",
+          name: "Site",
+          status: "DRAFT",
+          createdAt: "2026-02-18T00:00:00.000Z",
+          updatedAt: "2026-02-18T00:00:00.000Z",
+        },
+      });
+
+    const result = await createSite({ name: "Site" });
+
+    expect(result).toEqual({ id: "site-999" });
+    expect(requestJsonMock).toHaveBeenNthCalledWith(1, {
+      method: "POST",
+      path: "/api/v1/sites",
+      headers: {
+        Authorization: "Bearer access-old",
+      },
+      body: {
+        name: "Site",
+      },
+    });
+    expect(requestJsonMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        method: "POST",
+        path: "/api/v1/auth/refresh",
+        body: {
+          refreshToken: "refresh-old",
+          sessionSourceId: expect.any(String),
+        },
+      })
+    );
+    expect(requestJsonMock).toHaveBeenNthCalledWith(3, {
+      method: "POST",
+      path: "/api/v1/sites",
+      headers: {
+        Authorization: "Bearer access-new",
+      },
+      body: {
+        name: "Site",
+      },
+    });
+
+    expect(sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEYS.accessToken)).toBe("access-new");
+    expect(sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEYS.refreshToken)).toBe("refresh-new");
+  });
+
+  it("clears tokens when refresh fails and keeps unauthorized error", async () => {
+    const unauthorizedError = {
+      code: 401,
+      title: "Unauthorized",
+      details: "Invalid access token",
+    };
+    const refreshError = {
+      code: 401,
+      title: "Unauthorized",
+      details: "Invalid refresh token",
+    };
+    setSessionTokens("access-old", "refresh-old");
+
+    requestJsonMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        error: unauthorizedError,
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        error: refreshError,
+      });
+
+    await expect(createSite({ name: "Site" })).rejects.toEqual(unauthorizedError);
+    expect(sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEYS.accessToken)).toBeNull();
+    expect(sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEYS.refreshToken)).toBeNull();
   });
 
   it("throws when site name is blank", async () => {
@@ -163,9 +280,8 @@ describe("sitesApi.getSites", () => {
     sessionStorage.clear();
   });
 
-  it("calls real workspace sites endpoint with paging and auth header", async () => {
-    sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.accessToken, "access-token");
-    sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEYS.tokenType, "Bearer");
+  it("calls bff sites endpoint with paging and auth header", async () => {
+    setSessionTokens("access-token", "refresh-token");
 
     const response = {
       items: [],
@@ -187,7 +303,7 @@ describe("sitesApi.getSites", () => {
 
     expect(requestJsonMock).toHaveBeenCalledWith({
       method: "GET",
-      path: "/api/v1/workspace/sites?sortBy=date&page=0&size=20",
+      path: "/api/v1/sites?sortBy=date&page=0&size=20",
       headers: {
         Authorization: "Bearer access-token",
       },
