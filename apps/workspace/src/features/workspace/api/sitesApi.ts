@@ -74,19 +74,6 @@ const SITE_TEMPLATE_TO_API: Record<NonNullable<CreateSiteRequest["template"]>, N
   business: "BUSINESS",
 };
 
-const readStoredTokenValue = (key: string): string | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const sessionValue = window.sessionStorage.getItem(key);
-  if (sessionValue) {
-    return sessionValue;
-  }
-
-  return window.localStorage.getItem(key);
-};
-
 const readTokensFromStorage = (
   storage: Storage,
   source: TokenStorageSource
