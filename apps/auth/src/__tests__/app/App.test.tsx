@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { App } from "../../app/App";
 
 describe("App", () => {
-  it("Given App When rendered Then shows routes content", () => {
+  it("Given App When rendered Then shows routes content", async () => {
     // Given
     render(
       <MemoryRouter>
@@ -13,7 +13,7 @@ describe("App", () => {
     );
 
     // When
-    const title = screen.getByText("Реєстраці");
+    const title = await screen.findByText("Реєстраці");
 
     // Then
     expect(title).toBeInTheDocument();

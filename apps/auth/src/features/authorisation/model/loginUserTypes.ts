@@ -3,22 +3,24 @@ import type { ApiError } from "@sitionix/contracts";
 export type LoginFormValues = {
   email: string;
   password: string;
-  rememberMe: boolean;
 };
 
 export type LoginUserRequest = {
   email: string;
   password: string;
   siteId?: string;
-  sessionSourceId: string;
-  userAgent: string;
 };
 
 export type LoginUserResponse = {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-  tokenType: string;
+  authenticated: boolean;
+  user: {
+    id: string;
+    email: string;
+    role: string;
+    siteId?: string;
+  };
+  expiresAt?: string;
+  idleTimeoutSeconds?: number;
 };
 
 export type LoginUserResult =

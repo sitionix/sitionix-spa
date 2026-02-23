@@ -12,7 +12,7 @@
 
 ## State management approach
 - **Local React state only**: Components use hooks (`useState`, `useEffect`) with no global store or React context. I did not find Redux/Zustand/Recoil/etc (scan: `apps/*`, `packages/*`).
-- **Session/side effects**: Centralized utilities live in `@sitionix/auth-session` (token storage + session identifiers) and `@sitionix/http-client` (fetch wrapper).
+- **Session/side effects**: Centralized utilities live in `@sitionix/auth-session` (session types only, no token storage) and `@sitionix/http-client` (fetch wrapper with cookie credentials).
 
 ## Shared libraries and consumption
 - **@sitionix/ui**: Shared auth UI components (`packages/ui/src/*`). Consumed by Auth/Workspace via workspace dependency and Vite/TS aliases (`apps/auth/vite.config.ts`, `apps/workspace/vite.config.ts`, `apps/*/tsconfig.app.json`).
@@ -63,7 +63,7 @@
 | `packages/ui` | Shared UI | `AuthButton`, `AuthSidePanel`, `AuthInput`, `SocialAuthButton`, `SocialAuthPanel` via `packages/ui/src/index.ts`. | Design system |
 | `packages/contracts` | Shared types | `common/*`, `auth/*` request/response types via `packages/contracts/src/index.ts`. | Shared API |
 | `packages/http-client` | Shared utils | `requestJson`, `createRequestJson`, HTTP types via `packages/http-client/src/index.ts`. | Shared API |
-| `packages/auth-session` | Shared utils | `authTokenStorage`, `sessionSourceId`, `userAgent` via `packages/auth-session/src/index.ts`. | Auth platform |
+| `packages/auth-session` | Shared utils | Session domain types via `packages/auth-session/src/index.ts`. | Auth platform |
 | `packages/build-config` | Shared tooling | `createViteConfig`, `createVitestConfig` via `packages/build-config/src/index.ts`. | Platform tooling |
 | `packages/tailwind-config` | Shared styling | Tailwind preset export via `packages/tailwind-config/preset.ts`. | Design system |
 

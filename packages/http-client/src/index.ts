@@ -5,6 +5,7 @@ export type HttpRequestOptions<TBody> = {
   path: string;
   body?: TBody;
   headers?: Record<string, string>;
+  credentials?: RequestCredentials;
   signal?: AbortSignal;
 };
 
@@ -33,6 +34,7 @@ export async function requestJson<TSuccess, TError, TBody>(
 ): Promise<HttpResult<TSuccess, TError>> {
   const res = await fetch(`${options.baseUrl}${options.path}`, {
     method: options.method,
+    credentials: options.credentials ?? "include",
     headers: {
       "Content-Type": "application/json",
       ...(options.headers ?? {}),

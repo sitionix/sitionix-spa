@@ -7,13 +7,10 @@ describe("mapFormToLoginRequest", () => {
     const values = {
       email: "user@example.com",
       password: "Password1!",
-      rememberMe: false,
     };
     const ctx = {
       role: "SUPER_ADMIN" as const,
       siteId: "site-1",
-      sessionSourceId: "ssid-1",
-      userAgent: "Agent",
     };
 
     // When
@@ -24,8 +21,6 @@ describe("mapFormToLoginRequest", () => {
       email: "user@example.com",
       password: "Password1!",
       siteId: "site-1",
-      sessionSourceId: "ssid-1",
-      userAgent: "Agent",
     });
   });
 
@@ -34,12 +29,9 @@ describe("mapFormToLoginRequest", () => {
     const values = {
       email: "user@example.com",
       password: "Password1!",
-      rememberMe: false,
     };
     const ctx = {
       role: "SUPER_ADMIN" as const,
-      sessionSourceId: "ssid-1",
-      userAgent: "Agent",
     };
 
     // When
@@ -49,8 +41,6 @@ describe("mapFormToLoginRequest", () => {
     expect(result).toEqual({
       email: "user@example.com",
       password: "Password1!",
-      sessionSourceId: "ssid-1",
-      userAgent: "Agent",
     });
   });
 });

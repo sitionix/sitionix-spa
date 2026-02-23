@@ -8,8 +8,6 @@ export function mapFormToLoginRequest(
   return {
     email: values.email,
     password: values.password,
-    sessionSourceId: ctx.sessionSourceId,
-    userAgent: ctx.userAgent,
     ...(ctx.siteId ? { siteId: ctx.siteId } : {}),
   };
 }

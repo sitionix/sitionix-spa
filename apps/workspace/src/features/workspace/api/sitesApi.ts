@@ -1,4 +1,3 @@
-import { AUTH_TOKEN_STORAGE_KEYS, getOrCreateSessionSourceId } from "@sitionix/auth-session";
 import type { ApiError, Page, WorkspaceSite } from "@sitionix/contracts";
 import { requestJson } from "../../../shared/http/httpClient";
 
@@ -13,33 +12,11 @@ export type CreateSiteResponse = {
   id: string;
 };
 
-type TokenStorageSource = "session" | "local";
-
-type StoredAuthTokens = {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-  tokenType: string;
-  source: TokenStorageSource;
-};
-
 export type GetSitesQuery = {
   search?: string;
   sortBy?: "date" | "name" | "edited";
   page?: number;
   size?: number;
-};
-
-type RefreshAccessTokenRequest = {
-  refreshToken: string;
-  sessionSourceId: string;
-};
-
-type RefreshAccessTokenResponse = {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-  tokenType: string;
 };
 
 type CreateSiteApiRequest = {
@@ -72,11 +49,6 @@ type GetSitesApiResponse = {
   page: number;
   size: number;
   hasNext: boolean;
-};
-
-const refreshPromisesBySource: Record<TokenStorageSource, Promise<StoredAuthTokens | null> | null> = {
-  session: null,
-  local: null,
 };
 
 const SITE_TYPE_TO_API: Record<NonNullable<CreateSiteRequest["type"]>, NonNullable<CreateSiteApiRequest["type"]>> = {
@@ -141,192 +113,6 @@ const normalizeSitesPage = (response: GetSitesApiResponse): Page<WorkspaceSite> 
   };
 };
 
-const readTokensFromStorage = (
-  storage: Storage,
-  source: TokenStorageSource
-): StoredAuthTokens | null => {
-  const accessToken = storage.getItem(AUTH_TOKEN_STORAGE_KEYS.accessToken)?.trim();
-  const refreshToken = storage.getItem(AUTH_TOKEN_STORAGE_KEYS.refreshToken)?.trim();
-  if (!accessToken || !refreshToken) {
-    return null;
-  }
-
-  const tokenType =
-    storage.getItem(AUTH_TOKEN_STORAGE_KEYS.tokenType)?.trim() || "Bearer";
-  const expiresInRaw = storage.getItem(AUTH_TOKEN_STORAGE_KEYS.expiresIn);
-  const expiresIn = expiresInRaw ? Number.parseInt(expiresInRaw, 10) : Number.NaN;
-
-  return {
-    accessToken,
-    refreshToken,
-    expiresIn: Number.isFinite(expiresIn) ? expiresIn : 0,
-    tokenType,
-    source,
-  };
-};
-
-const getStoredTokens = (): StoredAuthTokens[] => {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  const sessionTokens = readTokensFromStorage(window.sessionStorage, "session");
-  const localTokens = readTokensFromStorage(window.localStorage, "local");
-
-  return [sessionTokens, localTokens].filter(
-    (tokens): tokens is StoredAuthTokens => tokens !== null
-  );
-};
-
-const toAuthorizationHeader = (tokens: Pick<StoredAuthTokens, "tokenType" | "accessToken">): string => {
-  return `${tokens.tokenType || "Bearer"} ${tokens.accessToken}`;
-};
-
-const getStorageBySource = (source: TokenStorageSource): Storage | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  return source === "session" ? window.sessionStorage : window.localStorage;
-};
-
-const persistTokens = (
-  source: TokenStorageSource,
-  tokens: RefreshAccessTokenResponse
-): void => {
-  const storage = getStorageBySource(source);
-  if (!storage) {
-    return;
-  }
-
-  storage.setItem(AUTH_TOKEN_STORAGE_KEYS.accessToken, tokens.accessToken);
-  storage.setItem(AUTH_TOKEN_STORAGE_KEYS.refreshToken, tokens.refreshToken);
-  storage.setItem(AUTH_TOKEN_STORAGE_KEYS.expiresIn, String(tokens.expiresIn));
-  storage.setItem(AUTH_TOKEN_STORAGE_KEYS.tokenType, tokens.tokenType);
-};
-
-const clearStoredTokens = (source?: TokenStorageSource): void => {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const storages = source
-    ? [getStorageBySource(source)].filter((value): value is Storage => value !== null)
-    : [window.sessionStorage, window.localStorage];
-
-  for (const storage of storages) {
-    storage.removeItem(AUTH_TOKEN_STORAGE_KEYS.accessToken);
-    storage.removeItem(AUTH_TOKEN_STORAGE_KEYS.refreshToken);
-    storage.removeItem(AUTH_TOKEN_STORAGE_KEYS.expiresIn);
-    storage.removeItem(AUTH_TOKEN_STORAGE_KEYS.tokenType);
-  }
-};
-
-const refreshAccessTokenWithLock = async (
-  tokens: StoredAuthTokens
-): Promise<StoredAuthTokens | null> => {
-  const activeRefreshPromise = refreshPromisesBySource[tokens.source];
-  if (activeRefreshPromise) {
-    return activeRefreshPromise;
-  }
-
-  const refreshPromise = (async () => {
-    try {
-      const result = await requestJson<
-        RefreshAccessTokenResponse,
-        ApiError,
-        RefreshAccessTokenRequest
-      >({
-        method: "POST",
-        path: "/api/v1/auth/refresh",
-        body: {
-          refreshToken: tokens.refreshToken,
-          sessionSourceId: getOrCreateSessionSourceId(),
-        },
-      });
-
-      if (!result.ok) {
-        clearStoredTokens(tokens.source);
-        return null;
-      }
-
-      persistTokens(tokens.source, result.data);
-      return {
-        ...result.data,
-        source: tokens.source,
-      };
-    } catch {
-      clearStoredTokens(tokens.source);
-      return null;
-    } finally {
-      refreshPromisesBySource[tokens.source] = null;
-    }
-  })();
-
-  refreshPromisesBySource[tokens.source] = refreshPromise;
-  return refreshPromise;
-};
-
-const requestJsonWithAuthRefresh = async <TSuccess, TBody>(
-  options: {
-    method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-    path: string;
-    body?: TBody;
-  }
-) => {
-  const storedTokens = getStoredTokens();
-  if (storedTokens.length === 0) {
-    return requestJson<TSuccess, ApiError, TBody>(options);
-  }
-
-  let lastUnauthorizedResult: {
-    ok: false;
-    status: number;
-    error: ApiError;
-  } | null = null;
-
-  for (const tokens of storedTokens) {
-    const firstAttempt = await requestJson<TSuccess, ApiError, TBody>({
-      ...options,
-      headers: {
-        Authorization: toAuthorizationHeader(tokens),
-      },
-    });
-
-    if (
-      firstAttempt.ok ||
-      firstAttempt.status !== 401 ||
-      options.path === "/api/v1/auth/refresh"
-    ) {
-      return firstAttempt;
-    }
-
-    const refreshedTokens = await refreshAccessTokenWithLock(tokens);
-    if (!refreshedTokens) {
-      lastUnauthorizedResult = firstAttempt;
-      continue;
-    }
-
-    const retryAttempt = await requestJson<TSuccess, ApiError, TBody>({
-      ...options,
-      headers: {
-        Authorization: toAuthorizationHeader(refreshedTokens),
-      },
-    });
-
-    if (retryAttempt.ok || retryAttempt.status !== 401) {
-      return retryAttempt;
-    }
-
-    lastUnauthorizedResult = retryAttempt;
-  }
-
-  return lastUnauthorizedResult as {
-    ok: false;
-    status: number;
-    error: ApiError;
-  };
-};
-
 export async function getSites(
   query?: GetSitesQuery
 ): Promise<Page<WorkspaceSite>> {
@@ -345,7 +131,7 @@ export async function getSites(
   }
 
   const queryString = params.toString();
-  const result = await requestJsonWithAuthRefresh<GetSitesApiResponse, undefined>({
+  const result = await requestJson<GetSitesApiResponse, ApiError, undefined>({
     method: "GET",
     path: `/api/v1/sites${queryString ? `?${queryString}` : ""}`,
   });
@@ -372,7 +158,7 @@ export async function createSite(
     ...(payload.template ? { template: SITE_TEMPLATE_TO_API[payload.template] } : {}),
   };
 
-  const result = await requestJsonWithAuthRefresh<CreateSiteApiResponse, CreateSiteApiRequest>({
+  const result = await requestJson<CreateSiteApiResponse, ApiError, CreateSiteApiRequest>({
     method: "POST",
     path: "/api/v1/sites",
     body: apiPayload,

@@ -3,6 +3,9 @@ import type { RegisterUserRequest, RegisterUserResponse } from "@sitionix/contra
 import type { LoginUserRequest, LoginUserResponse } from "../../features/authorisation/model/loginUserTypes";
 
 export const handlers = [
+  http.get("http://localhost/api/v1/session", () =>
+    HttpResponse.json({ authenticated: false }, { status: 401 })
+  ),
   http.post("http://localhost/api/v1/users", async ({ request }) => {
     const body = (await request.json()) as RegisterUserRequest;
 
@@ -18,10 +21,13 @@ export const handlers = [
     const body = (await request.json()) as LoginUserRequest;
 
     const response: LoginUserResponse = {
-      accessToken: `access-${body.email}`,
-      refreshToken: `refresh-${body.email}`,
-      expiresIn: 3600,
-      tokenType: "Bearer",
+      authenticated: true,
+      user: {
+        id: "1",
+        email: body.email,
+        role: "SUPER_ADMIN",
+      },
+      idleTimeoutSeconds: 86400,
     };
 
     return HttpResponse.json(response);

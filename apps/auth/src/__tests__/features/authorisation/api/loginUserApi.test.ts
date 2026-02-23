@@ -9,8 +9,6 @@ describe("loginUserApi", () => {
     const request = {
       email: "ok@example.com",
       password: "Password1!",
-      sessionSourceId: "ssid",
-      userAgent: "Agent",
     };
 
     // When
@@ -19,7 +17,8 @@ describe("loginUserApi", () => {
     // Then
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.data.accessToken).toContain("ok@example.com");
+      expect(result.data.authenticated).toBe(true);
+      expect(result.data.user.email).toContain("ok@example.com");
     }
   });
 
@@ -38,8 +37,6 @@ describe("loginUserApi", () => {
     const result = await loginUserApi({
       email: "fail@example.com",
       password: "Password1!",
-      sessionSourceId: "ssid",
-      userAgent: "Agent",
     });
 
     // Then
@@ -64,8 +61,6 @@ describe("loginUserApi", () => {
     const result = await loginUserApi({
       email: "fail@example.com",
       password: "Password1!",
-      sessionSourceId: "ssid",
-      userAgent: "Agent",
     });
 
     // Then
