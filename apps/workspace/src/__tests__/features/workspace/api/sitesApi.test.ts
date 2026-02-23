@@ -128,6 +128,82 @@ describe("sitesApi.createSite", () => {
     });
   });
 
+  it("falls back to local storage token when session token cannot be refreshed", async () => {
+    const unauthorizedError = {
+      code: 401,
+      title: "Unauthorized",
+      details: "Invalid access token",
+    };
+    setSessionTokens("access-session-stale", "refresh-session-stale");
+    setLocalTokens("access-local-valid", "refresh-local-valid");
+
+    requestJsonMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        error: unauthorizedError,
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        error: {
+          code: 401,
+          title: "Unauthorized",
+          details: "Invalid refresh token",
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        data: {
+          siteId: "site-fallback",
+          name: "Site",
+          status: "DRAFT",
+          createdAt: "2026-02-18T00:00:00.000Z",
+          updatedAt: "2026-02-18T00:00:00.000Z",
+        },
+      });
+
+    const result = await createSite({ name: "Site" });
+
+    expect(result).toEqual({ id: "site-fallback" });
+    expect(requestJsonMock).toHaveBeenNthCalledWith(1, {
+      method: "POST",
+      path: "/api/v1/sites",
+      headers: {
+        Authorization: "Bearer access-session-stale",
+      },
+      body: {
+        name: "Site",
+      },
+    });
+    expect(requestJsonMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        method: "POST",
+        path: "/api/v1/auth/refresh",
+        body: {
+          refreshToken: "refresh-session-stale",
+          sessionSourceId: expect.any(String),
+        },
+      })
+    );
+    expect(requestJsonMock).toHaveBeenNthCalledWith(3, {
+      method: "POST",
+      path: "/api/v1/sites",
+      headers: {
+        Authorization: "Bearer access-local-valid",
+      },
+      body: {
+        name: "Site",
+      },
+    });
+    expect(sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEYS.accessToken)).toBeNull();
+    expect(sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEYS.refreshToken)).toBeNull();
+    expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEYS.accessToken)).toBe("access-local-valid");
+    expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEYS.refreshToken)).toBe("refresh-local-valid");
+  });
+
   it("refreshes access token and retries create request on 401", async () => {
     const unauthorizedError = {
       code: 401,
@@ -284,13 +360,20 @@ describe("sitesApi.getSites", () => {
     setSessionTokens("access-token", "refresh-token");
 
     const response = {
-      items: [],
-      meta: {
-        page: 0,
-        size: 20,
-        totalItems: 0,
-        totalPages: 0,
-      },
+      items: [
+        {
+          siteId: "site-1",
+          name: "Alpha",
+          status: "PUBLISHED",
+          type: "BUSINESS",
+          description: "Company site",
+          createdAt: "2026-02-18T00:00:00.000Z",
+          updatedAt: "2026-02-18T01:00:00.000Z",
+        },
+      ],
+      page: 0,
+      size: 20,
+      hasNext: true,
     };
 
     requestJsonMock.mockResolvedValue({
@@ -299,13 +382,39 @@ describe("sitesApi.getSites", () => {
       data: response,
     });
 
-    await getSites({ page: 0, size: 20, sortBy: "date" });
+    const result = await getSites({ page: 0, size: 20, sortBy: "date" });
 
     expect(requestJsonMock).toHaveBeenCalledWith({
       method: "GET",
       path: "/api/v1/sites?sortBy=date&page=0&size=20",
       headers: {
         Authorization: "Bearer access-token",
+      },
+    });
+    expect(result).toEqual({
+      items: [
+        {
+          id: "site-1",
+          name: "Alpha",
+          domain: "",
+          description: "Company site",
+          seoTitle: null,
+          seoDescription: null,
+          type: "standalone",
+          ecosystemName: null,
+          collectionId: null,
+          status: "published",
+          createdAt: "2026-02-18T00:00:00.000Z",
+          updatedAt: "2026-02-18T01:00:00.000Z",
+          visits: 0,
+          thumbnailUrl: null,
+        },
+      ],
+      meta: {
+        page: 0,
+        size: 20,
+        totalItems: 21,
+        totalPages: 2,
       },
     });
   });

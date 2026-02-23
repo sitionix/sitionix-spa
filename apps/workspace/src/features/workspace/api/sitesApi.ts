@@ -57,7 +57,27 @@ type CreateSiteApiResponse = {
   updatedAt: string;
 };
 
-let refreshPromise: Promise<StoredAuthTokens | null> | null = null;
+type GetSitesApiItem = {
+  siteId: string;
+  name: string;
+  status: string;
+  type: string;
+  description?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type GetSitesApiResponse = {
+  items: GetSitesApiItem[];
+  page: number;
+  size: number;
+  hasNext: boolean;
+};
+
+const refreshPromisesBySource: Record<TokenStorageSource, Promise<StoredAuthTokens | null> | null> = {
+  session: null,
+  local: null,
+};
 
 const SITE_TYPE_TO_API: Record<NonNullable<CreateSiteRequest["type"]>, NonNullable<CreateSiteApiRequest["type"]>> = {
   portfolio: "PORTFOLIO",
@@ -72,6 +92,53 @@ const SITE_TEMPLATE_TO_API: Record<NonNullable<CreateSiteRequest["template"]>, N
   blank: "BLANK",
   portfolio: "PORTFOLIO",
   business: "BUSINESS",
+};
+
+const toWorkspaceSiteStatus = (
+  value: string
+): WorkspaceSite["status"] => (value.toUpperCase() === "PUBLISHED" ? "published" : "draft");
+
+const toWorkspaceSite = (item: GetSitesApiItem): WorkspaceSite => {
+  return {
+    id: item.siteId,
+    name: item.name,
+    domain: "",
+    description: item.description ?? null,
+    seoTitle: null,
+    seoDescription: null,
+    type: "standalone",
+    ecosystemName: null,
+    collectionId: null,
+    status: toWorkspaceSiteStatus(item.status),
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+    visits: 0,
+    thumbnailUrl: null,
+  };
+};
+
+const normalizeSitesPage = (response: GetSitesApiResponse): Page<WorkspaceSite> => {
+  const page = Number.isFinite(response.page) ? Math.max(0, response.page) : 0;
+  const size = Number.isFinite(response.size) ? Math.max(1, response.size) : 20;
+  const hasNext = Boolean(response.hasNext);
+  const items = response.items
+    .filter((item) => typeof item.siteId === "string" && item.siteId.length > 0)
+    .map(toWorkspaceSite);
+
+  const totalPages = hasNext ? page + 2 : page + 1;
+  const totalItems = hasNext
+    ? (page + 1) * size + 1
+    : page * size + items.length;
+
+  return {
+    items,
+    meta: {
+      page,
+      size,
+      totalItems,
+      totalPages,
+    },
+  };
 };
 
 const readTokensFromStorage = (
@@ -98,14 +165,16 @@ const readTokensFromStorage = (
   };
 };
 
-const getStoredTokens = (): StoredAuthTokens | null => {
+const getStoredTokens = (): StoredAuthTokens[] => {
   if (typeof window === "undefined") {
-    return null;
+    return [];
   }
 
-  return (
-    readTokensFromStorage(window.sessionStorage, "session") ??
-    readTokensFromStorage(window.localStorage, "local")
+  const sessionTokens = readTokensFromStorage(window.sessionStorage, "session");
+  const localTokens = readTokensFromStorage(window.localStorage, "local");
+
+  return [sessionTokens, localTokens].filter(
+    (tokens): tokens is StoredAuthTokens => tokens !== null
   );
 };
 
@@ -135,12 +204,16 @@ const persistTokens = (
   storage.setItem(AUTH_TOKEN_STORAGE_KEYS.tokenType, tokens.tokenType);
 };
 
-const clearStoredTokens = (): void => {
+const clearStoredTokens = (source?: TokenStorageSource): void => {
   if (typeof window === "undefined") {
     return;
   }
 
-  for (const storage of [window.sessionStorage, window.localStorage]) {
+  const storages = source
+    ? [getStorageBySource(source)].filter((value): value is Storage => value !== null)
+    : [window.sessionStorage, window.localStorage];
+
+  for (const storage of storages) {
     storage.removeItem(AUTH_TOKEN_STORAGE_KEYS.accessToken);
     storage.removeItem(AUTH_TOKEN_STORAGE_KEYS.refreshToken);
     storage.removeItem(AUTH_TOKEN_STORAGE_KEYS.expiresIn);
@@ -151,11 +224,12 @@ const clearStoredTokens = (): void => {
 const refreshAccessTokenWithLock = async (
   tokens: StoredAuthTokens
 ): Promise<StoredAuthTokens | null> => {
-  if (refreshPromise) {
-    return refreshPromise;
+  const activeRefreshPromise = refreshPromisesBySource[tokens.source];
+  if (activeRefreshPromise) {
+    return activeRefreshPromise;
   }
 
-  refreshPromise = (async () => {
+  const refreshPromise = (async () => {
     try {
       const result = await requestJson<
         RefreshAccessTokenResponse,
@@ -171,7 +245,7 @@ const refreshAccessTokenWithLock = async (
       });
 
       if (!result.ok) {
-        clearStoredTokens();
+        clearStoredTokens(tokens.source);
         return null;
       }
 
@@ -181,13 +255,14 @@ const refreshAccessTokenWithLock = async (
         source: tokens.source,
       };
     } catch {
-      clearStoredTokens();
+      clearStoredTokens(tokens.source);
       return null;
     } finally {
-      refreshPromise = null;
+      refreshPromisesBySource[tokens.source] = null;
     }
   })();
 
+  refreshPromisesBySource[tokens.source] = refreshPromise;
   return refreshPromise;
 };
 
@@ -199,37 +274,57 @@ const requestJsonWithAuthRefresh = async <TSuccess, TBody>(
   }
 ) => {
   const storedTokens = getStoredTokens();
-  const firstAttempt = await requestJson<TSuccess, ApiError, TBody>({
-    ...options,
-    ...(storedTokens
-      ? {
-          headers: {
-            Authorization: toAuthorizationHeader(storedTokens),
-          },
-        }
-      : {}),
-  });
-
-  if (
-    firstAttempt.ok ||
-    firstAttempt.status !== 401 ||
-    !storedTokens ||
-    options.path === "/api/v1/auth/refresh"
-  ) {
-    return firstAttempt;
+  if (storedTokens.length === 0) {
+    return requestJson<TSuccess, ApiError, TBody>(options);
   }
 
-  const refreshedTokens = await refreshAccessTokenWithLock(storedTokens);
-  if (!refreshedTokens) {
-    return firstAttempt;
+  let lastUnauthorizedResult: {
+    ok: false;
+    status: number;
+    error: ApiError;
+  } | null = null;
+
+  for (const tokens of storedTokens) {
+    const firstAttempt = await requestJson<TSuccess, ApiError, TBody>({
+      ...options,
+      headers: {
+        Authorization: toAuthorizationHeader(tokens),
+      },
+    });
+
+    if (
+      firstAttempt.ok ||
+      firstAttempt.status !== 401 ||
+      options.path === "/api/v1/auth/refresh"
+    ) {
+      return firstAttempt;
+    }
+
+    const refreshedTokens = await refreshAccessTokenWithLock(tokens);
+    if (!refreshedTokens) {
+      lastUnauthorizedResult = firstAttempt;
+      continue;
+    }
+
+    const retryAttempt = await requestJson<TSuccess, ApiError, TBody>({
+      ...options,
+      headers: {
+        Authorization: toAuthorizationHeader(refreshedTokens),
+      },
+    });
+
+    if (retryAttempt.ok || retryAttempt.status !== 401) {
+      return retryAttempt;
+    }
+
+    lastUnauthorizedResult = retryAttempt;
   }
 
-  return requestJson<TSuccess, ApiError, TBody>({
-    ...options,
-    headers: {
-      Authorization: toAuthorizationHeader(refreshedTokens),
-    },
-  });
+  return lastUnauthorizedResult as {
+    ok: false;
+    status: number;
+    error: ApiError;
+  };
 };
 
 export async function getSites(
@@ -250,7 +345,7 @@ export async function getSites(
   }
 
   const queryString = params.toString();
-  const result = await requestJsonWithAuthRefresh<Page<WorkspaceSite>, undefined>({
+  const result = await requestJsonWithAuthRefresh<GetSitesApiResponse, undefined>({
     method: "GET",
     path: `/api/v1/sites${queryString ? `?${queryString}` : ""}`,
   });
@@ -259,7 +354,7 @@ export async function getSites(
     throw result.error ?? new Error("Get sites request failed");
   }
 
-  return result.data;
+  return normalizeSitesPage(result.data);
 }
 
 export async function createSite(
