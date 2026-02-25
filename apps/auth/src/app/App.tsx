@@ -1,30 +1,8 @@
 import { useEffect, useState } from "react";
 import { authSessionManager } from "@sitionix/auth-session";
+import { navigateInBrowser } from "@sitionix/ui";
 import { AuthRoutes } from "./router";
 import { publicEnv } from "../shared/env/publicEnv";
-
-const navigateToWorkspace = (): void => {
-  const browserWindow = globalThis.window;
-  if (!browserWindow) {
-    return;
-  }
-
-  const userAgent = browserWindow.navigator?.userAgent ?? "";
-  if (userAgent.includes("jsdom") && browserWindow.history?.pushState) {
-    browserWindow.history.pushState({}, "", "/workspace");
-    browserWindow.dispatchEvent(new PopStateEvent("popstate"));
-    return;
-  }
-
-  try {
-    browserWindow.location.assign("/workspace");
-  } catch {
-    if (browserWindow.history?.pushState) {
-      browserWindow.history.pushState({}, "", "/workspace");
-      browserWindow.dispatchEvent(new PopStateEvent("popstate"));
-    }
-  }
-};
 
 export function App() {
   const [bootstrapped, setBootstrapped] = useState(false);
@@ -40,7 +18,7 @@ export function App() {
         }
 
         if (authSessionManager.getAccessToken()) {
-          navigateToWorkspace();
+          navigateInBrowser("/workspace");
         }
       })
       .finally(() => {

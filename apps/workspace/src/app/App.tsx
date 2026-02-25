@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { authSessionManager } from "@sitionix/auth-session";
+import { navigateInBrowser } from "@sitionix/ui";
 import { WorkspaceRoutes } from "./router";
 import { WorkspaceApiProvider } from "../features/workspace/api/WorkspaceApiProvider";
 import { publicEnv } from "../shared/env/publicEnv";
@@ -12,29 +13,6 @@ const resolveLoginPath = (): string => {
   return "/authorisation";
 };
 
-const navigateTo = (path: string): void => {
-  const browserWindow = globalThis.window;
-  if (!browserWindow) {
-    return;
-  }
-
-  const userAgent = browserWindow.navigator?.userAgent ?? "";
-  if (userAgent.includes("jsdom") && browserWindow.history?.pushState) {
-    browserWindow.history.pushState({}, "", path);
-    browserWindow.dispatchEvent(new PopStateEvent("popstate"));
-    return;
-  }
-
-  try {
-    browserWindow.location.assign(path);
-  } catch {
-    if (browserWindow.history?.pushState) {
-      browserWindow.history.pushState({}, "", path);
-      browserWindow.dispatchEvent(new PopStateEvent("popstate"));
-    }
-  }
-};
-
 export function App() {
   const [bootstrapped, setBootstrapped] = useState(false);
 
@@ -42,17 +20,17 @@ export function App() {
     let active = true;
     authSessionManager.configure({
       baseUrl: publicEnv.apiBaseUrl,
-      onUnauthenticated: () => {
-        const browserWindow = globalThis.window;
-        if (!browserWindow) {
-          return;
-        }
+    });
+    const unsubscribeUnauthenticated = authSessionManager.onUnauthenticated(() => {
+      const browserWindow = globalThis.window;
+      if (!browserWindow) {
+        return;
+      }
 
-        const targetPath = resolveLoginPath();
-        if (browserWindow.location.pathname !== targetPath) {
-          navigateTo(targetPath);
-        }
-      },
+      const targetPath = resolveLoginPath();
+      if (browserWindow.location.pathname !== targetPath) {
+        navigateInBrowser(targetPath);
+      }
     });
 
     authSessionManager.bootstrap().finally(() => {
@@ -63,6 +41,7 @@ export function App() {
 
     return () => {
       active = false;
+      unsubscribeUnauthenticated();
     };
   }, []);
 
