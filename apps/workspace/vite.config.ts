@@ -1,6 +1,7 @@
 import path from "node:path";
 import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import basicSsl from "@vitejs/plugin-basic-ssl";
 import federation from "@originjs/vite-plugin-federation";
 import { createViteConfig } from "@sitionix/build-config";
 
@@ -9,6 +10,7 @@ const cacheDir = path.resolve(workspaceRoot, ".cache", "vite-workspace");
 const uiSrc = path.resolve(__dirname, "../../packages/ui/src");
 const authSessionSrc = path.resolve(__dirname, "../../packages/auth-session/src");
 const httpClientSrc = path.resolve(__dirname, "../../packages/http-client/src");
+const sharedCertDir = path.resolve(workspaceRoot, ".cache", "vite-shared-ssl");
 
 const assetsRemoteEntryCompat = (): Plugin => ({
   name: "workspace-assets-remote-entry-compat",
@@ -38,6 +40,7 @@ export default createViteConfig({
   root: __dirname,
   cacheDir,
   plugins: [
+    basicSsl({ certDir: sharedCertDir, name: "sitionix-local" }),
     react(),
     assetsRemoteEntryCompat(),
     federation({
@@ -89,7 +92,8 @@ export default createViteConfig({
     port: 3002,
     strictPort: true,
     host: process.env.VITE_HOST ?? "127.0.0.1",
+    https: true,
     fs: { allow: [workspaceRoot] },
   },
-  preview: { port: 3002, strictPort: true, host: "0.0.0.0", cors: true },
+  preview: { port: 3002, strictPort: true, host: "0.0.0.0", https: true, cors: true },
 });

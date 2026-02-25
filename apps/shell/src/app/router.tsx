@@ -1,13 +1,23 @@
-import { createBrowserRouter } from "react-router-dom";
+import { Navigate, createBrowserRouter } from "react-router-dom";
 import { AuthRemote } from "../mf/AuthRemote";
 import { WorkspaceRemote } from "../mf/WorkspaceRemote";
 import { BuilderRemote } from "../mf/BuilderRemote";
 import { HomePage } from "./HomePage";
 
-export function createShellRouter() {
+type CreateShellRouterOptions = {
+  isAuthenticated: boolean;
+};
+
+export function createShellRouter(options: CreateShellRouterOptions) {
+  const homeElement = options.isAuthenticated ? (
+    <Navigate to="/workspace" replace />
+  ) : (
+    <HomePage />
+  );
+
   return createBrowserRouter(
     [
-      { path: "/", element: <HomePage /> },
+      { path: "/", element: homeElement },
 
       // Тут MF буде змонтований всередині Shell
       { path: "/auth/*", element: <AuthRemote basename="/auth" /> },

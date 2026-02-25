@@ -1,4 +1,5 @@
-import { createRequestJson } from "@sitionix/http-client";
+import { authSessionManager } from "@sitionix/auth-session";
+import { configureAuthSessionBridge, createRequestJson } from "@sitionix/http-client";
 import { publicEnv } from "../env/publicEnv";
 
 export type {
@@ -8,5 +9,10 @@ export type {
   HttpErrorResponse,
   HttpResult,
 } from "@sitionix/http-client";
+
+configureAuthSessionBridge({
+  getAccessToken: () => authSessionManager.getAccessToken(),
+  refresh: () => authSessionManager.refresh(),
+});
 
 export const requestJson = createRequestJson(publicEnv.apiBaseUrl);

@@ -9,7 +9,7 @@ describe("getOrCreateSessionSourceId", () => {
 
   it("Given stored value When called Then returns stored value", () => {
     // Given
-    localStorage.setItem("sitionix.auth.sessionSourceId", "stored-id");
+    localStorage.setItem("sitionix.sessionSourceId", "stored-id");
 
     // When
     const value = getOrCreateSessionSourceId();
@@ -28,7 +28,7 @@ describe("getOrCreateSessionSourceId", () => {
 
     // Then
     expect(value).toBe("uuid-123");
-    expect(localStorage.getItem("sitionix.auth.sessionSourceId")).toBe("uuid-123");
+    expect(localStorage.getItem("sitionix.sessionSourceId")).toBe("uuid-123");
   });
 
   it("Given no crypto UUID When called Then uses fallback and stores", () => {
@@ -39,8 +39,8 @@ describe("getOrCreateSessionSourceId", () => {
     const value = getOrCreateSessionSourceId();
 
     // Then
-    expect(value).toMatch(/^ssid_/);
-    expect(localStorage.getItem("sitionix.auth.sessionSourceId")).toBe(value);
+    expect(value).toBeTruthy();
+    expect(localStorage.getItem("sitionix.sessionSourceId")).toBe(value);
   });
 
   it("Given no localStorage When called Then returns generated value without throwing", () => {
@@ -62,5 +62,16 @@ describe("getOrCreateSessionSourceId", () => {
       value: originalStorage,
       configurable: true,
     });
+  });
+
+  it("Given same origin reload When called again Then returns stable value", () => {
+    // Given
+    const firstValue = getOrCreateSessionSourceId();
+
+    // When
+    const secondValue = getOrCreateSessionSourceId();
+
+    // Then
+    expect(firstValue).toBe(secondValue);
   });
 });

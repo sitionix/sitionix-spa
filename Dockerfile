@@ -10,7 +10,7 @@ COPY packages ./packages
 
 RUN pnpm install --frozen-lockfile
 
-ARG VITE_API_BASE_URL=http://localhost:8080/bffssox
+ARG VITE_API_BASE_URL=/bffssox
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
 RUN pnpm -r build

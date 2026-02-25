@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { App } from "../../app/App";
 
 describe("App", () => {
-  it("Given App When rendered Then shows routes content", () => {
+  it("Given App When rendered Then shows routes content", async () => {
     // Given
     render(
       <MemoryRouter>
@@ -12,10 +12,9 @@ describe("App", () => {
       </MemoryRouter>
     );
 
-    // When
-    const title = screen.getByText("Реєстраці");
-
     // Then
-    expect(title).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Реєстраці")).toBeInTheDocument();
+    });
   });
 });

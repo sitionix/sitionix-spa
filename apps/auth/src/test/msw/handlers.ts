@@ -19,11 +19,16 @@ export const handlers = [
 
     const response: LoginUserResponse = {
       accessToken: `access-${body.email}`,
-      refreshToken: `refresh-${body.email}`,
       expiresIn: 3600,
       tokenType: "Bearer",
     };
 
     return HttpResponse.json(response);
   }),
+  http.post("http://localhost/api/v1/auth/refresh", () =>
+    HttpResponse.json(
+      { code: 401, title: "Unauthorized", details: "No refresh cookie" },
+      { status: 401 }
+    )
+  ),
 ];

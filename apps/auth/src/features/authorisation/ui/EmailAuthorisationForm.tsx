@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import type { GlobalUserRole } from "@sitionix/contracts";
 import { AuthButton, AuthInput } from "@sitionix/ui";
 import {
+  authSessionManager,
   getOrCreateSessionSourceId,
   getUserAgent,
-  saveAuthTokens,
 } from "@sitionix/auth-session";
 import { loginUserApi } from "../api/loginUserApi";
 import { mapFormToLoginRequest } from "../model/loginUserMapper";
@@ -55,7 +55,10 @@ export default function EmailAuthorisationForm({
           const result = await loginUserApi(req);
 
           if (result.ok) {
-            saveAuthTokens(result.data, rememberMe);
+            authSessionManager.setAccessToken(
+              result.data.accessToken,
+              result.data.expiresIn
+            );
             onSuccess();
             return;
           }

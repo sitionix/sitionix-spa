@@ -2,10 +2,16 @@ import path from "node:path";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import basicSsl from "@vitejs/plugin-basic-ssl";
 import federation from "@originjs/vite-plugin-federation";
 
 const workspaceRoot = path.resolve(__dirname, "../..");
 const cacheDir = path.resolve(workspaceRoot, ".cache", "vite-shell");
+const sharedCertDir = path.resolve(workspaceRoot, ".cache", "vite-shared-ssl");
+const authSessionSrc = path.resolve(
+  __dirname,
+  "../../packages/auth-session/src"
+);
 
 const fullReloadOnRemoteChange = (): Plugin => ({
   name: "full-reload-on-remote-change",
@@ -33,20 +39,30 @@ const fullReloadOnRemoteChange = (): Plugin => ({
 export default defineConfig(({ command, mode }) => {
   const isDev = command === "serve" && mode === "development";
   const host = process.env.VITE_HOST ?? "127.0.0.1";
+  const bffProxyTarget = process.env.VITE_BFF_PROXY_TARGET ?? "http://localhost:8080";
   const authRemote = isDev
-    ? "http://localhost:3001/remoteEntry.js"
-    : "http://localhost:3001/assets/remoteEntry.js";
+    ? "https://localhost:3001/remoteEntry.js"
+    : "https://localhost:3001/assets/remoteEntry.js";
   const workspaceRemote = isDev
-    ? "http://localhost:3002/remoteEntry.js"
-    : "http://localhost:3002/assets/remoteEntry.js";
+    ? "https://localhost:3002/remoteEntry.js"
+    : "https://localhost:3002/assets/remoteEntry.js";
   const builderRemote = isDev
-    ? "http://localhost:3003/remoteEntry.js"
-    : "http://localhost:3003/assets/remoteEntry.js";
+    ? "https://localhost:3003/remoteEntry.js"
+    : "https://localhost:3003/assets/remoteEntry.js";
 
   return {
     cacheDir,
+    resolve: {
+      alias: {
+        "@sitionix/auth-session": authSessionSrc,
+      },
+    },
+    optimizeDeps: {
+      exclude: ["@sitionix/auth-session"],
+    },
     plugins: [
       react(),
+      basicSsl({ certDir: sharedCertDir, name: "sitionix-local" }),
       ...(isDev ? [fullReloadOnRemoteChange()] : []),
       federation({
         name: "shell",
@@ -78,9 +94,29 @@ export default defineConfig(({ command, mode }) => {
       port: 3000,
       strictPort: true,
       host,
+      https: true,
+      proxy: {
+        "/bffssox": {
+          target: bffProxyTarget,
+          changeOrigin: true,
+          secure: false,
+        },
+      },
       fs: { allow: [workspaceRoot] },
     },
-    preview: { port: 3000, strictPort: true, host: "0.0.0.0" },
+    preview: {
+      port: 3000,
+      strictPort: true,
+      host: "0.0.0.0",
+      https: true,
+      proxy: {
+        "/bffssox": {
+          target: bffProxyTarget,
+          changeOrigin: true,
+          secure: false,
+        },
+      },
+    },
     build: { target: "esnext" },
   };
 });
