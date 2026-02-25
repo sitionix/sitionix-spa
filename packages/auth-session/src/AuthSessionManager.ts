@@ -43,9 +43,9 @@ const createTabId = (): string => {
 
   const nowPart = Date.now().toString(36);
   const perfPart =
-    typeof performance !== "undefined"
-      ? Math.floor(performance.now()).toString(36)
-      : "0";
+    typeof performance === "undefined"
+      ? "0"
+      : Math.floor(performance.now()).toString(36);
   return `tab-${nowPart}-${perfPart}`;
 };
 

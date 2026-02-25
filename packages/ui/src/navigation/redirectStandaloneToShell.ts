@@ -3,6 +3,7 @@ export type StandaloneShellRedirectOptions = {
   standalonePrefix: string;
   shellPrefix: string;
   defaultPath: string;
+  onRedirect?: (targetUrl: string) => void;
 };
 
 export const redirectStandaloneToShell = (
@@ -35,6 +36,11 @@ export const redirectStandaloneToShell = (
       : pathWithoutStandalonePrefix;
   const targetUrl = `${options.shellOrigin}${options.shellPrefix}${targetPath}${browserWindow.location.search}${browserWindow.location.hash}`;
 
-  browserWindow.location.replace(targetUrl);
+  if (options.onRedirect) {
+    options.onRedirect(targetUrl);
+  } else {
+    browserWindow.location.replace(targetUrl);
+  }
+
   return true;
 };
