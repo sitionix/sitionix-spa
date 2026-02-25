@@ -5,14 +5,14 @@ import { MemoryRouter } from "react-router-dom";
 import { http, HttpResponse } from "msw";
 import AuthorisationPage from "../../../../features/authorisation/ui/AuthorisationPage";
 import { server } from "../../../../test/msw/server";
-import { AUTH_TOKEN_STORAGE_KEYS } from "@sitionix/auth-session";
+import { authSessionManager } from "@sitionix/auth-session";
 import { AuthRoutes } from "../../../../app/router";
 
 describe("AuthorisationPage", () => {
   it("Given email input When opening email panel Then prefills form and logs in", async () => {
     // Given
     window.history.pushState({}, "", "/authorisation?siteId=site-777");
-    localStorage.setItem("sitionix.auth.sessionSourceId", "ssid-777");
+    localStorage.setItem("sitionix.sessionSourceId", "ssid-777");
     Object.defineProperty(window.navigator, "userAgent", {
       value: "TestAgent/1.0",
       configurable: true,
@@ -24,7 +24,6 @@ describe("AuthorisationPage", () => {
         receivedBody = await request.json();
         return HttpResponse.json({
           accessToken: "access-1",
-          refreshToken: "refresh-1",
           expiresIn: 3600,
           tokenType: "Bearer",
         });
@@ -58,8 +57,7 @@ describe("AuthorisationPage", () => {
         userAgent: expectedUserAgent,
       })
     );
-    expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEYS.accessToken)).toBe("access-1");
-    expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEYS.refreshToken)).toBe("refresh-1");
+    expect(authSessionManager.getAccessToken()).toBe("access-1");
   });
 
   it("Given auth error When submitting Then shows error text", async () => {
@@ -97,7 +95,6 @@ describe("AuthorisationPage", () => {
       http.post("http://localhost/api/v1/auth/login", () =>
         HttpResponse.json({
           accessToken: "access-777",
-          refreshToken: "refresh-777",
           expiresIn: 3600,
           tokenType: "Bearer",
         })
