@@ -3,11 +3,12 @@ const LEGACY_SESSION_SOURCE_ID_KEY = "sitionix.auth.sessionSourceId";
 let fallbackCounter = 0;
 
 const getStorage = (): Storage | null => {
-  if (typeof window === "undefined") {
+  const browserWindow = globalThis.window;
+  if (!browserWindow) {
     return null;
   }
 
-  return window.localStorage;
+  return browserWindow.localStorage;
 };
 
 const generateUuidV4 = (): string => {

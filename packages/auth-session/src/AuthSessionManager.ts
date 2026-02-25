@@ -50,18 +50,18 @@ const createTabId = (): string => {
 };
 
 const isRefreshSyncMessage = (value: unknown): value is RefreshSyncMessage => {
-  if (!value || typeof value !== "object") {
-    return false;
+  if (value && typeof value === "object") {
+    const message = value as Partial<RefreshSyncMessage>;
+    return (
+      (message.type === "REFRESH_START" ||
+        message.type === "REFRESH_SUCCESS" ||
+        message.type === "REFRESH_FAIL") &&
+      typeof message.tabId === "string" &&
+      typeof message.ts === "number"
+    );
   }
 
-  const message = value as Partial<RefreshSyncMessage>;
-  return (
-    (message.type === "REFRESH_START" ||
-      message.type === "REFRESH_SUCCESS" ||
-      message.type === "REFRESH_FAIL") &&
-    typeof message.tabId === "string" &&
-    typeof message.ts === "number"
-  );
+  return false;
 };
 
 const wait = (ms: number): Promise<void> =>

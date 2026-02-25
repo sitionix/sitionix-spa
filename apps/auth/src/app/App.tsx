@@ -4,19 +4,24 @@ import { AuthRoutes } from "./router";
 import { publicEnv } from "../shared/env/publicEnv";
 
 const navigateToWorkspace = (): void => {
-  const userAgent = window.navigator?.userAgent ?? "";
-  if (userAgent.includes("jsdom") && window.history?.pushState) {
-    window.history.pushState({}, "", "/workspace");
-    window.dispatchEvent(new PopStateEvent("popstate"));
+  const browserWindow = globalThis.window;
+  if (!browserWindow) {
+    return;
+  }
+
+  const userAgent = browserWindow.navigator?.userAgent ?? "";
+  if (userAgent.includes("jsdom") && browserWindow.history?.pushState) {
+    browserWindow.history.pushState({}, "", "/workspace");
+    browserWindow.dispatchEvent(new PopStateEvent("popstate"));
     return;
   }
 
   try {
-    window.location.assign("/workspace");
+    browserWindow.location.assign("/workspace");
   } catch {
-    if (window.history?.pushState) {
-      window.history.pushState({}, "", "/workspace");
-      window.dispatchEvent(new PopStateEvent("popstate"));
+    if (browserWindow.history?.pushState) {
+      browserWindow.history.pushState({}, "", "/workspace");
+      browserWindow.dispatchEvent(new PopStateEvent("popstate"));
     }
   }
 };
@@ -33,10 +38,9 @@ export function App() {
         if (!active) {
           return;
         }
-        const hasAccessToken = Boolean(authSessionManager.getAccessToken());
-        if (hasAccessToken) {
+
+        if (authSessionManager.getAccessToken()) {
           navigateToWorkspace();
-          return;
         }
       })
       .finally(() => {

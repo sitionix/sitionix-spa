@@ -8,11 +8,12 @@ type StoredAccessTokenPayload = {
 const SESSION_STORAGE_ACCESS_TOKEN_KEY = "sitionix.auth.accessToken.payload";
 
 const resolveSessionStorage = (): Storage | null => {
-  if (typeof window === "undefined") {
+  const browserWindow = globalThis.window;
+  if (!browserWindow) {
     return null;
   }
 
-  return window.sessionStorage;
+  return browserWindow.sessionStorage;
 };
 
 export class AccessTokenStore {

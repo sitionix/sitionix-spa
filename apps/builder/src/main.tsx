@@ -6,11 +6,12 @@ import "./style.css";
 import { App } from "./app/App";
 
 const redirectStandaloneToShell = (): boolean => {
-  if (typeof window === "undefined") {
+  const browserWindow = globalThis.window;
+  if (!browserWindow) {
     return false;
   }
 
-  const userAgent = window.navigator?.userAgent ?? "";
+  const userAgent = browserWindow.navigator?.userAgent ?? "";
   if (userAgent.includes("jsdom")) {
     return false;
   }
@@ -20,16 +21,16 @@ const redirectStandaloneToShell = (): boolean => {
     throw new Error("Missing required env variable: VITE_SHELL_ORIGIN");
   }
 
-  if (window.location.origin === shellOrigin) {
+  if (browserWindow.location.origin === shellOrigin) {
     return false;
   }
 
-  const pathWithoutBuilderPrefix = window.location.pathname.startsWith("/builder")
-    ? (window.location.pathname.slice("/builder".length) || "/")
-    : window.location.pathname;
+  const pathWithoutBuilderPrefix = browserWindow.location.pathname.startsWith("/builder")
+    ? (browserWindow.location.pathname.slice("/builder".length) || "/")
+    : browserWindow.location.pathname;
   const builderPath = pathWithoutBuilderPrefix === "/" ? "" : pathWithoutBuilderPrefix;
-  const targetUrl = `${shellOrigin}/builder${builderPath}${window.location.search}${window.location.hash}`;
-  window.location.replace(targetUrl);
+  const targetUrl = `${shellOrigin}/builder${builderPath}${browserWindow.location.search}${browserWindow.location.hash}`;
+  browserWindow.location.replace(targetUrl);
   return true;
 };
 

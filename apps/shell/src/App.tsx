@@ -12,7 +12,7 @@ export function App() {
 
   useEffect(() => {
     let isMounted = true;
-    const shouldBootstrap = window.location.pathname === "/";
+    const shouldBootstrap = globalThis.window?.location.pathname === "/";
 
     if (!shouldBootstrap) {
       setAuthInitState("ready");

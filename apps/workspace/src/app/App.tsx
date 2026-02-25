@@ -5,7 +5,7 @@ import { WorkspaceApiProvider } from "../features/workspace/api/WorkspaceApiProv
 import { publicEnv } from "../shared/env/publicEnv";
 
 const resolveLoginPath = (): string => {
-  const currentPath = window.location.pathname;
+  const currentPath = globalThis.window?.location.pathname ?? "/";
   if (currentPath.startsWith("/workspace")) {
     return "/auth/authorisation";
   }
@@ -13,19 +13,24 @@ const resolveLoginPath = (): string => {
 };
 
 const navigateTo = (path: string): void => {
-  const userAgent = window.navigator?.userAgent ?? "";
-  if (userAgent.includes("jsdom") && window.history?.pushState) {
-    window.history.pushState({}, "", path);
-    window.dispatchEvent(new PopStateEvent("popstate"));
+  const browserWindow = globalThis.window;
+  if (!browserWindow) {
+    return;
+  }
+
+  const userAgent = browserWindow.navigator?.userAgent ?? "";
+  if (userAgent.includes("jsdom") && browserWindow.history?.pushState) {
+    browserWindow.history.pushState({}, "", path);
+    browserWindow.dispatchEvent(new PopStateEvent("popstate"));
     return;
   }
 
   try {
-    window.location.assign(path);
+    browserWindow.location.assign(path);
   } catch {
-    if (window.history?.pushState) {
-      window.history.pushState({}, "", path);
-      window.dispatchEvent(new PopStateEvent("popstate"));
+    if (browserWindow.history?.pushState) {
+      browserWindow.history.pushState({}, "", path);
+      browserWindow.dispatchEvent(new PopStateEvent("popstate"));
     }
   }
 };
@@ -38,28 +43,23 @@ export function App() {
     authSessionManager.configure({
       baseUrl: publicEnv.apiBaseUrl,
       onUnauthenticated: () => {
+        const browserWindow = globalThis.window;
+        if (!browserWindow) {
+          return;
+        }
+
         const targetPath = resolveLoginPath();
-        if (window.location.pathname !== targetPath) {
+        if (browserWindow.location.pathname !== targetPath) {
           navigateTo(targetPath);
         }
       },
     });
-    authSessionManager
-      .bootstrap()
-      .then(() => {
-        if (!active) {
-          return;
-        }
-        const hasAccessToken = Boolean(authSessionManager.getAccessToken());
-        if (hasAccessToken) {
-          return;
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setBootstrapped(true);
-        }
-      });
+
+    authSessionManager.bootstrap().finally(() => {
+      if (active) {
+        setBootstrapped(true);
+      }
+    });
 
     return () => {
       active = false;
