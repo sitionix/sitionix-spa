@@ -1,5 +1,6 @@
 const SESSION_SOURCE_ID_KEY = "sitionix.sessionSourceId";
 const LEGACY_SESSION_SOURCE_ID_KEY = "sitionix.auth.sessionSourceId";
+let fallbackCounter = 0;
 
 const getStorage = (): Storage | null => {
   if (typeof window === "undefined") {
@@ -27,7 +28,8 @@ const generateUuidV4 = (): string => {
     }
   }
 
-  return `ssid-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
+  fallbackCounter += 1;
+  return `ssid-${Date.now()}-${fallbackCounter.toString(36)}`;
 };
 
 export function getOrCreateSessionSourceId(): string {

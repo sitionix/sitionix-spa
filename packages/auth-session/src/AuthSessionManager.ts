@@ -25,6 +25,30 @@ const REFRESH_WAIT_TIMEOUT_MS = 2_000;
 const REFRESH_POST_BROADCAST_DELAY_MS = 100;
 const REFRESH_START_GRACE_MS = 35;
 
+const createTabId = (): string => {
+  if (typeof crypto !== "undefined") {
+    if (typeof crypto.randomUUID === "function") {
+      return `tab-${crypto.randomUUID()}`;
+    }
+
+    if (typeof crypto.getRandomValues === "function") {
+      const bytes = new Uint8Array(8);
+      crypto.getRandomValues(bytes);
+      const suffix = Array.from(bytes, (byte) =>
+        byte.toString(16).padStart(2, "0")
+      ).join("");
+      return `tab-${suffix}`;
+    }
+  }
+
+  const nowPart = Date.now().toString(36);
+  const perfPart =
+    typeof performance !== "undefined"
+      ? Math.floor(performance.now()).toString(36)
+      : "0";
+  return `tab-${nowPart}-${perfPart}`;
+};
+
 const isRefreshSyncMessage = (value: unknown): value is RefreshSyncMessage => {
   if (!value || typeof value !== "object") {
     return false;
@@ -46,7 +70,7 @@ const wait = (ms: number): Promise<void> =>
   });
 
 class RefreshCrossTabCoordinator {
-  private readonly tabId = `tab-${Math.random().toString(36).slice(2, 10)}`;
+  private readonly tabId = createTabId();
   private readonly channel: BroadcastChannel | null;
   private readonly waiters = new Set<(outcome: RefreshWaitOutcome) => void>();
   private externalRefreshUntilEpochMs = 0;

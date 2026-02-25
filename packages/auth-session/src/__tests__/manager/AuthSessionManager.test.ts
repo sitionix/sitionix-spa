@@ -99,6 +99,91 @@ describe("AuthSessionManager.refresh", () => {
     expect(unauthenticatedSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("Given valid token When ensuring freshness Then returns existing token without refresh call", async () => {
+    // Given
+    const refreshClient = vi.fn().mockResolvedValue({
+      accessToken: "fresh-token",
+      expiresIn: 3600,
+      tokenType: "Bearer",
+    });
+    const manager = new AuthSessionManager({
+      accessTokenStore: new AccessTokenStore(),
+      refreshClient,
+    });
+    manager.setAccessToken("existing-token", 3600);
+
+    // When
+    const token = await manager.ensureFreshAccessToken();
+
+    // Then
+    expect(token).toBe("existing-token");
+    expect(refreshClient).not.toHaveBeenCalled();
+  });
+
+  it("Given no token When ensuring freshness Then performs refresh", async () => {
+    // Given
+    const refreshClient = vi.fn().mockResolvedValue({
+      accessToken: "fresh-token",
+      expiresIn: 3600,
+      tokenType: "Bearer",
+    });
+    const manager = new AuthSessionManager({
+      accessTokenStore: new AccessTokenStore(),
+      refreshClient,
+    });
+
+    // When
+    const token = await manager.ensureFreshAccessToken();
+
+    // Then
+    expect(token).toBe("fresh-token");
+    expect(refreshClient).toHaveBeenCalledTimes(1);
+  });
+
+  it("Given unsubscribed unauthenticated handler When refresh fails Then handler is not called", async () => {
+    // Given
+    const refreshClient = vi
+      .fn()
+      .mockRejectedValue(new RefreshClientError("Forbidden", 403));
+    const manager = new AuthSessionManager({
+      accessTokenStore: new AccessTokenStore(),
+      refreshClient,
+    });
+    manager.setAccessToken("old-token", 3600);
+    const unauthenticatedSpy = vi.fn();
+    const unsubscribe = manager.onUnauthenticated(unauthenticatedSpy);
+    unsubscribe();
+
+    // When
+    const refreshedToken = await manager.refresh();
+
+    // Then
+    expect(refreshedToken).toBeNull();
+    expect(unauthenticatedSpy).not.toHaveBeenCalled();
+  });
+
+  it("Given configured unauthenticated callback When refresh fails Then callback is called", async () => {
+    // Given
+    const refreshClient = vi
+      .fn()
+      .mockRejectedValue(new RefreshClientError("Unauthorized", 401));
+    const manager = new AuthSessionManager({
+      accessTokenStore: new AccessTokenStore(),
+      refreshClient,
+    });
+    const configuredHandler = vi.fn();
+    manager.configure({
+      onUnauthenticated: configuredHandler,
+    });
+
+    // When
+    const refreshedToken = await manager.refresh();
+
+    // Then
+    expect(refreshedToken).toBeNull();
+    expect(configuredHandler).toHaveBeenCalledTimes(1);
+  });
+
   it("Given two managers in separate tabs When refresh starts in first Then second waits and does not run in parallel", async () => {
     // Given
     let resolveFirstRefresh: ((value: {

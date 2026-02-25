@@ -43,6 +43,38 @@ describe("getOrCreateSessionSourceId", () => {
     expect(localStorage.getItem("sitionix.sessionSourceId")).toBe(value);
   });
 
+  it("Given legacy key exists When called Then migrates and returns legacy value", () => {
+    // Given
+    localStorage.setItem("sitionix.auth.sessionSourceId", "legacy-id");
+
+    // When
+    const value = getOrCreateSessionSourceId();
+
+    // Then
+    expect(value).toBe("legacy-id");
+    expect(localStorage.getItem("sitionix.sessionSourceId")).toBe("legacy-id");
+    expect(localStorage.getItem("sitionix.auth.sessionSourceId")).toBeNull();
+  });
+
+  it("Given crypto has getRandomValues only When called Then builds UUID from random bytes", () => {
+    // Given
+    const getRandomValues = vi.fn().mockImplementation((bytes: Uint8Array) => {
+      for (let index = 0; index < bytes.length; index += 1) {
+        bytes[index] = index + 1;
+      }
+      return bytes;
+    });
+    vi.stubGlobal("crypto", { getRandomValues });
+
+    // When
+    const value = getOrCreateSessionSourceId();
+
+    // Then
+    expect(getRandomValues).toHaveBeenCalledTimes(1);
+    expect(value).toMatch(/^[0-9a-f-]{36}$/);
+    expect(localStorage.getItem("sitionix.sessionSourceId")).toBe(value);
+  });
+
   it("Given no localStorage When called Then returns generated value without throwing", () => {
     // Given
     const originalStorage = globalThis.localStorage;
@@ -62,6 +94,17 @@ describe("getOrCreateSessionSourceId", () => {
       value: originalStorage,
       configurable: true,
     });
+  });
+
+  it("Given no window object When called Then still returns value", () => {
+    // Given
+    vi.stubGlobal("window", undefined);
+
+    // When
+    const value = getOrCreateSessionSourceId();
+
+    // Then
+    expect(value).toBeTruthy();
   });
 
   it("Given same origin reload When called again Then returns stable value", () => {
