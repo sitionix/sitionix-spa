@@ -31,9 +31,6 @@ try {
       process.exit(0);
     }
     applications = selectApplications(catalog, "all");
-  } else if (eventName === "workflow_dispatch") {
-    environment = getEnvironmentById(catalog, process.env.DEPLOY_INPUT_ENV ?? "");
-    applications = selectApplications(catalog, process.env.DEPLOY_INPUT_APP ?? "all");
   } else if (eventName === "issue_comment") {
     if (process.env.DEPLOY_IS_PULL_REQUEST !== "true") {
       disableWorkflow("Comment deploy is supported only on pull requests");

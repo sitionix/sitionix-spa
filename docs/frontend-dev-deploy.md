@@ -39,7 +39,9 @@ Static build mode uses `/<remote>/assets/remoteEntry.js`.
 Auth, workspace and builder still use `VITE_SHELL_ORIGIN` for direct-open redirect back to shell.
 
 ## Workflow flow
-Dispatcher workflow: [`frontend-deploy-dispatch.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-dispatch.yml)
+Push workflow: [`frontend-deploy-on-push.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-on-push.yml)
+
+PR comment workflow: [`frontend-deploy-on-comment.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-on-comment.yml)
 
 Reusable execution workflow: [`frontend-deploy-execute.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-execute.yml)
 
@@ -101,7 +103,6 @@ What it does:
 
 ## Verification checklist
 CI / deploy:
-- workflow can run with `workflow_dispatch`
 - `develop` push resolves to `dev`
 - PR comment `/deploy --name "Workspace SPA" --env dev` resolves correctly
 - deploy job fails on invalid config, invalid artifact shape, or `nginx -t` failure

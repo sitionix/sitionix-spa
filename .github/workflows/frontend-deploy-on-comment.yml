@@ -1,29 +1,6 @@
-name: Frontend Deploy Dispatch
+name: Frontend Deploy On Comment
 
 on:
-  workflow_dispatch:
-    inputs:
-      deploy_env:
-        description: Deployment environment id from deploy/frontend/environments/<profile>.json
-        required: true
-        default: dev
-      application:
-        description: Application id, application name, or all
-        required: true
-        default: all
-  push:
-    branches:
-      - "**"
-    paths:
-      - ".github/workflows/frontend-deploy-dispatch.yml"
-      - ".github/workflows/frontend-deploy-execute.yml"
-      - "apps/**"
-      - "deploy/frontend/**"
-      - "packages/**"
-      - "scripts/frontend-deploy/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
   issue_comment:
     types:
       - created
@@ -38,7 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       enabled: ${{ steps.resolve.outputs.enabled }}
-      reason: ${{ steps.resolve.outputs.reason }}
       github_environment: ${{ steps.resolve.outputs.github_environment }}
       deploy_summary: ${{ steps.resolve.outputs.deploy_summary }}
       deployment_plan: ${{ steps.resolve.outputs.deployment_plan }}
@@ -50,7 +26,7 @@ jobs:
 
       - name: Read pull request metadata
         id: pr
-        if: github.event_name == 'issue_comment' && github.event.issue.pull_request
+        if: github.event.issue.pull_request
         uses: actions/github-script@v7
         with:
           script: |
@@ -68,7 +44,7 @@ jobs:
             );
 
       - name: Checkout pull request head for config resolution
-        if: github.event_name == 'issue_comment' && github.event.issue.pull_request && steps.pr.outputs.same_repo == 'true'
+        if: github.event.issue.pull_request && steps.pr.outputs.same_repo == 'true'
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.pr.outputs.head_sha }}
@@ -76,16 +52,13 @@ jobs:
       - name: Resolve deployment target
         id: resolve
         env:
-          DEPLOY_EVENT_NAME: ${{ github.event_name }}
-          DEPLOY_REF_NAME: ${{ github.ref_name }}
-          DEPLOY_INPUT_ENV: ${{ inputs.deploy_env }}
-          DEPLOY_INPUT_APP: ${{ inputs.application }}
+          DEPLOY_EVENT_NAME: issue_comment
           DEPLOY_COMMENT_BODY: ${{ github.event.comment.body }}
           DEPLOY_IS_PULL_REQUEST: ${{ github.event.issue.pull_request && 'true' || 'false' }}
         run: node scripts/frontend-deploy/resolve-workflow-context.mjs >> "$GITHUB_OUTPUT"
 
       - name: Reject fork-based PR deploys
-        if: github.event_name == 'issue_comment' && steps.resolve.outputs.enabled == 'true' && steps.pr.outputs.same_repo != 'true'
+        if: steps.resolve.outputs.enabled == 'true' && steps.pr.outputs.same_repo != 'true'
         run: |
           echo "PR comment deployments are allowed only for branches in this repository." >&2
           exit 1
@@ -93,16 +66,16 @@ jobs:
       - name: Compute checkout ref
         id: checkout_ref
         run: |
-          if [[ "${{ github.event_name }}" == "issue_comment" && "${{ steps.resolve.outputs.enabled }}" == "true" ]]; then
+          if [[ "${{ steps.resolve.outputs.enabled }}" == "true" ]]; then
             echo "value=${{ steps.pr.outputs.head_sha }}" >> "$GITHUB_OUTPUT"
           else
-            echo "value=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+            echo "value=" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Capture issue number
         id: issue_number
         run: |
-          if [[ "${{ github.event_name }}" == "issue_comment" && "${{ steps.resolve.outputs.enabled }}" == "true" ]]; then
+          if [[ "${{ steps.resolve.outputs.enabled }}" == "true" ]]; then
             echo "value=${{ github.event.issue.number }}" >> "$GITHUB_OUTPUT"
           else
             echo "value=" >> "$GITHUB_OUTPUT"

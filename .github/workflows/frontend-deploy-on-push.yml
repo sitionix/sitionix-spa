@@ -1,0 +1,48 @@
+name: Frontend Deploy On Push
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - ".github/workflows/frontend-deploy-on-push.yml"
+      - ".github/workflows/frontend-deploy-execute.yml"
+      - "apps/**"
+      - "deploy/frontend/**"
+      - "packages/**"
+      - "scripts/frontend-deploy/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.resolve.outputs.enabled }}
+      github_environment: ${{ steps.resolve.outputs.github_environment }}
+      deploy_summary: ${{ steps.resolve.outputs.deploy_summary }}
+      deployment_plan: ${{ steps.resolve.outputs.deployment_plan }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve deployment target
+        id: resolve
+        env:
+          DEPLOY_EVENT_NAME: push
+          DEPLOY_REF_NAME: ${{ github.ref_name }}
+        run: node scripts/frontend-deploy/resolve-workflow-context.mjs >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: resolve
+    if: needs.resolve.outputs.enabled == 'true'
+    uses: ./.github/workflows/frontend-deploy-execute.yml
+    with:
+      github_environment: ${{ needs.resolve.outputs.github_environment }}
+      deployment_plan: ${{ needs.resolve.outputs.deployment_plan }}
+      deploy_summary: ${{ needs.resolve.outputs.deploy_summary }}
+      checkout_ref: ${{ github.sha }}
+    secrets: inherit

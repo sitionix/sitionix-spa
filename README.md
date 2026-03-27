@@ -31,24 +31,22 @@ Build-time frontend values are derived from that profile:
 The deployed runtime does not use `vite preview`. GitHub Actions builds static assets, uploads a release payload to the VM, updates `/opt/sitionix/app/frontend/current/*`, renders the Nginx site config, runs `nginx -t`, and reloads Nginx only after validation passes.
 
 ## GitHub Actions usage
-Trigger dispatcher: [`frontend-deploy-dispatch.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-dispatch.yml)
+Push entrypoint: [`frontend-deploy-on-push.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-on-push.yml)
+
+PR comment entrypoint: [`frontend-deploy-on-comment.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-on-comment.yml)
 
 Reusable execution workflow: [`frontend-deploy-execute.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-execute.yml)
 
 Supported triggers:
 - `push`
   Branch-to-environment mapping comes from environment profiles. Today `develop -> dev`.
-- `workflow_dispatch`
-  Inputs:
-  - `deploy_env`
-  - `application`
 - PR comment deploy
   Example:
   ```text
   /deploy --name "Workspace SPA" --env dev
   ```
 
-The dispatcher resolves a normalized deployment plan from config and then calls the reusable execution workflow. That keeps future wrappers for issues, scheduled deploys, or other entrypoints thin. The `/deploy` command prefix, allowed application names, environment ids, hostnames, VM paths and SSL certificate paths are all read from deployment config. Nothing in the workflow hardcodes app names or frontend hosts.
+The push and PR comment entrypoints both resolve a normalized deployment plan from config and then call the reusable execution workflow. That keeps trigger-specific logic thin while leaving one build/upload/verify implementation. The `/deploy` command prefix, allowed application names, environment ids, hostnames, VM paths and SSL certificate paths are all read from deployment config. Nothing in the workflow hardcodes app names or frontend hosts.
 
 ## Required GitHub environment secrets
 Create a GitHub Environment named `dev` and provide:
