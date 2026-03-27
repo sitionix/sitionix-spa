@@ -15,5 +15,6 @@ packages/ui/node_modules
 packages/contracts/dist
 packages/ui/dist
 apps/*/dist
+apps/*/.env.local
 coverage
 dist

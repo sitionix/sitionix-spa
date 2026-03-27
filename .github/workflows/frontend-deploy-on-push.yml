@@ -24,8 +24,7 @@ jobs:
     outputs:
       enabled: ${{ steps.resolve.outputs.enabled }}
       github_environment: ${{ steps.resolve.outputs.github_environment }}
-      deploy_summary: ${{ steps.resolve.outputs.deploy_summary }}
-      deployment_plan: ${{ steps.resolve.outputs.deployment_plan }}
+      deployment_request: ${{ steps.resolve.outputs.deployment_request }}
     steps:
       - uses: actions/checkout@v4
 
@@ -42,6 +41,5 @@ jobs:
     uses: ./.github/workflows/frontend-deploy-execute.yml
     with:
       github_environment: ${{ needs.resolve.outputs.github_environment }}
-      deployment_plan: ${{ needs.resolve.outputs.deployment_plan }}
-      deploy_summary: ${{ needs.resolve.outputs.deploy_summary }}
+      deployment_request: ${{ needs.resolve.outputs.deployment_request }}
       checkout_ref: ${{ github.sha }}

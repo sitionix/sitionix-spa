@@ -5,6 +5,43 @@ import { deployConfigRoot, deployEnvironmentsRoot, repoRoot } from "./paths.mjs"
 
 const loadJsonFile = (filePath) => JSON.parse(fs.readFileSync(filePath, "utf8"));
 
+const FRONTEND_HOST_ENV_KEYS = {
+  shell: "FRONTEND_HOST_SHELL",
+  auth: "FRONTEND_HOST_AUTH",
+  workspace: "FRONTEND_HOST_WORKSPACE",
+  builder: "FRONTEND_HOST_BUILDER",
+};
+
+const FRONTEND_SSL_ENV_KEYS = {
+  shell: {
+    certificatePath: "DEPLOY_SSL_SHELL_CERT_PATH",
+    certificateKeyPath: "DEPLOY_SSL_SHELL_KEY_PATH",
+  },
+  auth: {
+    certificatePath: "DEPLOY_SSL_AUTH_CERT_PATH",
+    certificateKeyPath: "DEPLOY_SSL_AUTH_KEY_PATH",
+  },
+  workspace: {
+    certificatePath: "DEPLOY_SSL_WORKSPACE_CERT_PATH",
+    certificateKeyPath: "DEPLOY_SSL_WORKSPACE_KEY_PATH",
+  },
+  builder: {
+    certificatePath: "DEPLOY_SSL_BUILDER_CERT_PATH",
+    certificateKeyPath: "DEPLOY_SSL_BUILDER_KEY_PATH",
+  },
+};
+
+const readRequiredEnv = (env, key) => {
+  const value = env[key]?.trim();
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${key}`);
+  }
+
+  return value;
+};
+
+const readOptionalEnv = (env, key, defaultValue) => env[key]?.trim() || defaultValue;
+
 const loadEnvironmentProfiles = () =>
   fs
     .readdirSync(deployEnvironmentsRoot)
@@ -47,18 +84,6 @@ const validateCatalog = (catalog) => {
       throw new Error(
         `Only the shell application may proxy browser API requests: ${application.id}`
       );
-    }
-  }
-
-  for (const environment of catalog.environments) {
-    for (const application of catalog.applications) {
-      if (!environment.hosts[application.id]) {
-        throw new Error(`Missing host for ${application.id} in environment ${environment.id}`);
-      }
-
-      if (!environment.ssl[application.id]) {
-        throw new Error(`Missing SSL config for ${application.id} in environment ${environment.id}`);
-      }
     }
   }
 
@@ -116,6 +141,53 @@ export const selectApplications = (catalog, selector) => {
 
 export const toOrigin = (host) => `https://${host}`;
 
+export const materializeDeploymentEnvironment = ({ catalog, environment, env = process.env }) => {
+  const hosts = Object.fromEntries(
+    catalog.applications.map((application) => [
+      application.id,
+      readRequiredEnv(env, FRONTEND_HOST_ENV_KEYS[application.id]),
+    ])
+  );
+
+  const ssl = Object.fromEntries(
+    catalog.applications.map((application) => [
+      application.id,
+      {
+        certificatePath: readRequiredEnv(
+          env,
+          FRONTEND_SSL_ENV_KEYS[application.id].certificatePath
+        ),
+        certificateKeyPath: readRequiredEnv(
+          env,
+          FRONTEND_SSL_ENV_KEYS[application.id].certificateKeyPath
+        ),
+      },
+    ])
+  );
+
+  return {
+    id: environment.id,
+    githubEnvironment: environment.githubEnvironment ?? environment.id,
+    hosts,
+    publicEnv: {
+      apiBaseUrl: readRequiredEnv(env, "FRONTEND_API_BASE_URL"),
+      workspaceUseMocks: readRequiredEnv(env, "FRONTEND_WORKSPACE_USE_MOCKS"),
+    },
+    ssl,
+    bff: {
+      proxyTarget: readRequiredEnv(env, "DEPLOY_BFF_PROXY_TARGET"),
+    },
+    vm: {
+      appRoot: readRequiredEnv(env, "DEPLOY_APP_ROOT"),
+      runtimeRoot: readRequiredEnv(env, "DEPLOY_RUNTIME_ROOT"),
+      backupRoot: readRequiredEnv(env, "DEPLOY_BACKUP_ROOT"),
+      nginxSitePath: readRequiredEnv(env, "DEPLOY_NGINX_SITE_PATH"),
+      nginxSiteLinkPath: readRequiredEnv(env, "DEPLOY_NGINX_SITE_LINK_PATH"),
+      sudoCommand: readOptionalEnv(env, "DEPLOY_SUDO_COMMAND", "sudo"),
+    },
+  };
+};
+
 const getShellApplication = (catalog) =>
   catalog.applications.find((application) => application.shellApplication);
 
@@ -135,6 +207,7 @@ export const buildDeploymentPlan = ({
   const buildEnv = {
     VITE_API_BASE_URL: environment.publicEnv.apiBaseUrl,
     VITE_SHELL_ORIGIN: origins[shellApplication.id],
+    VITE_WORKSPACE_USE_MOCKS: environment.publicEnv.workspaceUseMocks,
   };
 
   for (const application of catalog.applications) {

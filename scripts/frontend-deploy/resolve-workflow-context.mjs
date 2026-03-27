@@ -1,5 +1,4 @@
 import {
-  buildDeploymentPlan,
   getEnvironmentByBranch,
   getEnvironmentById,
   loadDeploymentCatalog,
@@ -51,17 +50,16 @@ try {
     process.exit(0);
   }
 
-  const plan = buildDeploymentPlan({
-    catalog,
-    triggerKind,
-    environment,
-    applications,
-  });
-
   writeOutput("enabled", "true");
-  writeOutput("github_environment", plan.environment.githubEnvironment);
-  writeOutput("deploy_summary", plan.summary);
-  writeOutput("deployment_plan", JSON.stringify(plan));
+  writeOutput("github_environment", environment.githubEnvironment ?? environment.id);
+  writeOutput(
+    "deployment_request",
+    JSON.stringify({
+      triggerKind,
+      environmentId: environment.id,
+      selectedApplicationIds: applications.map((application) => application.id),
+    })
+  );
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
