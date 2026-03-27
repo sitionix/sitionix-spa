@@ -92,4 +92,3 @@ jobs:
       checkout_ref: ${{ needs.resolve.outputs.checkout_ref }}
       issue_number: ${{ needs.resolve.outputs.issue_number }}
       pr_head_ref: ${{ needs.resolve.outputs.pr_head_ref }}
-    secrets: inherit
