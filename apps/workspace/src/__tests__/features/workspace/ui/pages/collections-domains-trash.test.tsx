@@ -56,7 +56,7 @@ describe("TrashPage", () => {
     );
 
     expect(await screen.findByText(/Кошик/)).toBeInTheDocument();
-    expect(screen.getByText("Тестовий лендинг")).toBeInTheDocument();
+    expect(await screen.findByText("Тестовий лендинг")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Відновити/ }));
 
@@ -79,6 +79,7 @@ describe("TrashPage", () => {
     );
 
     expect(await screen.findByText(/Кошик/)).toBeInTheDocument();
+    await screen.findByRole("button", { name: "Очистити кошик" });
 
     await user.click(screen.getByRole("button", { name: "Очистити кошик" }));
     const confirmButtons = screen.getAllByRole("button", { name: "Очистити кошик" });
