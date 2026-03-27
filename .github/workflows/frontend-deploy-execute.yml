@@ -41,6 +41,7 @@ jobs:
           EOF
 
       - name: Materialize deployment plan
+        id: materialize
         env:
           FRONTEND_HOST_SHELL: ${{ vars.FRONTEND_HOST_SHELL }}
           FRONTEND_HOST_AUTH: ${{ vars.FRONTEND_HOST_AUTH }}
@@ -55,10 +56,7 @@ jobs:
             --output-file .deploy/deployment-plan.json
 
           summary="$(node -p "JSON.parse(require('node:fs').readFileSync('.deploy/deployment-plan.json', 'utf8')).summary")"
-          echo "DEPLOY_SUMMARY=${summary}" >> "$GITHUB_ENV"
-          echo "DEPLOYMENT_PLAN_JSON<<EOF" >> "$GITHUB_ENV"
-          cat .deploy/deployment-plan.json >> "$GITHUB_ENV"
-          echo "EOF" >> "$GITHUB_ENV"
+          echo "summary=${summary}" >> "$GITHUB_OUTPUT"
 
       - name: Validate deploy environment secrets
         env:
@@ -84,7 +82,7 @@ jobs:
               '---',
               '### Frontend deployment started',
               '',
-              `- Target: ${process.env.DEPLOY_SUMMARY}`,
+              `- Target: ${{ steps.materialize.outputs.summary }}`,
               `- Branch: ${{ inputs.pr_head_ref }}`,
               `- Workflow: ${workflow_run_url}`,
               '---',
@@ -184,7 +182,7 @@ jobs:
               '---',
               '### Frontend deployment succeeded',
               '',
-              `- Target: ${process.env.DEPLOY_SUMMARY}`,
+              `- Target: ${{ steps.materialize.outputs.summary }}`,
               `- Release: ${{ steps.release.outputs.release_id }}`,
               '---',
             ].join('\n');
@@ -207,7 +205,7 @@ jobs:
               '---',
               '### Frontend deployment failed',
               '',
-              `- Target: ${process.env.DEPLOY_SUMMARY}`,
+              `- Target: ${{ steps.materialize.outputs.summary }}`,
               `- Workflow: ${workflow_run_url}`,
               '---',
             ].join('\n');
