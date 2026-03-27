@@ -24,11 +24,6 @@ on:
         type: string
         default: ""
 
-permissions:
-  contents: read
-  issues: write
-  pull-requests: write
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
