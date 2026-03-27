@@ -54,7 +54,13 @@ jobs:
             --request-file .deploy/deployment-request.json \
             --output-file .deploy/deployment-plan.json
 
-          summary="$(node -e 'const fs = require(\"node:fs\"); const plan = JSON.parse(fs.readFileSync(\".deploy/deployment-plan.json\", \"utf8\")); process.stdout.write(plan.summary);')"
+          summary="$(
+            node <<'EOF'
+            const fs = require("node:fs");
+            const plan = JSON.parse(fs.readFileSync(".deploy/deployment-plan.json", "utf8"));
+            process.stdout.write(plan.summary);
+            EOF
+          )"
           echo "DEPLOY_SUMMARY=${summary}" >> "$GITHUB_ENV"
           echo "DEPLOYMENT_PLAN_JSON<<EOF" >> "$GITHUB_ENV"
           cat .deploy/deployment-plan.json >> "$GITHUB_ENV"
