@@ -15,6 +15,7 @@
 - The staged cleanup path is now in place:
   - examples live in [`apps/shell/.env.example`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/shell/.env.example), [`apps/auth/.env.example`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/auth/.env.example), [`apps/workspace/.env.example`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/workspace/.env.example), [`apps/builder/.env.example`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/builder/.env.example)
   - local overrides belong in `apps/*/.env.local`
+- Local-only Vite dev server settings such as `VITE_HOST` and localhost proxy targets stay out of GitHub Environment config.
 
 ## Dev deployment pipeline
 The dev cloud deployment is split by ownership:
@@ -27,13 +28,14 @@ The repo now owns only stable deployment metadata:
 - deploy command prefix
 - branch-to-environment mapping
 - environment ids / GitHub Environment names
+- stable VM/deploy path constants
+- deterministic Nginx site path derivation
+- deterministic Let’s Encrypt certificate path derivation
 
 The GitHub Environment `dev` owns deploy-specific values:
 - frontend hosts
 - public build env values
-- BFF proxy target
-- VM and Nginx paths
-- Let’s Encrypt certificate paths
+- optional BFF upstream override
 - SSH connection secrets
 
 For the `dev` profile it builds and deploys:
@@ -78,22 +80,8 @@ Required environment variables:
 - `FRONTEND_HOST_AUTH`
 - `FRONTEND_HOST_WORKSPACE`
 - `FRONTEND_HOST_BUILDER`
-- `FRONTEND_API_BASE_URL`
+- `VITE_API_BASE_URL`
 - `FRONTEND_WORKSPACE_USE_MOCKS`
-- `DEPLOY_BFF_PROXY_TARGET`
-- `DEPLOY_APP_ROOT`
-- `DEPLOY_RUNTIME_ROOT`
-- `DEPLOY_BACKUP_ROOT`
-- `DEPLOY_NGINX_SITE_PATH`
-- `DEPLOY_NGINX_SITE_LINK_PATH`
-- `DEPLOY_SSL_SHELL_CERT_PATH`
-- `DEPLOY_SSL_SHELL_KEY_PATH`
-- `DEPLOY_SSL_AUTH_CERT_PATH`
-- `DEPLOY_SSL_AUTH_KEY_PATH`
-- `DEPLOY_SSL_WORKSPACE_CERT_PATH`
-- `DEPLOY_SSL_WORKSPACE_KEY_PATH`
-- `DEPLOY_SSL_BUILDER_CERT_PATH`
-- `DEPLOY_SSL_BUILDER_KEY_PATH`
 
 Required environment secrets:
 - `DEPLOY_VM_HOST`
@@ -101,8 +89,17 @@ Required environment secrets:
 - `DEPLOY_VM_SSH_PRIVATE_KEY`
 
 Optional environment variables:
+- `DEPLOY_BFF_PROXY_TARGET`
 - `DEPLOY_VM_PORT`
-- `DEPLOY_SUDO_COMMAND`
+
+Repo-owned stable deploy constants:
+- app root: `/opt/sitionix/app/frontend`
+- runtime root: `/opt/sitionix/runtime/frontend`
+- backup root: `/opt/sitionix/backups/frontend`
+- nginx site path: `/etc/nginx/sites-available/sitionix-frontend-<env>.conf`
+- nginx site link path: `/etc/nginx/sites-enabled/sitionix-frontend-<env>.conf`
+- certificate paths: `/etc/letsencrypt/live/<host>/fullchain.pem` and `/etc/letsencrypt/live/<host>/privkey.pem`
+- default BFF upstream: `http://127.0.0.1:8080`
 
 ## VM layout
 - Active static roots:

@@ -22,14 +22,14 @@ Repo-owned files control:
 - deployable application names
 - branch-to-environment mapping
 - environment ids / GitHub Environment names
+- stable VM/deploy path constants
+- deterministic Nginx site path derivation
+- deterministic certificate path derivation
 
 GitHub Environment `dev` controls:
 - public hostnames
 - build-time public env values
-- BFF proxy target
-- VM filesystem layout
-- Nginx site paths
-- Let’s Encrypt certificate paths
+- optional BFF upstream override
 - SSH connection settings and secrets
 
 ## Frontend build strategy
@@ -45,6 +45,7 @@ Static build mode uses `/<remote>/assets/remoteEntry.js`.
 Auth, workspace and builder still use `VITE_SHELL_ORIGIN` for direct-open redirect back to shell.
 
 Local development still uses committed app `.env` files for now, but `.env.example` files now exist as the staged migration target and `apps/*/.env.local` is reserved for developer-specific overrides.
+Local-only Vite dev server settings such as `VITE_HOST` and localhost proxy targets remain local-dev concerns and are not part of the cloud deploy contract.
 
 ## Workflow flow
 Push workflow: [`frontend-deploy-on-push.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-on-push.yml)
@@ -94,22 +95,8 @@ Non-secret variables:
 - `FRONTEND_HOST_AUTH`
 - `FRONTEND_HOST_WORKSPACE`
 - `FRONTEND_HOST_BUILDER`
-- `FRONTEND_API_BASE_URL`
+- `VITE_API_BASE_URL`
 - `FRONTEND_WORKSPACE_USE_MOCKS`
-- `DEPLOY_BFF_PROXY_TARGET`
-- `DEPLOY_APP_ROOT`
-- `DEPLOY_RUNTIME_ROOT`
-- `DEPLOY_BACKUP_ROOT`
-- `DEPLOY_NGINX_SITE_PATH`
-- `DEPLOY_NGINX_SITE_LINK_PATH`
-- `DEPLOY_SSL_SHELL_CERT_PATH`
-- `DEPLOY_SSL_SHELL_KEY_PATH`
-- `DEPLOY_SSL_AUTH_CERT_PATH`
-- `DEPLOY_SSL_AUTH_KEY_PATH`
-- `DEPLOY_SSL_WORKSPACE_CERT_PATH`
-- `DEPLOY_SSL_WORKSPACE_KEY_PATH`
-- `DEPLOY_SSL_BUILDER_CERT_PATH`
-- `DEPLOY_SSL_BUILDER_KEY_PATH`
 
 Secrets:
 - `DEPLOY_VM_HOST`
@@ -117,8 +104,17 @@ Secrets:
 - `DEPLOY_VM_SSH_PRIVATE_KEY`
 
 Optional variables:
+- `DEPLOY_BFF_PROXY_TARGET`
 - `DEPLOY_VM_PORT`
-- `DEPLOY_SUDO_COMMAND`
+
+Repo-owned stable deploy constants:
+- app root: `/opt/sitionix/app/frontend`
+- runtime root: `/opt/sitionix/runtime/frontend`
+- backup root: `/opt/sitionix/backups/frontend`
+- nginx site path: `/etc/nginx/sites-available/sitionix-frontend-<env>.conf`
+- nginx site link path: `/etc/nginx/sites-enabled/sitionix-frontend-<env>.conf`
+- certificate paths: `/etc/letsencrypt/live/<host>/fullchain.pem` and `/etc/letsencrypt/live/<host>/privkey.pem`
+- default BFF upstream: `http://127.0.0.1:8080`
 
 ## Nginx shape
 Rendered from the deployment plan by [`scripts/frontend-deploy/lib/nginx.mjs`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/scripts/frontend-deploy/lib/nginx.mjs)
