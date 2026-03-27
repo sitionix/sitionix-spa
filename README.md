@@ -10,7 +10,10 @@
 - Local shell remote origins are configured from [`apps/shell/.env`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/shell/.env)
 
 ## Dev deployment pipeline
-The dev cloud deployment is config-driven from [`deploy/frontend/config/deployment-targets.json`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/deploy/frontend/config/deployment-targets.json).
+The dev cloud deployment is config-driven from:
+- [`deploy/frontend/config/applications.json`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/deploy/frontend/config/applications.json)
+- [`deploy/frontend/config/deployment-command.json`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/deploy/frontend/config/deployment-command.json)
+- [`deploy/frontend/environments/dev.json`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/deploy/frontend/environments/dev.json)
 
 For the `dev` profile it builds and deploys:
 - `Shell SPA` -> `https://app.dev.sitionix.com`
@@ -28,11 +31,13 @@ Build-time frontend values are derived from that profile:
 The deployed runtime does not use `vite preview`. GitHub Actions builds static assets, uploads a release payload to the VM, updates `/opt/sitionix/app/frontend/current/*`, renders the Nginx site config, runs `nginx -t`, and reloads Nginx only after validation passes.
 
 ## GitHub Actions usage
-Workflow: [`frontend-dev-deploy.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-dev-deploy.yml)
+Trigger dispatcher: [`frontend-deploy-dispatch.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-dispatch.yml)
+
+Reusable execution workflow: [`frontend-deploy-execute.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-execute.yml)
 
 Supported triggers:
 - `push`
-  Branch-to-environment mapping comes from `deployment-targets.json`. Today `develop -> dev`.
+  Branch-to-environment mapping comes from environment profiles. Today `develop -> dev`.
 - `workflow_dispatch`
   Inputs:
   - `deploy_env`
@@ -43,7 +48,7 @@ Supported triggers:
   /deploy --name "Workspace SPA" --env dev
   ```
 
-The `/deploy` command prefix, allowed application names, environment ids, hostnames, VM paths and SSL certificate paths are all read from deployment config. Nothing in the workflow hardcodes app names or frontend hosts.
+The dispatcher resolves a normalized deployment plan from config and then calls the reusable execution workflow. That keeps future wrappers for issues, scheduled deploys, or other entrypoints thin. The `/deploy` command prefix, allowed application names, environment ids, hostnames, VM paths and SSL certificate paths are all read from deployment config. Nothing in the workflow hardcodes app names or frontend hosts.
 
 ## Required GitHub environment secrets
 Create a GitHub Environment named `dev` and provide:

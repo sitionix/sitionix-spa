@@ -1,66 +1,33 @@
 import fs from "node:fs";
 import path from "node:path";
-import {
-  getApplicationById,
-  getBuildEnvironmentVariables,
-  getEnvironmentById,
-  getOrigins,
-  loadDeploymentConfig,
-  repoRoot,
-} from "./lib/config.mjs";
+import { parseCliArgs } from "./lib/cli.mjs";
+import { renderNginxConfig } from "./lib/nginx.mjs";
+import { readDeploymentPlan } from "./lib/plan.mjs";
+import { repoRoot } from "./lib/config.mjs";
 
-const args = process.argv.slice(2);
-const cli = {
-  environmentId: "",
-  applicationIds: [],
-  outputDir: "",
-  releaseId: "",
-};
+const cli = parseCliArgs(process.argv.slice(2), {
+  "--plan-file": {
+    key: "planFile",
+    type: "single",
+    required: true,
+    description: "prepare-release requires --plan-file <path>",
+  },
+  "--output-dir": {
+    key: "outputDir",
+    type: "single",
+    required: true,
+    description: "prepare-release requires --output-dir <path>",
+  },
+  "--release-id": {
+    key: "releaseId",
+    type: "single",
+    required: true,
+    description: "prepare-release requires --release-id <value>",
+  },
+});
 
-for (let index = 0; index < args.length; index += 1) {
-  const arg = args[index];
-  const value = args[index + 1];
-
-  if (arg === "--env") {
-    cli.environmentId = value;
-    index += 1;
-    continue;
-  }
-
-  if (arg === "--app") {
-    cli.applicationIds.push(value);
-    index += 1;
-    continue;
-  }
-
-  if (arg === "--output-dir") {
-    cli.outputDir = value;
-    index += 1;
-    continue;
-  }
-
-  if (arg === "--release-id") {
-    cli.releaseId = value;
-    index += 1;
-    continue;
-  }
-
-  throw new Error(`Unsupported argument: ${arg}`);
-}
-
-if (!cli.environmentId || !cli.outputDir || !cli.releaseId || !cli.applicationIds.length) {
-  throw new Error(
-    "prepare-release requires --env, at least one --app, --output-dir and --release-id"
-  );
-}
-
-const config = loadDeploymentConfig();
-const environment = getEnvironmentById(config, cli.environmentId);
-const applications = cli.applicationIds.map((applicationId) =>
-  getApplicationById(config, applicationId)
-);
-const origins = getOrigins(environment);
-const buildEnv = getBuildEnvironmentVariables(environment);
+const plan = readDeploymentPlan(cli.planFile);
+const selectedApplications = plan.selectedApplications;
 
 const payloadRoot = path.resolve(cli.outputDir, "payload");
 const appsRoot = path.resolve(payloadRoot, "apps");
@@ -108,12 +75,10 @@ const assertArtifactShape = (application, distDirectory) => {
 const assertBundleContent = (application, distDirectory) => {
   const bundleText = readBundleText(distDirectory);
 
-  if (application.id === "shell") {
-    const requiredRemotes = [
-      `${origins.auth}/assets/remoteEntry.js`,
-      `${origins.workspace}/assets/remoteEntry.js`,
-      `${origins.builder}/assets/remoteEntry.js`,
-    ];
+  if (application.shellApplication) {
+    const requiredRemotes = plan.applications
+      .filter((candidate) => candidate.expectsRemoteEntry)
+      .map((candidate) => `${candidate.publicUrl}${candidate.remoteEntryPath}`);
     for (const requiredRemote of requiredRemotes) {
       if (!bundleText.includes(requiredRemote)) {
         throw new Error(`Shell bundle does not contain expected remote ${requiredRemote}`);
@@ -125,12 +90,14 @@ const assertBundleContent = (application, distDirectory) => {
     return;
   }
 
-  if (application.expectsRemoteEntry && !bundleText.includes(origins.shell)) {
-    throw new Error(`${application.id} bundle does not contain expected shell origin ${origins.shell}`);
+  if (application.expectsRemoteEntry && !bundleText.includes(plan.environment.shellOrigin)) {
+    throw new Error(
+      `${application.id} bundle does not contain expected shell origin ${plan.environment.shellOrigin}`
+    );
   }
 };
 
-for (const application of applications) {
+for (const application of selectedApplications) {
   const distDirectory = path.resolve(repoRoot, application.distPath);
   if (!fs.existsSync(distDirectory)) {
     throw new Error(`Build output not found for ${application.id}: ${distDirectory}`);
@@ -144,85 +111,9 @@ for (const application of applications) {
   });
 }
 
-const nginxTemplatePath = path.resolve(
-  repoRoot,
-  "deploy/frontend/nginx/sitionix-frontend.conf.template"
-);
-const nginxTemplate = fs.readFileSync(nginxTemplatePath, "utf8");
-
-const replaceToken = (template, token, value) => template.replaceAll(`__${token}__`, value);
-
-let nginxConfig = nginxTemplate;
-nginxConfig = replaceToken(nginxConfig, "SHELL_SERVER_NAME", environment.hosts.shell);
-nginxConfig = replaceToken(nginxConfig, "AUTH_SERVER_NAME", environment.hosts.auth);
-nginxConfig = replaceToken(nginxConfig, "WORKSPACE_SERVER_NAME", environment.hosts.workspace);
-nginxConfig = replaceToken(nginxConfig, "BUILDER_SERVER_NAME", environment.hosts.builder);
-nginxConfig = replaceToken(
-  nginxConfig,
-  "SHELL_ROOT",
-  path.posix.join(environment.vm.appRoot, "current", "shell")
-);
-nginxConfig = replaceToken(
-  nginxConfig,
-  "AUTH_ROOT",
-  path.posix.join(environment.vm.appRoot, "current", "auth")
-);
-nginxConfig = replaceToken(
-  nginxConfig,
-  "WORKSPACE_ROOT",
-  path.posix.join(environment.vm.appRoot, "current", "workspace")
-);
-nginxConfig = replaceToken(
-  nginxConfig,
-  "BUILDER_ROOT",
-  path.posix.join(environment.vm.appRoot, "current", "builder")
-);
-nginxConfig = replaceToken(nginxConfig, "BFF_PROXY_TARGET", environment.bff.proxyTarget);
-nginxConfig = replaceToken(nginxConfig, "SHELL_ORIGIN", origins.shell);
-nginxConfig = replaceToken(
-  nginxConfig,
-  "SHELL_CERTIFICATE_PATH",
-  environment.ssl.shell.certificatePath
-);
-nginxConfig = replaceToken(
-  nginxConfig,
-  "SHELL_CERTIFICATE_KEY_PATH",
-  environment.ssl.shell.certificateKeyPath
-);
-nginxConfig = replaceToken(
-  nginxConfig,
-  "AUTH_CERTIFICATE_PATH",
-  environment.ssl.auth.certificatePath
-);
-nginxConfig = replaceToken(
-  nginxConfig,
-  "AUTH_CERTIFICATE_KEY_PATH",
-  environment.ssl.auth.certificateKeyPath
-);
-nginxConfig = replaceToken(
-  nginxConfig,
-  "WORKSPACE_CERTIFICATE_PATH",
-  environment.ssl.workspace.certificatePath
-);
-nginxConfig = replaceToken(
-  nginxConfig,
-  "WORKSPACE_CERTIFICATE_KEY_PATH",
-  environment.ssl.workspace.certificateKeyPath
-);
-nginxConfig = replaceToken(
-  nginxConfig,
-  "BUILDER_CERTIFICATE_PATH",
-  environment.ssl.builder.certificatePath
-);
-nginxConfig = replaceToken(
-  nginxConfig,
-  "BUILDER_CERTIFICATE_KEY_PATH",
-  environment.ssl.builder.certificateKeyPath
-);
-
 fs.writeFileSync(
   path.resolve(nginxRoot, "sitionix-frontend.conf"),
-  nginxConfig,
+  renderNginxConfig(plan),
   "utf8"
 );
 
@@ -234,23 +125,18 @@ fs.cpSync(
 const shellQuote = (value) => `'${String(value).replace(/'/gu, `'\\''`)}'`;
 const releaseEnv = {
   SITIONIX_RELEASE_ID: cli.releaseId,
-  SITIONIX_DEPLOY_ENV: environment.id,
-  SITIONIX_SELECTED_APPS: applications.map((application) => application.id).join(","),
-  SITIONIX_REMOTE_ENTRY_APPS: applications
+  SITIONIX_DEPLOY_ENV: plan.environment.id,
+  SITIONIX_SELECTED_APPS: selectedApplications.map((application) => application.id).join(","),
+  SITIONIX_REMOTE_ENTRY_APPS: selectedApplications
     .filter((application) => application.expectsRemoteEntry)
     .map((application) => application.id)
     .join(","),
-  SITIONIX_APP_ROOT: environment.vm.appRoot,
-  SITIONIX_RUNTIME_ROOT: environment.vm.runtimeRoot,
-  SITIONIX_BACKUP_ROOT: environment.vm.backupRoot,
-  SITIONIX_NGINX_SITE_PATH: environment.vm.nginxSitePath,
-  SITIONIX_NGINX_SITE_LINK_PATH: environment.vm.nginxSiteLinkPath,
-  SITIONIX_SUDO_COMMAND: environment.vm.sudoCommand,
-  SITIONIX_SHELL_ORIGIN: origins.shell,
-  SITIONIX_AUTH_ORIGIN: origins.auth,
-  SITIONIX_WORKSPACE_ORIGIN: origins.workspace,
-  SITIONIX_BUILDER_ORIGIN: origins.builder,
-  SITIONIX_BFF_PROXY_TARGET: environment.bff.proxyTarget,
+  SITIONIX_APP_ROOT: plan.environment.vm.appRoot,
+  SITIONIX_RUNTIME_ROOT: plan.environment.vm.runtimeRoot,
+  SITIONIX_BACKUP_ROOT: plan.environment.vm.backupRoot,
+  SITIONIX_NGINX_SITE_PATH: plan.environment.vm.nginxSitePath,
+  SITIONIX_NGINX_SITE_LINK_PATH: plan.environment.vm.nginxSiteLinkPath,
+  SITIONIX_SUDO_COMMAND: plan.environment.vm.sudoCommand,
 };
 
 fs.writeFileSync(
@@ -267,17 +153,23 @@ fs.writeFileSync(
   JSON.stringify(
     {
       releaseId: cli.releaseId,
-      environment: environment.id,
-      applications: applications.map((application) => ({
+      environment: plan.environment.id,
+      applications: selectedApplications.map((application) => ({
         id: application.id,
         name: application.name,
-        publicUrl: origins[application.hostKey],
+        publicUrl: application.publicUrl,
       })),
-      buildEnv,
+      buildEnv: plan.environment.buildEnv,
       generatedAt: new Date().toISOString(),
     },
     null,
     2
   ),
+  "utf8"
+);
+
+fs.writeFileSync(
+  path.resolve(payloadRoot, "deployment-plan.json"),
+  JSON.stringify(plan, null, 2),
   "utf8"
 );

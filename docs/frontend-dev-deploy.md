@@ -11,9 +11,12 @@ This repo deploys the existing module-federation topology as four static builds 
 Only shell proxies `/bffssox/*` to the BFF. Backend services remain private.
 
 ## Source of truth
-Deployment metadata lives in [`deploy/frontend/config/deployment-targets.json`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/deploy/frontend/config/deployment-targets.json).
+Deployment metadata is split by responsibility:
+- app catalog: [`deploy/frontend/config/applications.json`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/deploy/frontend/config/applications.json)
+- command config: [`deploy/frontend/config/deployment-command.json`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/deploy/frontend/config/deployment-command.json)
+- environment profiles: [`deploy/frontend/environments/dev.json`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/deploy/frontend/environments/dev.json)
 
-That file controls:
+Together these files control:
 - deploy command prefix
 - deployable application names
 - branch-to-environment mapping
@@ -36,21 +39,28 @@ Static build mode uses `/<remote>/assets/remoteEntry.js`.
 Auth, workspace and builder still use `VITE_SHELL_ORIGIN` for direct-open redirect back to shell.
 
 ## Workflow flow
-Workflow: [`frontend-dev-deploy.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-dev-deploy.yml)
+Dispatcher workflow: [`frontend-deploy-dispatch.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-dispatch.yml)
+
+Reusable execution workflow: [`frontend-deploy-execute.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-execute.yml)
 
 1. Resolve target environment and selected app(s) from deployment config.
 2. Checkout the correct ref.
    For PR comment deploy this is the PR head SHA.
-3. Export build-time `VITE_*` values from the selected environment profile.
-4. Build the selected app(s).
-5. Generate a release payload with:
+3. Build a normalized deployment plan JSON.
+4. Call the reusable execution workflow with that plan.
+5. Build the selected app(s) with env derived from the plan.
+6. Generate a release payload with:
    - built static files
    - rendered Nginx config
+   - deployment plan snapshot
    - release manifest
    - VM deploy script
-6. Upload the release tarball to the VM over SSH/SCP.
-7. Run the VM deploy script.
-8. Verify public URLs, remote entries and shell `/bffssox` proxy behaviour.
+7. Upload the release tarball to the VM over SSH/SCP.
+8. Run the VM deploy script.
+9. Verify public URLs, remote entries and shell `/bffssox` proxy behaviour.
+
+This split keeps trigger-specific workflows small. A future issue-based deploy wrapper can reuse the same execution workflow without copying the build/upload/verify steps.
+Even when a deploy targets only one app, the deployment plan still carries the full frontend topology so the rendered Nginx config keeps all four hosts intact.
 
 ## PR comment deploy
 Example:
@@ -67,7 +77,7 @@ Supported flags:
 Allowed application names are read from deployment config, not duplicated in workflow logic.
 
 ## Nginx shape
-Template: [`deploy/frontend/nginx/sitionix-frontend.conf.template`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/deploy/frontend/nginx/sitionix-frontend.conf.template)
+Rendered from the deployment plan by [`scripts/frontend-deploy/lib/nginx.mjs`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/scripts/frontend-deploy/lib/nginx.mjs)
 
 Current behaviour:
 - each hostname has its own HTTPS server block
