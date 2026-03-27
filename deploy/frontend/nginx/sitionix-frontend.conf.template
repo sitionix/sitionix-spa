@@ -1,0 +1,148 @@
+server {
+    listen 80;
+    listen [::]:80;
+    server_name __SHELL_SERVER_NAME__;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name __AUTH_SERVER_NAME__;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name __WORKSPACE_SERVER_NAME__;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name __BUILDER_SERVER_NAME__;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name __SHELL_SERVER_NAME__;
+
+    ssl_certificate __SHELL_CERTIFICATE_PATH__;
+    ssl_certificate_key __SHELL_CERTIFICATE_KEY_PATH__;
+
+    root __SHELL_ROOT__;
+    index index.html;
+
+    add_header X-Content-Type-Options nosniff always;
+
+    location /bffssox/ {
+        proxy_pass __BFF_PROXY_TARGET__;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /assets/ {
+        try_files $uri =404;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name __AUTH_SERVER_NAME__;
+
+    ssl_certificate __AUTH_CERTIFICATE_PATH__;
+    ssl_certificate_key __AUTH_CERTIFICATE_KEY_PATH__;
+
+    root __AUTH_ROOT__;
+    index index.html;
+
+    add_header X-Content-Type-Options nosniff always;
+
+    location = /remoteEntry.js {
+        add_header Access-Control-Allow-Origin __SHELL_ORIGIN__ always;
+        add_header Cross-Origin-Resource-Policy cross-origin always;
+        try_files $uri =404;
+    }
+
+    location /assets/ {
+        add_header Access-Control-Allow-Origin __SHELL_ORIGIN__ always;
+        add_header Cross-Origin-Resource-Policy cross-origin always;
+        try_files $uri =404;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name __WORKSPACE_SERVER_NAME__;
+
+    ssl_certificate __WORKSPACE_CERTIFICATE_PATH__;
+    ssl_certificate_key __WORKSPACE_CERTIFICATE_KEY_PATH__;
+
+    root __WORKSPACE_ROOT__;
+    index index.html;
+
+    add_header X-Content-Type-Options nosniff always;
+
+    location = /remoteEntry.js {
+        add_header Access-Control-Allow-Origin __SHELL_ORIGIN__ always;
+        add_header Cross-Origin-Resource-Policy cross-origin always;
+        try_files $uri =404;
+    }
+
+    location /assets/ {
+        add_header Access-Control-Allow-Origin __SHELL_ORIGIN__ always;
+        add_header Cross-Origin-Resource-Policy cross-origin always;
+        try_files $uri =404;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name __BUILDER_SERVER_NAME__;
+
+    ssl_certificate __BUILDER_CERTIFICATE_PATH__;
+    ssl_certificate_key __BUILDER_CERTIFICATE_KEY_PATH__;
+
+    root __BUILDER_ROOT__;
+    index index.html;
+
+    add_header X-Content-Type-Options nosniff always;
+
+    location = /remoteEntry.js {
+        add_header Access-Control-Allow-Origin __SHELL_ORIGIN__ always;
+        add_header Cross-Origin-Resource-Policy cross-origin always;
+        try_files $uri =404;
+    }
+
+    location /assets/ {
+        add_header Access-Control-Allow-Origin __SHELL_ORIGIN__ always;
+        add_header Cross-Origin-Resource-Policy cross-origin always;
+        try_files $uri =404;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

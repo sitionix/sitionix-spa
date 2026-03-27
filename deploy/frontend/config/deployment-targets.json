@@ -1,0 +1,98 @@
+{
+  "deploymentCommand": {
+    "prefix": "/deploy"
+  },
+  "applications": [
+    {
+      "id": "shell",
+      "name": "Shell SPA",
+      "package": "@apps/shell",
+      "distPath": "apps/shell/dist",
+      "deploySubdirectory": "shell",
+      "hostKey": "shell",
+      "spaFallback": true,
+      "corsEnabled": false,
+      "expectsRemoteEntry": false
+    },
+    {
+      "id": "auth",
+      "name": "Auth SPA",
+      "package": "@apps/auth",
+      "distPath": "apps/auth/dist",
+      "deploySubdirectory": "auth",
+      "hostKey": "auth",
+      "spaFallback": true,
+      "corsEnabled": true,
+      "expectsRemoteEntry": true
+    },
+    {
+      "id": "workspace",
+      "name": "Workspace SPA",
+      "package": "@apps/workspace",
+      "distPath": "apps/workspace/dist",
+      "deploySubdirectory": "workspace",
+      "hostKey": "workspace",
+      "spaFallback": true,
+      "corsEnabled": true,
+      "expectsRemoteEntry": true
+    },
+    {
+      "id": "builder",
+      "name": "Builder SPA",
+      "package": "@apps/builder",
+      "distPath": "apps/builder/dist",
+      "deploySubdirectory": "builder",
+      "hostKey": "builder",
+      "spaFallback": true,
+      "corsEnabled": true,
+      "expectsRemoteEntry": true
+    }
+  ],
+  "environments": [
+    {
+      "id": "dev",
+      "githubEnvironment": "dev",
+      "branches": [
+        "develop"
+      ],
+      "hosts": {
+        "shell": "app.dev.sitionix.com",
+        "auth": "auth.dev.sitionix.com",
+        "workspace": "workspace.dev.sitionix.com",
+        "builder": "builder.dev.sitionix.com"
+      },
+      "ssl": {
+        "shell": {
+          "certificatePath": "/etc/letsencrypt/live/app.dev.sitionix.com/fullchain.pem",
+          "certificateKeyPath": "/etc/letsencrypt/live/app.dev.sitionix.com/privkey.pem"
+        },
+        "auth": {
+          "certificatePath": "/etc/letsencrypt/live/auth.dev.sitionix.com/fullchain.pem",
+          "certificateKeyPath": "/etc/letsencrypt/live/auth.dev.sitionix.com/privkey.pem"
+        },
+        "workspace": {
+          "certificatePath": "/etc/letsencrypt/live/workspace.dev.sitionix.com/fullchain.pem",
+          "certificateKeyPath": "/etc/letsencrypt/live/workspace.dev.sitionix.com/privkey.pem"
+        },
+        "builder": {
+          "certificatePath": "/etc/letsencrypt/live/builder.dev.sitionix.com/fullchain.pem",
+          "certificateKeyPath": "/etc/letsencrypt/live/builder.dev.sitionix.com/privkey.pem"
+        }
+      },
+      "publicEnv": {
+        "apiBaseUrl": "/bffssox"
+      },
+      "bff": {
+        "proxyTarget": "http://127.0.0.1:8080"
+      },
+      "vm": {
+        "appRoot": "/opt/sitionix/app/frontend",
+        "runtimeRoot": "/opt/sitionix/runtime/frontend",
+        "backupRoot": "/opt/sitionix/backups/frontend",
+        "nginxSitePath": "/etc/nginx/sites-available/sitionix-frontend-dev.conf",
+        "nginxSiteLinkPath": "/etc/nginx/sites-enabled/sitionix-frontend-dev.conf",
+        "sudoCommand": "sudo"
+      }
+    }
+  ]
+}

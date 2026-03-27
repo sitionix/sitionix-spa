@@ -4,6 +4,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import basicSsl from "@vitejs/plugin-basic-ssl";
 import federation from "@originjs/vite-plugin-federation";
+import { resolveFederationRemotes } from "./resolveFederationRemotes";
 
 const workspaceRoot = path.resolve(__dirname, "../..");
 const cacheDir = path.resolve(workspaceRoot, ".cache", "vite-shell");
@@ -40,15 +41,7 @@ export default defineConfig(({ command, mode }) => {
   const isDev = command === "serve" && mode === "development";
   const host = process.env.VITE_HOST ?? "127.0.0.1";
   const bffProxyTarget = process.env.VITE_BFF_PROXY_TARGET ?? "http://localhost:8080";
-  const authRemote = isDev
-    ? "https://localhost:3001/remoteEntry.js"
-    : "https://localhost:3001/assets/remoteEntry.js";
-  const workspaceRemote = isDev
-    ? "https://localhost:3002/remoteEntry.js"
-    : "https://localhost:3002/assets/remoteEntry.js";
-  const builderRemote = isDev
-    ? "https://localhost:3003/remoteEntry.js"
-    : "https://localhost:3003/assets/remoteEntry.js";
+  const remotes = resolveFederationRemotes({ isDev });
 
   return {
     cacheDir,
@@ -66,11 +59,7 @@ export default defineConfig(({ command, mode }) => {
       ...(isDev ? [fullReloadOnRemoteChange()] : []),
       federation({
         name: "shell",
-        remotes: {
-          auth: authRemote,
-          workspace: workspaceRemote,
-          builder: builderRemote,
-        },
+        remotes,
         shared: {
           react: { packagePath: "react" },
           "react/jsx-runtime": {

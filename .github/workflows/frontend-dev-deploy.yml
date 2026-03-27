@@ -1,0 +1,313 @@
+name: Frontend Dev Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_env:
+        description: Deployment environment id from deploy/frontend/config/deployment-targets.json
+        required: true
+        default: dev
+      application:
+        description: Application id, application name, or all
+        required: true
+        default: all
+  push:
+    branches:
+      - "**"
+    paths:
+      - ".github/workflows/frontend-dev-deploy.yml"
+      - "apps/**"
+      - "deploy/frontend/**"
+      - "packages/**"
+      - "scripts/frontend-deploy/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.resolve.outputs.enabled }}
+      reason: ${{ steps.resolve.outputs.reason }}
+      trigger_kind: ${{ steps.resolve.outputs.trigger_kind }}
+      environment_id: ${{ steps.resolve.outputs.environment_id }}
+      github_environment: ${{ steps.resolve.outputs.github_environment }}
+      application_ids: ${{ steps.resolve.outputs.application_ids }}
+      application_names: ${{ steps.resolve.outputs.application_names }}
+      package_filters: ${{ steps.resolve.outputs.package_filters }}
+      public_urls: ${{ steps.resolve.outputs.public_urls }}
+      remote_entry_urls: ${{ steps.resolve.outputs.remote_entry_urls }}
+      deploy_summary: ${{ steps.resolve.outputs.deploy_summary }}
+      checkout_ref: ${{ steps.checkout_ref.outputs.value }}
+      issue_number: ${{ steps.issue_number.outputs.value }}
+      pr_same_repo: ${{ steps.pr.outputs.same_repo }}
+      pr_head_ref: ${{ steps.pr.outputs.head_ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read pull request metadata
+        id: pr
+        if: github.event_name == 'issue_comment' && github.event.issue.pull_request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            core.setOutput("head_ref", pr.data.head.ref);
+            core.setOutput("head_sha", pr.data.head.sha);
+            core.setOutput(
+              "same_repo",
+              pr.data.head.repo.full_name === `${context.repo.owner}/${context.repo.repo}` ? "true" : "false"
+            );
+
+      - name: Checkout pull request head for config resolution
+        if: github.event_name == 'issue_comment' && github.event.issue.pull_request && steps.pr.outputs.same_repo == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.head_sha }}
+
+      - name: Resolve deployment target
+        id: resolve
+        env:
+          DEPLOY_EVENT_NAME: ${{ github.event_name }}
+          DEPLOY_REF_NAME: ${{ github.ref_name }}
+          DEPLOY_INPUT_ENV: ${{ inputs.deploy_env }}
+          DEPLOY_INPUT_APP: ${{ inputs.application }}
+          DEPLOY_COMMENT_BODY: ${{ github.event.comment.body }}
+          DEPLOY_IS_PULL_REQUEST: ${{ github.event.issue.pull_request && 'true' || 'false' }}
+        run: node scripts/frontend-deploy/resolve-workflow-context.mjs >> "$GITHUB_OUTPUT"
+
+      - name: Reject fork-based PR deploys
+        if: github.event_name == 'issue_comment' && steps.resolve.outputs.enabled == 'true' && steps.pr.outputs.same_repo != 'true'
+        run: |
+          echo "PR comment deployments are allowed only for branches in this repository." >&2
+          exit 1
+
+      - name: Compute checkout ref
+        id: checkout_ref
+        run: |
+          if [[ "${{ github.event_name }}" == "issue_comment" && "${{ steps.resolve.outputs.enabled }}" == "true" ]]; then
+            echo "value=${{ steps.pr.outputs.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Capture issue number
+        id: issue_number
+        run: |
+          if [[ "${{ github.event_name }}" == "issue_comment" && "${{ steps.resolve.outputs.enabled }}" == "true" ]]; then
+            echo "value=${{ github.event.issue.number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    needs: resolve
+    if: needs.resolve.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve.outputs.github_environment }}
+    env:
+      DEPLOY_ENVIRONMENT: ${{ needs.resolve.outputs.environment_id }}
+      APPLICATION_IDS: ${{ needs.resolve.outputs.application_ids }}
+      APPLICATION_NAMES: ${{ needs.resolve.outputs.application_names }}
+      PACKAGE_FILTERS: ${{ needs.resolve.outputs.package_filters }}
+      PUBLIC_URLS: ${{ needs.resolve.outputs.public_urls }}
+      REMOTE_ENTRY_URLS: ${{ needs.resolve.outputs.remote_entry_urls }}
+      DEPLOY_SUMMARY: ${{ needs.resolve.outputs.deploy_summary }}
+      DEPLOY_VM_HOST: ${{ secrets.DEPLOY_VM_HOST }}
+      DEPLOY_VM_USER: ${{ secrets.DEPLOY_VM_USER }}
+      DEPLOY_VM_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_VM_SSH_PRIVATE_KEY }}
+      DEPLOY_VM_PORT: ${{ vars.DEPLOY_VM_PORT }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.checkout_ref }}
+          fetch-depth: 0
+
+      - name: Post start comment
+        if: needs.resolve.outputs.issue_number != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = Number("${{ needs.resolve.outputs.issue_number }}");
+            const workflow_run_url = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const body = [
+              '---',
+              '### Frontend deployment started',
+              '',
+              `- Target: ${{ needs.resolve.outputs.deploy_summary }}`,
+              `- Branch: ${{ needs.resolve.outputs.pr_head_ref }}`,
+              `- Workflow: ${workflow_run_url}`,
+              '---',
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              body,
+            });
+
+      - name: Set up Node.js 22.12.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.12.0"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.15.0
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Export deployment build env
+        run: node scripts/frontend-deploy/export-build-env.mjs --env "$DEPLOY_ENVIRONMENT" >> "$GITHUB_ENV"
+
+      - name: Build selected frontend applications
+        run: |
+          pnpm --filter @sitionix/build-config build
+
+          IFS=',' read -r -a packages <<< "$PACKAGE_FILTERS"
+          build_args=()
+          for package in "${packages[@]}"; do
+            build_args+=(--filter "$package")
+          done
+
+          pnpm "${build_args[@]}" build
+
+      - name: Prepare deployment payload
+        id: release
+        run: |
+          short_sha="$(git rev-parse --short HEAD)"
+          release_id="${DEPLOY_ENVIRONMENT}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${short_sha}"
+
+          IFS=',' read -r -a apps <<< "$APPLICATION_IDS"
+          prepare_args=(--env "$DEPLOY_ENVIRONMENT" --output-dir ".deploy/release" --release-id "$release_id")
+          for app in "${apps[@]}"; do
+            prepare_args+=(--app "$app")
+          done
+
+          node scripts/frontend-deploy/prepare-release.mjs "${prepare_args[@]}"
+          chmod +x .deploy/release/payload/bin/deploy-frontend.sh
+          tar -C .deploy/release/payload -czf .deploy/frontend-release.tgz .
+
+          echo "release_id=${release_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure SSH
+        run: |
+          install -m 0700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_VM_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 0600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "${DEPLOY_VM_PORT:-22}" -H "$DEPLOY_VM_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload payload to VM
+        run: |
+          remote_tarball="/tmp/${{ steps.release.outputs.release_id }}.tgz"
+          scp -P "${DEPLOY_VM_PORT:-22}" .deploy/frontend-release.tgz "${DEPLOY_VM_USER}@${DEPLOY_VM_HOST}:${remote_tarball}"
+
+      - name: Run remote deployment
+        run: |
+          remote_root="/tmp/${{ steps.release.outputs.release_id }}"
+          remote_tarball="/tmp/${{ steps.release.outputs.release_id }}.tgz"
+
+          ssh -p "${DEPLOY_VM_PORT:-22}" "${DEPLOY_VM_USER}@${DEPLOY_VM_HOST}" "
+            set -euo pipefail
+            rm -rf '${remote_root}'
+            mkdir -p '${remote_root}'
+            tar -xzf '${remote_tarball}' -C '${remote_root}'
+            chmod +x '${remote_root}/bin/deploy-frontend.sh'
+            '${remote_root}/bin/deploy-frontend.sh'
+          "
+
+      - name: Verify public frontend endpoints
+        run: |
+          IFS=',' read -r -a public_urls <<< "$PUBLIC_URLS"
+          for url in "${public_urls[@]}"; do
+            curl -fsS "$url" > /dev/null
+          done
+
+      - name: Verify remote entries and CORS
+        run: |
+          IFS=',' read -r -a remote_entry_urls <<< "$REMOTE_ENTRY_URLS"
+          for url in "${remote_entry_urls[@]}"; do
+            headers_file="$(mktemp)"
+            curl -fsSI "$url" > "$headers_file"
+            tr -d '\r' < "$headers_file" | grep -iq "^access-control-allow-origin: ${VITE_SHELL_ORIGIN}$"
+          done
+
+      - name: Verify shell BFF proxy path
+        run: |
+          status_code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${VITE_SHELL_ORIGIN}/bffssox/api/v1/auth/refresh")"
+          case "$status_code" in
+            000|502|503|504)
+              echo "Shell BFF proxy check failed with status ${status_code}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Post success comment
+        if: success() && needs.resolve.outputs.issue_number != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = Number("${{ needs.resolve.outputs.issue_number }}");
+            const body = [
+              '---',
+              '### Frontend deployment succeeded',
+              '',
+              `- Target: ${process.env.DEPLOY_SUMMARY}`,
+              `- Release: ${{ steps.release.outputs.release_id }}`,
+              '---',
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              body,
+            });
+
+      - name: Post failure comment
+        if: failure() && needs.resolve.outputs.issue_number != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = Number("${{ needs.resolve.outputs.issue_number }}");
+            const workflow_run_url = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const body = [
+              '---',
+              '### Frontend deployment failed',
+              '',
+              `- Target: ${process.env.DEPLOY_SUMMARY}`,
+              `- Workflow: ${workflow_run_url}`,
+              '---',
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              body,
+            });
