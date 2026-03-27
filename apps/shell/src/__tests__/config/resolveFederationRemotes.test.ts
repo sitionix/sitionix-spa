@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveFederationRemotes } from "../../../resolveFederationRemotes";
+import { resolveFederationRemotes } from "../../config/resolveFederationRemotes";
 
 describe("resolveFederationRemotes", () => {
   it("Given dev mode When resolving remotes Then uses development remote entry paths", () => {

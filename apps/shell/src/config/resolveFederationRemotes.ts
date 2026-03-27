@@ -20,7 +20,12 @@ const normalizeOrigin = (value: string, envKey: string): string => {
     throw new Error(`Missing required env variable: ${envKey}`);
   }
 
-  return trimmed.replace(/\/+$/, "");
+  let normalized = trimmed;
+  while (normalized.endsWith("/")) {
+    normalized = normalized.slice(0, -1);
+  }
+
+  return normalized;
 };
 
 const buildRemoteEntryUrl = (origin: string, isDev: boolean): string =>
