@@ -12,24 +12,15 @@ const FRONTEND_HOST_ENV_KEYS = {
   builder: "FRONTEND_HOST_BUILDER",
 };
 
-const FRONTEND_SSL_ENV_KEYS = {
-  shell: {
-    certificatePath: "DEPLOY_SSL_SHELL_CERT_PATH",
-    certificateKeyPath: "DEPLOY_SSL_SHELL_KEY_PATH",
-  },
-  auth: {
-    certificatePath: "DEPLOY_SSL_AUTH_CERT_PATH",
-    certificateKeyPath: "DEPLOY_SSL_AUTH_KEY_PATH",
-  },
-  workspace: {
-    certificatePath: "DEPLOY_SSL_WORKSPACE_CERT_PATH",
-    certificateKeyPath: "DEPLOY_SSL_WORKSPACE_KEY_PATH",
-  },
-  builder: {
-    certificatePath: "DEPLOY_SSL_BUILDER_CERT_PATH",
-    certificateKeyPath: "DEPLOY_SSL_BUILDER_KEY_PATH",
-  },
+const DEFAULT_DEPLOY_VM = {
+  appRoot: "/opt/sitionix/app/frontend",
+  runtimeRoot: "/opt/sitionix/runtime/frontend",
+  backupRoot: "/opt/sitionix/backups/frontend",
+  sudoCommand: "sudo",
 };
+
+const DEFAULT_BFF_PROXY_TARGET = "http://127.0.0.1:8080";
+const letsEncryptRoot = "/etc/letsencrypt/live";
 
 const readRequiredEnv = (env, key) => {
   const value = env[key]?.trim();
@@ -141,6 +132,17 @@ export const selectApplications = (catalog, selector) => {
 
 export const toOrigin = (host) => `https://${host}`;
 
+const toLetsEncryptPaths = (host) => ({
+  certificatePath: `${letsEncryptRoot}/${host}/fullchain.pem`,
+  certificateKeyPath: `${letsEncryptRoot}/${host}/privkey.pem`,
+});
+
+const toNginxSitePath = (environmentId) =>
+  `/etc/nginx/sites-available/sitionix-frontend-${environmentId}.conf`;
+
+const toNginxSiteLinkPath = (environmentId) =>
+  `/etc/nginx/sites-enabled/sitionix-frontend-${environmentId}.conf`;
+
 export const materializeDeploymentEnvironment = ({ catalog, environment, env = process.env }) => {
   const hosts = Object.fromEntries(
     catalog.applications.map((application) => [
@@ -152,16 +154,7 @@ export const materializeDeploymentEnvironment = ({ catalog, environment, env = p
   const ssl = Object.fromEntries(
     catalog.applications.map((application) => [
       application.id,
-      {
-        certificatePath: readRequiredEnv(
-          env,
-          FRONTEND_SSL_ENV_KEYS[application.id].certificatePath
-        ),
-        certificateKeyPath: readRequiredEnv(
-          env,
-          FRONTEND_SSL_ENV_KEYS[application.id].certificateKeyPath
-        ),
-      },
+      toLetsEncryptPaths(hosts[application.id]),
     ])
   );
 
@@ -170,20 +163,20 @@ export const materializeDeploymentEnvironment = ({ catalog, environment, env = p
     githubEnvironment: environment.githubEnvironment ?? environment.id,
     hosts,
     publicEnv: {
-      apiBaseUrl: readRequiredEnv(env, "FRONTEND_API_BASE_URL"),
+      apiBaseUrl: readRequiredEnv(env, "VITE_API_BASE_URL"),
       workspaceUseMocks: readRequiredEnv(env, "FRONTEND_WORKSPACE_USE_MOCKS"),
     },
     ssl,
     bff: {
-      proxyTarget: readRequiredEnv(env, "DEPLOY_BFF_PROXY_TARGET"),
+      proxyTarget: readOptionalEnv(env, "DEPLOY_BFF_PROXY_TARGET", DEFAULT_BFF_PROXY_TARGET),
     },
     vm: {
-      appRoot: readRequiredEnv(env, "DEPLOY_APP_ROOT"),
-      runtimeRoot: readRequiredEnv(env, "DEPLOY_RUNTIME_ROOT"),
-      backupRoot: readRequiredEnv(env, "DEPLOY_BACKUP_ROOT"),
-      nginxSitePath: readRequiredEnv(env, "DEPLOY_NGINX_SITE_PATH"),
-      nginxSiteLinkPath: readRequiredEnv(env, "DEPLOY_NGINX_SITE_LINK_PATH"),
-      sudoCommand: readOptionalEnv(env, "DEPLOY_SUDO_COMMAND", "sudo"),
+      appRoot: DEFAULT_DEPLOY_VM.appRoot,
+      runtimeRoot: DEFAULT_DEPLOY_VM.runtimeRoot,
+      backupRoot: DEFAULT_DEPLOY_VM.backupRoot,
+      nginxSitePath: toNginxSitePath(environment.id),
+      nginxSiteLinkPath: toNginxSiteLinkPath(environment.id),
+      sudoCommand: DEFAULT_DEPLOY_VM.sudoCommand,
     },
   };
 };
