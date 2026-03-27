@@ -36,7 +36,9 @@ jobs:
       - name: Persist deployment request
         run: |
           mkdir -p .deploy
-          printf '%s' "${{ inputs.deployment_request }}" > .deploy/deployment-request.json
+          cat <<'EOF' > .deploy/deployment-request.json
+          ${{ inputs.deployment_request }}
+          EOF
 
       - name: Materialize deployment plan
         env:
