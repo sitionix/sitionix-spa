@@ -1,0 +1,60 @@
+{
+  "applications": [
+    {
+      "id": "shell",
+      "name": "Shell SPA",
+      "package": "@apps/shell",
+      "distPath": "apps/shell/dist",
+      "deploySubdirectory": "shell",
+      "shellApplication": true,
+      "proxyBrowserApi": true,
+      "spaFallback": true,
+      "expectsRemoteEntry": false,
+      "remoteOriginEnvVar": null,
+      "remoteEntryPath": null,
+      "allowShellOriginAssetRequests": false
+    },
+    {
+      "id": "auth",
+      "name": "Auth SPA",
+      "package": "@apps/auth",
+      "distPath": "apps/auth/dist",
+      "deploySubdirectory": "auth",
+      "shellApplication": false,
+      "proxyBrowserApi": false,
+      "spaFallback": true,
+      "expectsRemoteEntry": true,
+      "remoteOriginEnvVar": "VITE_AUTH_REMOTE_ORIGIN",
+      "remoteEntryPath": "/assets/remoteEntry.js",
+      "allowShellOriginAssetRequests": true
+    },
+    {
+      "id": "workspace",
+      "name": "Workspace SPA",
+      "package": "@apps/workspace",
+      "distPath": "apps/workspace/dist",
+      "deploySubdirectory": "workspace",
+      "shellApplication": false,
+      "proxyBrowserApi": false,
+      "spaFallback": true,
+      "expectsRemoteEntry": true,
+      "remoteOriginEnvVar": "VITE_WORKSPACE_REMOTE_ORIGIN",
+      "remoteEntryPath": "/assets/remoteEntry.js",
+      "allowShellOriginAssetRequests": true
+    },
+    {
+      "id": "builder",
+      "name": "Builder SPA",
+      "package": "@apps/builder",
+      "distPath": "apps/builder/dist",
+      "deploySubdirectory": "builder",
+      "shellApplication": false,
+      "proxyBrowserApi": false,
+      "spaFallback": true,
+      "expectsRemoteEntry": true,
+      "remoteOriginEnvVar": "VITE_BUILDER_REMOTE_ORIGIN",
+      "remoteEntryPath": "/assets/remoteEntry.js",
+      "allowShellOriginAssetRequests": true
+    }
+  ]
+}

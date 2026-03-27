@@ -1,0 +1,196 @@
+name: Frontend Deploy Execute
+
+on:
+  workflow_call:
+    inputs:
+      github_environment:
+        required: true
+        type: string
+      deployment_plan:
+        required: true
+        type: string
+      deploy_summary:
+        required: true
+        type: string
+      checkout_ref:
+        required: true
+        type: string
+      issue_number:
+        required: false
+        type: string
+        default: ""
+      pr_head_ref:
+        required: false
+        type: string
+        default: ""
+    secrets:
+      DEPLOY_VM_HOST:
+        required: true
+      DEPLOY_VM_USER:
+        required: true
+      DEPLOY_VM_SSH_PRIVATE_KEY:
+        required: true
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.github_environment }}
+    env:
+      DEPLOY_SUMMARY: ${{ inputs.deploy_summary }}
+      DEPLOYMENT_PLAN_JSON: ${{ inputs.deployment_plan }}
+      DEPLOY_VM_HOST: ${{ secrets.DEPLOY_VM_HOST }}
+      DEPLOY_VM_USER: ${{ secrets.DEPLOY_VM_USER }}
+      DEPLOY_VM_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_VM_SSH_PRIVATE_KEY }}
+      DEPLOY_VM_PORT: ${{ vars.DEPLOY_VM_PORT }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout_ref }}
+          fetch-depth: 0
+
+      - name: Persist deployment plan
+        run: |
+          mkdir -p .deploy
+          printf '%s' "$DEPLOYMENT_PLAN_JSON" > .deploy/deployment-plan.json
+
+      - name: Post start comment
+        if: inputs.issue_number != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = Number("${{ inputs.issue_number }}");
+            const workflow_run_url = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const body = [
+              '---',
+              '### Frontend deployment started',
+              '',
+              `- Target: ${process.env.DEPLOY_SUMMARY}`,
+              `- Branch: ${{ inputs.pr_head_ref }}`,
+              `- Workflow: ${workflow_run_url}`,
+              '---',
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              body,
+            });
+
+      - name: Set up Node.js 22.12.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.12.0"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.15.0
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build selected frontend applications
+        run: node scripts/frontend-deploy/build-applications.mjs --plan-file .deploy/deployment-plan.json
+
+      - name: Prepare deployment payload
+        id: release
+        run: |
+          short_sha="$(git rev-parse --short HEAD)"
+          release_id="${{ inputs.github_environment }}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${short_sha}"
+
+          node scripts/frontend-deploy/prepare-release.mjs \
+            --plan-file .deploy/deployment-plan.json \
+            --output-dir .deploy/release \
+            --release-id "$release_id"
+          chmod +x .deploy/release/payload/bin/deploy-frontend.sh
+          tar -C .deploy/release/payload -czf .deploy/frontend-release.tgz .
+
+          echo "release_id=${release_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure SSH
+        run: |
+          install -m 0700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_VM_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 0600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "${DEPLOY_VM_PORT:-22}" -H "$DEPLOY_VM_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload payload to VM
+        run: |
+          remote_tarball="/tmp/${{ steps.release.outputs.release_id }}.tgz"
+          scp -P "${DEPLOY_VM_PORT:-22}" .deploy/frontend-release.tgz "${DEPLOY_VM_USER}@${DEPLOY_VM_HOST}:${remote_tarball}"
+
+      - name: Run remote deployment
+        run: |
+          remote_root="/tmp/${{ steps.release.outputs.release_id }}"
+          remote_tarball="/tmp/${{ steps.release.outputs.release_id }}.tgz"
+
+          ssh -p "${DEPLOY_VM_PORT:-22}" "${DEPLOY_VM_USER}@${DEPLOY_VM_HOST}" "
+            set -euo pipefail
+            rm -rf '${remote_root}'
+            mkdir -p '${remote_root}'
+            tar -xzf '${remote_tarball}' -C '${remote_root}'
+            chmod +x '${remote_root}/bin/deploy-frontend.sh'
+            '${remote_root}/bin/deploy-frontend.sh'
+          "
+
+      - name: Verify deployment
+        run: node scripts/frontend-deploy/verify-deployment.mjs --plan-file .deploy/deployment-plan.json
+
+      - name: Post success comment
+        if: success() && inputs.issue_number != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = Number("${{ inputs.issue_number }}");
+            const body = [
+              '---',
+              '### Frontend deployment succeeded',
+              '',
+              `- Target: ${process.env.DEPLOY_SUMMARY}`,
+              `- Release: ${{ steps.release.outputs.release_id }}`,
+              '---',
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              body,
+            });
+
+      - name: Post failure comment
+        if: failure() && inputs.issue_number != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = Number("${{ inputs.issue_number }}");
+            const workflow_run_url = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const body = [
+              '---',
+              '### Frontend deployment failed',
+              '',
+              `- Target: ${process.env.DEPLOY_SUMMARY}`,
+              `- Workflow: ${workflow_run_url}`,
+              '---',
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              body,
+            });

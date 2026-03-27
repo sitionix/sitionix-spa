@@ -1,0 +1,95 @@
+name: Frontend Deploy On Comment
+
+on:
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.resolve.outputs.enabled }}
+      github_environment: ${{ steps.resolve.outputs.github_environment }}
+      deploy_summary: ${{ steps.resolve.outputs.deploy_summary }}
+      deployment_plan: ${{ steps.resolve.outputs.deployment_plan }}
+      checkout_ref: ${{ steps.checkout_ref.outputs.value }}
+      issue_number: ${{ steps.issue_number.outputs.value }}
+      pr_head_ref: ${{ steps.pr.outputs.head_ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read pull request metadata
+        id: pr
+        if: github.event.issue.pull_request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            core.setOutput("head_ref", pr.data.head.ref);
+            core.setOutput("head_sha", pr.data.head.sha);
+            core.setOutput(
+              "same_repo",
+              pr.data.head.repo.full_name === `${context.repo.owner}/${context.repo.repo}` ? "true" : "false"
+            );
+
+      - name: Checkout pull request head for config resolution
+        if: github.event.issue.pull_request && steps.pr.outputs.same_repo == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.head_sha }}
+
+      - name: Resolve deployment target
+        id: resolve
+        env:
+          DEPLOY_EVENT_NAME: issue_comment
+          DEPLOY_COMMENT_BODY: ${{ github.event.comment.body }}
+          DEPLOY_IS_PULL_REQUEST: ${{ github.event.issue.pull_request && 'true' || 'false' }}
+        run: node scripts/frontend-deploy/resolve-workflow-context.mjs >> "$GITHUB_OUTPUT"
+
+      - name: Reject fork-based PR deploys
+        if: steps.resolve.outputs.enabled == 'true' && steps.pr.outputs.same_repo != 'true'
+        run: |
+          echo "PR comment deployments are allowed only for branches in this repository." >&2
+          exit 1
+
+      - name: Compute checkout ref
+        id: checkout_ref
+        run: |
+          if [[ "${{ steps.resolve.outputs.enabled }}" == "true" ]]; then
+            echo "value=${{ steps.pr.outputs.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Capture issue number
+        id: issue_number
+        run: |
+          if [[ "${{ steps.resolve.outputs.enabled }}" == "true" ]]; then
+            echo "value=${{ github.event.issue.number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    needs: resolve
+    if: needs.resolve.outputs.enabled == 'true'
+    uses: ./.github/workflows/frontend-deploy-execute.yml
+    with:
+      github_environment: ${{ needs.resolve.outputs.github_environment }}
+      deployment_plan: ${{ needs.resolve.outputs.deployment_plan }}
+      deploy_summary: ${{ needs.resolve.outputs.deploy_summary }}
+      checkout_ref: ${{ needs.resolve.outputs.checkout_ref }}
+      issue_number: ${{ needs.resolve.outputs.issue_number }}
+      pr_head_ref: ${{ needs.resolve.outputs.pr_head_ref }}
+    secrets: inherit
