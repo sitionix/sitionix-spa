@@ -1,3 +1,6 @@
+# Legacy local preview helper.
+# Not used by the GitHub Actions -> SSH -> VM -> Nginx static deployment flow.
+# Do not use this Dockerfile as the cloud deployment runtime for dev/staging/prod.
 FROM node:22.12-alpine AS build
 
 WORKDIR /app

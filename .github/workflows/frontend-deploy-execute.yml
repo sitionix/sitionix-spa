@@ -6,10 +6,7 @@ on:
       github_environment:
         required: true
         type: string
-      deployment_plan:
-        required: true
-        type: string
-      deploy_summary:
+      deployment_request:
         required: true
         type: string
       checkout_ref:
@@ -29,14 +26,51 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.github_environment }}
     env:
-      DEPLOY_SUMMARY: ${{ inputs.deploy_summary }}
-      DEPLOYMENT_PLAN_JSON: ${{ inputs.deployment_plan }}
       DEPLOY_VM_PORT: ${{ vars.DEPLOY_VM_PORT }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.checkout_ref }}
           fetch-depth: 0
+
+      - name: Persist deployment request
+        run: |
+          mkdir -p .deploy
+          printf '%s' "${{ inputs.deployment_request }}" > .deploy/deployment-request.json
+
+      - name: Materialize deployment plan
+        env:
+          FRONTEND_HOST_SHELL: ${{ vars.FRONTEND_HOST_SHELL }}
+          FRONTEND_HOST_AUTH: ${{ vars.FRONTEND_HOST_AUTH }}
+          FRONTEND_HOST_WORKSPACE: ${{ vars.FRONTEND_HOST_WORKSPACE }}
+          FRONTEND_HOST_BUILDER: ${{ vars.FRONTEND_HOST_BUILDER }}
+          FRONTEND_API_BASE_URL: ${{ vars.FRONTEND_API_BASE_URL }}
+          FRONTEND_WORKSPACE_USE_MOCKS: ${{ vars.FRONTEND_WORKSPACE_USE_MOCKS }}
+          DEPLOY_BFF_PROXY_TARGET: ${{ vars.DEPLOY_BFF_PROXY_TARGET }}
+          DEPLOY_APP_ROOT: ${{ vars.DEPLOY_APP_ROOT }}
+          DEPLOY_RUNTIME_ROOT: ${{ vars.DEPLOY_RUNTIME_ROOT }}
+          DEPLOY_BACKUP_ROOT: ${{ vars.DEPLOY_BACKUP_ROOT }}
+          DEPLOY_NGINX_SITE_PATH: ${{ vars.DEPLOY_NGINX_SITE_PATH }}
+          DEPLOY_NGINX_SITE_LINK_PATH: ${{ vars.DEPLOY_NGINX_SITE_LINK_PATH }}
+          DEPLOY_SUDO_COMMAND: ${{ vars.DEPLOY_SUDO_COMMAND }}
+          DEPLOY_SSL_SHELL_CERT_PATH: ${{ vars.DEPLOY_SSL_SHELL_CERT_PATH }}
+          DEPLOY_SSL_SHELL_KEY_PATH: ${{ vars.DEPLOY_SSL_SHELL_KEY_PATH }}
+          DEPLOY_SSL_AUTH_CERT_PATH: ${{ vars.DEPLOY_SSL_AUTH_CERT_PATH }}
+          DEPLOY_SSL_AUTH_KEY_PATH: ${{ vars.DEPLOY_SSL_AUTH_KEY_PATH }}
+          DEPLOY_SSL_WORKSPACE_CERT_PATH: ${{ vars.DEPLOY_SSL_WORKSPACE_CERT_PATH }}
+          DEPLOY_SSL_WORKSPACE_KEY_PATH: ${{ vars.DEPLOY_SSL_WORKSPACE_KEY_PATH }}
+          DEPLOY_SSL_BUILDER_CERT_PATH: ${{ vars.DEPLOY_SSL_BUILDER_CERT_PATH }}
+          DEPLOY_SSL_BUILDER_KEY_PATH: ${{ vars.DEPLOY_SSL_BUILDER_KEY_PATH }}
+        run: |
+          node scripts/frontend-deploy/materialize-deployment-plan.mjs \
+            --request-file .deploy/deployment-request.json \
+            --output-file .deploy/deployment-plan.json
+
+          summary="$(node -e 'const fs = require(\"node:fs\"); const plan = JSON.parse(fs.readFileSync(\".deploy/deployment-plan.json\", \"utf8\")); process.stdout.write(plan.summary);')"
+          echo "DEPLOY_SUMMARY=${summary}" >> "$GITHUB_ENV"
+          echo "DEPLOYMENT_PLAN_JSON<<EOF" >> "$GITHUB_ENV"
+          cat .deploy/deployment-plan.json >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
 
       - name: Validate deploy environment secrets
         env:
@@ -50,11 +84,6 @@ jobs:
               exit 1
             fi
           done
-
-      - name: Persist deployment plan
-        run: |
-          mkdir -p .deploy
-          printf '%s' "$DEPLOYMENT_PLAN_JSON" > .deploy/deployment-plan.json
 
       - name: Post start comment
         if: inputs.issue_number != ''

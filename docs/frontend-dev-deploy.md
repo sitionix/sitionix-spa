@@ -15,16 +15,22 @@ Deployment metadata is split by responsibility:
 - app catalog: [`deploy/frontend/config/applications.json`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/deploy/frontend/config/applications.json)
 - command config: [`deploy/frontend/config/deployment-command.json`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/deploy/frontend/config/deployment-command.json)
 - environment profiles: [`deploy/frontend/environments/dev.json`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/deploy/frontend/environments/dev.json)
+- GitHub Environment `dev`: deploy-specific variables and secrets
 
-Together these files control:
+Repo-owned files control:
 - deploy command prefix
 - deployable application names
 - branch-to-environment mapping
+- environment ids / GitHub Environment names
+
+GitHub Environment `dev` controls:
 - public hostnames
 - build-time public env values
+- BFF proxy target
 - VM filesystem layout
 - Nginx site paths
 - Let’s Encrypt certificate paths
+- SSH connection settings and secrets
 
 ## Frontend build strategy
 Shell federation remotes are no longer hardcoded to localhost in [`apps/shell/vite.config.ts`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/apps/shell/vite.config.ts). They are resolved from:
@@ -38,6 +44,8 @@ Static build mode uses `/<remote>/assets/remoteEntry.js`.
 
 Auth, workspace and builder still use `VITE_SHELL_ORIGIN` for direct-open redirect back to shell.
 
+Local development still uses committed app `.env` files for now, but `.env.example` files now exist as the staged migration target and `apps/*/.env.local` is reserved for developer-specific overrides.
+
 ## Workflow flow
 Push workflow: [`frontend-deploy-on-push.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-on-push.yml)
 
@@ -48,9 +56,9 @@ Reusable execution workflow: [`frontend-deploy-execute.yml`](/Users/vladvinskevi
 1. Resolve target environment and selected app(s) from deployment config.
 2. Checkout the correct ref.
    For PR comment deploy this is the PR head SHA.
-3. Build a normalized deployment plan JSON.
-4. Call the reusable execution workflow with that plan.
-5. Build the selected app(s) with env derived from the plan.
+3. Call the reusable execution workflow with a normalized deployment request.
+4. Attach the selected GitHub Environment and materialize the full deployment plan from GitHub Environment vars/secrets plus repo metadata.
+5. Build the selected app(s) with env derived from the materialized plan.
 6. Generate a release payload with:
    - built static files
    - rendered Nginx config
@@ -61,7 +69,7 @@ Reusable execution workflow: [`frontend-deploy-execute.yml`](/Users/vladvinskevi
 8. Run the VM deploy script.
 9. Verify public URLs, remote entries and shell `/bffssox` proxy behaviour.
 
-This split keeps trigger-specific workflows small. A future issue-based deploy wrapper can reuse the same execution workflow without copying the build/upload/verify steps.
+This split keeps trigger-specific workflows small and puts deploy-specific value resolution in the only place where GitHub Environment context actually exists.
 Even when a deploy targets only one app, the deployment plan still carries the full frontend topology so the rendered Nginx config keeps all four hosts intact.
 
 ## PR comment deploy
@@ -77,6 +85,40 @@ Supported flags:
 - `--env <environment-id>`
 
 Allowed application names are read from deployment config, not duplicated in workflow logic.
+
+## GitHub Environment contract
+The reusable executor expects the selected GitHub Environment to provide:
+
+Non-secret variables:
+- `FRONTEND_HOST_SHELL`
+- `FRONTEND_HOST_AUTH`
+- `FRONTEND_HOST_WORKSPACE`
+- `FRONTEND_HOST_BUILDER`
+- `FRONTEND_API_BASE_URL`
+- `FRONTEND_WORKSPACE_USE_MOCKS`
+- `DEPLOY_BFF_PROXY_TARGET`
+- `DEPLOY_APP_ROOT`
+- `DEPLOY_RUNTIME_ROOT`
+- `DEPLOY_BACKUP_ROOT`
+- `DEPLOY_NGINX_SITE_PATH`
+- `DEPLOY_NGINX_SITE_LINK_PATH`
+- `DEPLOY_SSL_SHELL_CERT_PATH`
+- `DEPLOY_SSL_SHELL_KEY_PATH`
+- `DEPLOY_SSL_AUTH_CERT_PATH`
+- `DEPLOY_SSL_AUTH_KEY_PATH`
+- `DEPLOY_SSL_WORKSPACE_CERT_PATH`
+- `DEPLOY_SSL_WORKSPACE_KEY_PATH`
+- `DEPLOY_SSL_BUILDER_CERT_PATH`
+- `DEPLOY_SSL_BUILDER_KEY_PATH`
+
+Secrets:
+- `DEPLOY_VM_HOST`
+- `DEPLOY_VM_USER`
+- `DEPLOY_VM_SSH_PRIVATE_KEY`
+
+Optional variables:
+- `DEPLOY_VM_PORT`
+- `DEPLOY_SUDO_COMMAND`
 
 ## Nginx shape
 Rendered from the deployment plan by [`scripts/frontend-deploy/lib/nginx.mjs`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/scripts/frontend-deploy/lib/nginx.mjs)
