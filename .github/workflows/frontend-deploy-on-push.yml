@@ -45,4 +45,3 @@ jobs:
       deployment_plan: ${{ needs.resolve.outputs.deployment_plan }}
       deploy_summary: ${{ needs.resolve.outputs.deploy_summary }}
       checkout_ref: ${{ github.sha }}
-    secrets: inherit
