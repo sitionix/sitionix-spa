@@ -52,13 +52,13 @@ Push workflow: [`frontend-deploy-on-push.yml`](/Users/vladvinskevitch/Documents/
 
 PR comment workflow: [`frontend-deploy-on-comment.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-on-comment.yml)
 
-Reusable execution workflow: [`frontend-deploy-execute.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-execute.yml)
+Shared composite action: [`frontend-deploy-run`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/actions/frontend-deploy-run/action.yml)
 
 1. Resolve target environment and selected app(s) from deployment config.
 2. Checkout the correct ref.
    For PR comment deploy this is the PR head SHA.
-3. Call the reusable execution workflow with a normalized deployment request.
-4. Attach the selected GitHub Environment and materialize the full deployment plan from GitHub Environment vars/secrets plus repo metadata.
+3. Start a real `deploy` job bound directly to the selected GitHub Environment.
+4. Materialize the full deployment plan from GitHub Environment vars/secrets plus repo metadata.
 5. Build the selected app(s) with env derived from the materialized plan.
 6. Generate a release payload with:
    - built static files
@@ -70,7 +70,7 @@ Reusable execution workflow: [`frontend-deploy-execute.yml`](/Users/vladvinskevi
 8. Run the VM deploy script.
 9. Verify public URLs, remote entries and shell `/bffssox` proxy behaviour.
 
-This split keeps trigger-specific workflows small and puts deploy-specific value resolution in the only place where GitHub Environment context actually exists.
+This split keeps trigger-specific workflows small while keeping the environment-bound secret access on a normal job instead of a reusable workflow boundary.
 Even when a deploy targets only one app, the deployment plan still carries the full frontend topology so the rendered Nginx config keeps all four hosts intact.
 
 ## PR comment deploy
@@ -88,7 +88,7 @@ Supported flags:
 Allowed application names are read from deployment config, not duplicated in workflow logic.
 
 ## GitHub Environment contract
-The reusable executor expects the selected GitHub Environment to provide:
+The environment-bound deploy job expects the selected GitHub Environment to provide:
 
 Non-secret variables:
 - `FRONTEND_HOST_SHELL`
