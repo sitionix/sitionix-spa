@@ -6,7 +6,7 @@ on:
       - develop
     paths:
       - ".github/workflows/frontend-deploy-on-push.yml"
-      - ".github/workflows/frontend-deploy-execute.yml"
+      - ".github/actions/frontend-deploy-run/**"
       - "apps/**"
       - "deploy/frontend/**"
       - "packages/**"
@@ -38,8 +38,48 @@ jobs:
   deploy:
     needs: resolve
     if: needs.resolve.outputs.enabled == 'true'
-    uses: ./.github/workflows/frontend-deploy-execute.yml
-    with:
-      github_environment: ${{ needs.resolve.outputs.github_environment }}
-      deployment_request: ${{ needs.resolve.outputs.deployment_request }}
-      checkout_ref: ${{ github.sha }}
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve.outputs.github_environment }}
+    env:
+      DEPLOY_VM_PORT: ${{ vars.DEPLOY_VM_PORT }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Persist deployment request
+        run: |
+          mkdir -p .deploy
+          cat <<'EOF' > .deploy/deployment-request.json
+          ${{ needs.resolve.outputs.deployment_request }}
+          EOF
+
+      - name: Materialize deployment plan
+        id: materialize
+        env:
+          FRONTEND_HOST_SHELL: ${{ vars.FRONTEND_HOST_SHELL }}
+          FRONTEND_HOST_AUTH: ${{ vars.FRONTEND_HOST_AUTH }}
+          FRONTEND_HOST_WORKSPACE: ${{ vars.FRONTEND_HOST_WORKSPACE }}
+          FRONTEND_HOST_BUILDER: ${{ vars.FRONTEND_HOST_BUILDER }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          FRONTEND_WORKSPACE_USE_MOCKS: ${{ vars.FRONTEND_WORKSPACE_USE_MOCKS }}
+          DEPLOY_BFF_PROXY_TARGET: ${{ vars.DEPLOY_BFF_PROXY_TARGET }}
+        run: |
+          node scripts/frontend-deploy/materialize-deployment-plan.mjs \
+            --request-file .deploy/deployment-request.json \
+            --output-file .deploy/deployment-plan.json
+
+          summary="$(node -p "JSON.parse(require('node:fs').readFileSync('.deploy/deployment-plan.json', 'utf8')).summary")"
+          echo "summary=${summary}" >> "$GITHUB_OUTPUT"
+
+      - name: Execute deployment
+        id: execute
+        uses: ./.github/actions/frontend-deploy-run
+        with:
+          github_environment: ${{ needs.resolve.outputs.github_environment }}
+        env:
+          DEPLOY_VM_PORT: ${{ vars.DEPLOY_VM_PORT }}
+          DEPLOY_VM_HOST: ${{ secrets.DEPLOY_VM_HOST }}
+          DEPLOY_VM_USER: ${{ secrets.DEPLOY_VM_USER }}
+          DEPLOY_VM_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_VM_SSH_PRIVATE_KEY }}

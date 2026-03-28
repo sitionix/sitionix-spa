@@ -59,7 +59,7 @@ Push entrypoint: [`frontend-deploy-on-push.yml`](/Users/vladvinskevitch/Document
 
 PR comment entrypoint: [`frontend-deploy-on-comment.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-on-comment.yml)
 
-Reusable execution workflow: [`frontend-deploy-execute.yml`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/workflows/frontend-deploy-execute.yml)
+Shared composite action: [`frontend-deploy-run`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/.github/actions/frontend-deploy-run/action.yml)
 
 Supported triggers:
 - `push`
@@ -70,7 +70,7 @@ Supported triggers:
   /deploy --name "Workspace SPA" --env dev
   ```
 
-The push and PR comment entrypoints only resolve environment/app selection and then call the reusable execution workflow. The full deployment plan is materialized inside the executor after `environment: dev` attaches GitHub Environment vars and secrets. That keeps trigger-specific workflows thin and avoids trying to resolve deploy-time values before GitHub Environment context exists.
+The push and PR comment entrypoints resolve environment/app selection first. The real `deploy` job in each workflow is then bound directly to the selected GitHub Environment, materializes the deployment plan, and calls the shared composite action for the heavy execution path. This keeps GitHub Environment secrets on the same job that actually consumes them and avoids the reusable-workflow secret boundary.
 
 ## Required GitHub environment variables and secrets
 Create a GitHub Environment named `dev`.
