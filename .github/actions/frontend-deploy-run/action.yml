@@ -72,13 +72,26 @@ runs:
         install -m 0700 -d ~/.ssh
         printf '%s\n' "$DEPLOY_VM_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
         chmod 0600 ~/.ssh/id_ed25519
+        ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null
         ssh-keyscan -p "${DEPLOY_VM_PORT:-22}" -H "$DEPLOY_VM_HOST" >> ~/.ssh/known_hosts
+        cat <<EOF > ~/.ssh/config
+        Host sitionix-deploy-vm
+          HostName ${DEPLOY_VM_HOST}
+          User ${DEPLOY_VM_USER}
+          Port ${DEPLOY_VM_PORT:-22}
+          IdentityFile ~/.ssh/id_ed25519
+          IdentitiesOnly yes
+          StrictHostKeyChecking yes
+          UserKnownHostsFile ~/.ssh/known_hosts
+          BatchMode yes
+        EOF
+        chmod 0600 ~/.ssh/config
 
     - name: Upload payload to VM
       shell: bash
       run: |
         remote_tarball="/tmp/${{ steps.release.outputs.release_id }}.tgz"
-        scp -P "${DEPLOY_VM_PORT:-22}" .deploy/frontend-release.tgz "${DEPLOY_VM_USER}@${DEPLOY_VM_HOST}:${remote_tarball}"
+        scp .deploy/frontend-release.tgz "sitionix-deploy-vm:${remote_tarball}"
 
     - name: Run remote deployment
       shell: bash
@@ -86,7 +99,7 @@ runs:
         remote_root="/tmp/${{ steps.release.outputs.release_id }}"
         remote_tarball="/tmp/${{ steps.release.outputs.release_id }}.tgz"
 
-        ssh -p "${DEPLOY_VM_PORT:-22}" "${DEPLOY_VM_USER}@${DEPLOY_VM_HOST}" "
+        ssh "sitionix-deploy-vm" "
           set -euo pipefail
           rm -rf '${remote_root}'
           mkdir -p '${remote_root}'
