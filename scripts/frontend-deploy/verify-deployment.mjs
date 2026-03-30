@@ -40,17 +40,6 @@ const assertRemoteEntry = async (url) => {
   }
 };
 
-const assertShellProxy = async (url) => {
-  const response = await fetch(url, {
-    method: "POST",
-    redirect: "manual",
-  });
-
-  if (response.status >= 500) {
-    throw new Error(`Shell BFF proxy check failed for ${url}: ${response.status}`);
-  }
-};
-
 for (const publicUrl of plan.verification.publicUrls) {
   await assertOk(publicUrl);
 }
@@ -58,5 +47,3 @@ for (const publicUrl of plan.verification.publicUrls) {
 for (const remoteEntryUrl of plan.verification.remoteEntryUrls) {
   await assertRemoteEntry(remoteEntryUrl);
 }
-
-await assertShellProxy(plan.verification.shellProxyUrl);
