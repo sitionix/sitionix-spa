@@ -184,6 +184,22 @@ sudo mkdir -p /opt/sitionix/app/frontend/current /opt/sitionix/runtime/frontend/
 sudo chown -R sitionixvv:sitionixvv /opt/sitionix/app/frontend /opt/sitionix/runtime/frontend /opt/sitionix/backups/frontend
 ```
 
+Legacy site migration prerequisite:
+
+```bash
+sudo rm -f /etc/nginx/sites-enabled/sitionix-dev
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+The generated deploy site `sitionix-frontend-<env>.conf` must be the only enabled frontend site for these dev hosts:
+- `app.dev.sitionix.com`
+- `auth.dev.sitionix.com`
+- `workspace.dev.sitionix.com`
+- `builder.dev.sitionix.com`
+
+Do not keep or re-enable legacy placeholder links such as `/etc/nginx/sites-enabled/sitionix-dev`. They create duplicate `server_name` matches and can route requests to the wrong root even when the new deploy succeeds.
+
 This keeps `NOPASSWD` scoped to one root-owned helper instead of granting `sudo` for generic filesystem or service commands.
 
 ## Verification checklist
@@ -204,6 +220,8 @@ Nginx / edge:
 - rendered config points each hostname to `/opt/sitionix/app/frontend/current/<app>`
 - only shell has `/bffssox/` proxy configuration
 - remote hosts emit `Access-Control-Allow-Origin: https://app.dev.sitionix.com` for remote assets
+- no legacy placeholder frontend site remains enabled under `/etc/nginx/sites-enabled`
+- `grep -R "server_name .*dev.sitionix.com" /etc/nginx/sites-enabled /etc/nginx/conf.d` shows only the generated frontend site for these hosts
 - `nginx -t` passes before reload
 
 Regression safety:
