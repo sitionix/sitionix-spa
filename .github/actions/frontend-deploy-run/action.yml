@@ -74,6 +74,12 @@ runs:
         chmod 0600 ~/.ssh/id_ed25519
         ssh-keyscan -p "${DEPLOY_VM_PORT:-22}" -H "$DEPLOY_VM_HOST" >> ~/.ssh/known_hosts
 
+    - name: Debug SSH identity
+      shell: bash
+      run: |
+        ssh-keygen -y -f ~/.ssh/id_ed25519 | ssh-keygen -lf -E sha256 -
+        echo "DEPLOY_VM_USER=${DEPLOY_VM_USER}"
+
     - name: Upload payload to VM
       shell: bash
       run: |
