@@ -77,7 +77,10 @@ runs:
     - name: Debug SSH identity
       shell: bash
       run: |
-        ssh-keygen -y -f ~/.ssh/id_ed25519 | ssh-keygen -lf -E sha256 -
+        public_key_file="$(mktemp)"
+        trap 'rm -f "${public_key_file}"' EXIT
+        ssh-keygen -y -f ~/.ssh/id_ed25519 > "${public_key_file}"
+        ssh-keygen -lf "${public_key_file}" -E sha256
         echo "DEPLOY_VM_USER=${DEPLOY_VM_USER}"
 
     - name: Upload payload to VM
