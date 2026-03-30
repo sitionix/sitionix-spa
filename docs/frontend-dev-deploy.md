@@ -114,7 +114,8 @@ Repo-owned stable deploy constants:
 - nginx helper path: `/usr/local/sbin/sitionix-frontend-nginx-apply`
 - nginx site path: `/etc/nginx/sites-available/sitionix-frontend-<env>.conf`
 - nginx site link path: `/etc/nginx/sites-enabled/sitionix-frontend-<env>.conf`
-- certificate paths: `/etc/letsencrypt/live/<host>/fullchain.pem` and `/etc/letsencrypt/live/<host>/privkey.pem`
+- dev certificate lineage name: `app.dev.sitionix.com`
+- dev certificate paths: `/etc/letsencrypt/live/app.dev.sitionix.com/fullchain.pem` and `/etc/letsencrypt/live/app.dev.sitionix.com/privkey.pem`
 - default BFF upstream: `http://127.0.0.1:8080`
 
 ## Nginx shape
@@ -123,9 +124,15 @@ Rendered from the deployment plan by [`scripts/frontend-deploy/lib/nginx.mjs`](/
 Current behaviour:
 - each hostname has its own HTTPS server block
 - each hostname also redirects HTTP to HTTPS
+- all dev frontend hosts share the single `app.dev.sitionix.com` Let's Encrypt lineage
 - shell serves SPA static files and proxies `/bffssox/`
 - auth/workspace/builder serve static files with SPA fallback
 - auth/workspace/builder add CORS only for `remoteEntry.js` and `/assets/*`
+
+Certificate contract:
+- the environment profile owns the TLS lineage name via `tlsCertificateLineage`
+- Nginx cert/key paths are derived once from that lineage, not from each frontend host
+- for `dev`, `app.dev.sitionix.com`, `auth.dev.sitionix.com`, `workspace.dev.sitionix.com`, and `builder.dev.sitionix.com` all use `/etc/letsencrypt/live/app.dev.sitionix.com/{fullchain,privkey}.pem`
 
 ## VM deploy script
 Script: [`deploy/frontend/vm/deploy-frontend.sh`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/deploy/frontend/vm/deploy-frontend.sh)

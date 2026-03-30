@@ -34,6 +34,15 @@ const readRequiredEnv = (env, key) => {
 
 const readOptionalEnv = (env, key, defaultValue) => env[key]?.trim() || defaultValue;
 
+const readRequiredConfigValue = (config, key, label) => {
+  const value = config[key];
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`Missing required ${label}: ${key}`);
+  }
+
+  return value.trim();
+};
+
 const loadEnvironmentProfiles = () =>
   fs
     .readdirSync(deployEnvironmentsRoot)
@@ -151,17 +160,24 @@ export const materializeDeploymentEnvironment = ({ catalog, environment, env = p
       readRequiredEnv(env, FRONTEND_HOST_ENV_KEYS[application.id]),
     ])
   );
+  const tlsCertificateLineage = readRequiredConfigValue(
+    environment,
+    "tlsCertificateLineage",
+    `deployment environment ${environment.id}`
+  );
+  const sharedSslPaths = toLetsEncryptPaths(tlsCertificateLineage);
 
   const ssl = Object.fromEntries(
     catalog.applications.map((application) => [
       application.id,
-      toLetsEncryptPaths(hosts[application.id]),
+      sharedSslPaths,
     ])
   );
 
   return {
     id: environment.id,
     githubEnvironment: environment.githubEnvironment ?? environment.id,
+    tlsCertificateLineage,
     hosts,
     publicEnv: {
       apiBaseUrl: readRequiredEnv(env, "VITE_API_BASE_URL"),
