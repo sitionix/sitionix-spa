@@ -1,6 +1,7 @@
 {
   "id": "dev",
   "githubEnvironment": "dev",
+  "tlsCertificateLineage": "app.dev.sitionix.com",
   "branches": [
     "develop"
   ]
