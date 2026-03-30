@@ -16,6 +16,7 @@ const DEFAULT_DEPLOY_VM = {
   appRoot: "/opt/sitionix/app/frontend",
   runtimeRoot: "/opt/sitionix/runtime/frontend",
   backupRoot: "/opt/sitionix/backups/frontend",
+  nginxHelperPath: "/usr/local/sbin/sitionix-frontend-nginx-apply",
   sudoCommand: "sudo",
 };
 
@@ -174,6 +175,7 @@ export const materializeDeploymentEnvironment = ({ catalog, environment, env = p
       appRoot: DEFAULT_DEPLOY_VM.appRoot,
       runtimeRoot: DEFAULT_DEPLOY_VM.runtimeRoot,
       backupRoot: DEFAULT_DEPLOY_VM.backupRoot,
+      nginxHelperPath: DEFAULT_DEPLOY_VM.nginxHelperPath,
       nginxSitePath: toNginxSitePath(environment.id),
       nginxSiteLinkPath: toNginxSiteLinkPath(environment.id),
       sudoCommand: DEFAULT_DEPLOY_VM.sudoCommand,

@@ -111,6 +111,7 @@ Repo-owned stable deploy constants:
 - app root: `/opt/sitionix/app/frontend`
 - runtime root: `/opt/sitionix/runtime/frontend`
 - backup root: `/opt/sitionix/backups/frontend`
+- nginx helper path: `/usr/local/sbin/sitionix-frontend-nginx-apply`
 - nginx site path: `/etc/nginx/sites-available/sitionix-frontend-<env>.conf`
 - nginx site link path: `/etc/nginx/sites-enabled/sitionix-frontend-<env>.conf`
 - certificate paths: `/etc/letsencrypt/live/<host>/fullchain.pem` and `/etc/letsencrypt/live/<host>/privkey.pem`
@@ -133,11 +134,50 @@ What it does:
 - validates destination paths
 - stages each selected app under `/opt/sitionix/runtime/frontend/releases/<release-id>`
 - keeps the previous symlink target for rollback
-- installs the rendered Nginx site config
 - switches active app symlinks under `/opt/sitionix/app/frontend/current`
-- runs `nginx -t`
-- restores previous config and symlinks if validation fails
-- reloads Nginx only after validation succeeds
+- invokes a root-owned Nginx helper for config install, validation and reload
+- restores previous app symlinks if the privileged Nginx step fails
+
+Current privilege boundary:
+- `sitionixvv` owns and writes `/opt/sitionix/app/frontend`, `/opt/sitionix/runtime/frontend` and `/opt/sitionix/backups/frontend`
+- only the Nginx helper runs through `sudo`
+- application artifacts and active frontend symlinks stay user-owned
+- the deploy script's only privileged call is `sudo /usr/local/sbin/sitionix-frontend-nginx-apply /tmp/<release-id>/nginx/sitionix-frontend.conf /etc/nginx/sites-available/sitionix-frontend-<env>.conf /etc/nginx/sites-enabled/sitionix-frontend-<env>.conf /opt/sitionix/backups/frontend/releases/<release-id>/sitionix-frontend.conf.previous`
+
+Remaining privileged operations inside the helper:
+- `install -m 0644 <rendered-config> <site-path>` because `/etc/nginx/sites-available` is root-owned
+- `ln -sfn <site-path> <site-link-path>` because `/etc/nginx/sites-enabled` is root-owned
+- `nginx -t` because Nginx config validation needs root-level access to the live config tree and certificates
+- `systemctl reload nginx` because reloading the system service requires root
+- `cp` or `rm` only for rollback of the live Nginx config under `/etc/nginx`
+
+## VM sudoers setup
+Copy the versioned helper from [`deploy/frontend/vm/sitionix-frontend-nginx-apply.sh`](/Users/vladvinskevitch/Documents/Java/sitionix/sitionix-spa/deploy/frontend/vm/sitionix-frontend-nginx-apply.sh) to the VM, then install it as root:
+
+```bash
+scp deploy/frontend/vm/sitionix-frontend-nginx-apply.sh sitionixvv@<vm>:/tmp/sitionix-frontend-nginx-apply.sh
+sudo install -o root -g root -m 0755 /tmp/sitionix-frontend-nginx-apply.sh /usr/local/sbin/sitionix-frontend-nginx-apply
+stat -c '%U %G %a' /usr/local/sbin/sitionix-frontend-nginx-apply
+test ! -w /usr/local/sbin/sitionix-frontend-nginx-apply
+```
+
+The checks above should report `root root 755` and confirm that `sitionixvv` cannot write the helper.
+
+Then create `/etc/sudoers.d/sitionix-frontend-deploy` with `visudo -f /etc/sudoers.d/sitionix-frontend-deploy` and add only this rule:
+
+```sudoers
+Cmnd_Alias SITIONIX_FRONTEND_NGINX_APPLY = /usr/local/sbin/sitionix-frontend-nginx-apply /tmp/*/nginx/sitionix-frontend.conf /etc/nginx/sites-available/sitionix-frontend-*.conf /etc/nginx/sites-enabled/sitionix-frontend-*.conf /opt/sitionix/backups/frontend/releases/*/sitionix-frontend.conf.previous
+sitionixvv ALL=(root) NOPASSWD: SITIONIX_FRONTEND_NGINX_APPLY
+```
+
+VM ownership prerequisite:
+
+```bash
+sudo mkdir -p /opt/sitionix/app/frontend/current /opt/sitionix/runtime/frontend/releases /opt/sitionix/backups/frontend/releases
+sudo chown -R sitionixvv:sitionixvv /opt/sitionix/app/frontend /opt/sitionix/runtime/frontend /opt/sitionix/backups/frontend
+```
+
+This keeps `NOPASSWD` scoped to one root-owned helper instead of granting `sudo` for generic filesystem or service commands.
 
 ## Verification checklist
 CI / deploy:
