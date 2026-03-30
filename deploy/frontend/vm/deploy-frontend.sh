@@ -31,6 +31,7 @@ assert_absolute_path "${SITIONIX_RUNTIME_ROOT}" "/opt/sitionix/"
 assert_absolute_path "${SITIONIX_BACKUP_ROOT}" "/opt/sitionix/"
 assert_absolute_path "${SITIONIX_NGINX_SITE_PATH}" "/etc/nginx/"
 assert_absolute_path "${SITIONIX_NGINX_SITE_LINK_PATH}" "/etc/nginx/"
+assert_absolute_path "${SITIONIX_NGINX_HELPER_PATH}" "/usr/local/sbin/"
 
 release_root="${SITIONIX_RUNTIME_ROOT}/releases/${SITIONIX_RELEASE_ID}"
 backup_root="${SITIONIX_BACKUP_ROOT}/releases/${SITIONIX_RELEASE_ID}"
@@ -85,9 +86,6 @@ if [[ ! -f "${nginx_source}" ]]; then
 fi
 
 nginx_backup="${backup_root}/sitionix-frontend.conf.previous"
-if run_privileged test -f "${SITIONIX_NGINX_SITE_PATH}"; then
-  run_privileged cp "${SITIONIX_NGINX_SITE_PATH}" "${nginx_backup}"
-fi
 
 declare -A previous_targets
 for app in "${selected_apps[@]}"; do
@@ -100,12 +98,6 @@ for app in "${selected_apps[@]}"; do
 done
 
 restore_previous_state() {
-  if [[ -f "${nginx_backup}" ]]; then
-    run_privileged cp "${nginx_backup}" "${SITIONIX_NGINX_SITE_PATH}"
-  else
-    run_privileged rm -f "${SITIONIX_NGINX_SITE_PATH}"
-  fi
-
   for app in "${selected_apps[@]}"; do
     current_link="${current_root}/${app}"
     previous_target="${previous_targets[${app}]}"
@@ -117,9 +109,6 @@ restore_previous_state() {
   done
 }
 
-run_privileged install -m 0644 "${nginx_source}" "${SITIONIX_NGINX_SITE_PATH}"
-run_privileged ln -sfn "${SITIONIX_NGINX_SITE_PATH}" "${SITIONIX_NGINX_SITE_LINK_PATH}"
-
 for app in "${selected_apps[@]}"; do
   current_link="${current_root}/${app}"
   next_link="${current_link}.next"
@@ -127,12 +116,15 @@ for app in "${selected_apps[@]}"; do
   mv -f "${next_link}" "${current_link}"
 done
 
-if ! run_privileged nginx -t; then
+if ! run_privileged \
+  "${SITIONIX_NGINX_HELPER_PATH}" \
+  "${nginx_source}" \
+  "${SITIONIX_NGINX_SITE_PATH}" \
+  "${SITIONIX_NGINX_SITE_LINK_PATH}" \
+  "${nginx_backup}"; then
   restore_previous_state
   exit 1
 fi
-
-run_privileged systemctl reload nginx
 
 for app in "${selected_apps[@]}"; do
   current_link="${current_root}/${app}"

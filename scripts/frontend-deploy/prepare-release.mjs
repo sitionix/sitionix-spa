@@ -134,6 +134,7 @@ const releaseEnv = {
   SITIONIX_APP_ROOT: plan.environment.vm.appRoot,
   SITIONIX_RUNTIME_ROOT: plan.environment.vm.runtimeRoot,
   SITIONIX_BACKUP_ROOT: plan.environment.vm.backupRoot,
+  SITIONIX_NGINX_HELPER_PATH: plan.environment.vm.nginxHelperPath,
   SITIONIX_NGINX_SITE_PATH: plan.environment.vm.nginxSitePath,
   SITIONIX_NGINX_SITE_LINK_PATH: plan.environment.vm.nginxSiteLinkPath,
   SITIONIX_SUDO_COMMAND: plan.environment.vm.sudoCommand,
