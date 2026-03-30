@@ -77,11 +77,15 @@ runs:
     - name: Debug SSH identity
       shell: bash
       run: |
-        # Temporary auth diagnostic: print only fingerprint + remote user.
+        # Temporary auth diagnostic: print only fingerprint, key metadata, and remote user.
         public_key_file="$(mktemp)"
         trap 'rm -f "${public_key_file}"' EXIT
         ssh-keygen -y -f ~/.ssh/id_ed25519 > "${public_key_file}"
         ssh-keygen -lf "${public_key_file}" -E sha256
+        key_type="$(awk '{print $1}' "${public_key_file}")"
+        key_comment="$(awk 'NF >= 3 { print substr($0, index($0, $3)); next } { print \"\" }' "${public_key_file}")"
+        echo "DEPLOY_VM_KEY_TYPE=${key_type}"
+        echo "DEPLOY_VM_KEY_COMMENT=${key_comment}"
         echo "DEPLOY_VM_USER=${DEPLOY_VM_USER}"
 
     - name: Upload payload to VM
