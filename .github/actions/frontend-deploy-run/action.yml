@@ -77,6 +77,7 @@ runs:
     - name: Debug SSH identity
       shell: bash
       run: |
+        # Temporary auth diagnostic: print only fingerprint + remote user.
         public_key_file="$(mktemp)"
         trap 'rm -f "${public_key_file}"' EXIT
         ssh-keygen -y -f ~/.ssh/id_ed25519 > "${public_key_file}"
