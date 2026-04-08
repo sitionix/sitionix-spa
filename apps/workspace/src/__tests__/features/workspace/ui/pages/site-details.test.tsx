@@ -66,7 +66,7 @@ describe("SiteSettingsPage", () => {
       </MemoryRouter>
     );
 
-    await screen.findByText("Огляд сайту");
+    await screen.findByText("Що далі");
     await user.click(screen.getAllByRole("button", { name: "Назад до сайтів" })[0]);
 
     expect(navigateHostMock).toHaveBeenCalledWith("/workspace/sites");
@@ -84,11 +84,17 @@ describe("SiteSettingsPage", () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText("Огляд сайту")).toBeInTheDocument();
-    expect(screen.getByText("Корпоративний сайт")).toBeInTheDocument();
-    expect(screen.getByText("Опублікований")).toBeInTheDocument();
-    expect(screen.getByText("Standalone")).toBeInTheDocument();
-    expect(screen.getByText("Опис відсутній")).toBeInTheDocument();
+    expect(await screen.findByText("Що далі")).toBeInTheDocument();
+    expect(screen.getAllByText("Корпоративний сайт").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Опублікований").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Standalone").length).toBeGreaterThan(0);
+    expect(screen.getByText("Site ID: site-1")).toBeInTheDocument();
+    expect(screen.getByText("Швидкі дії")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Сторінки" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Домени" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Публікація" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Аналітика" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Налаштування" })).toBeDisabled();
   });
 });
 
