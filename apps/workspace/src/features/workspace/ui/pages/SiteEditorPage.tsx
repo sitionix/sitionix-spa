@@ -24,8 +24,8 @@ export function SiteEditorPage() {
   const { data, status, error } = useWorkspaceQuery(
     () =>
       siteId
-        ? Promise.all([api.getSite(siteId), api.getEditorData(siteId)]).then(
-            ([site, editor]) => ({ site, editor })
+        ? Promise.all([api.getSiteOverview(siteId), api.getEditorData(siteId)]).then(
+            ([overview, editor]) => ({ overview, editor })
           )
         : Promise.reject(new Error("Missing site")),
     [api, siteId]
@@ -58,7 +58,9 @@ export function SiteEditorPage() {
     );
   }
 
-  const { site, editor } = data;
+  const { overview, editor } = data;
+  const siteTypeLabel = overview.type === "ecosystem" ? "Ecosystem" : "Standalone";
+  const siteStatusLabel = overview.status === "published" ? "Опублікований" : "Чернетка";
 
   return (
     <div className="h-screen flex flex-col bg-zinc-50">
@@ -73,8 +75,10 @@ export function SiteEditorPage() {
           </button>
           <div className="h-6 w-px bg-zinc-200" />
           <div>
-            <h1 className="font-semibold text-zinc-900">{site.name}</h1>
-            <p className="text-xs text-zinc-500">{site.domain}</p>
+            <h1 className="font-semibold text-zinc-900">{overview.name}</h1>
+            <p className="text-xs text-zinc-500">
+              {siteTypeLabel} · {siteStatusLabel}
+            </p>
           </div>
         </div>
 
@@ -147,7 +151,7 @@ export function SiteEditorPage() {
         >
           <div className="w-full h-full flex flex-col">
             <div className="h-20 bg-gradient-to-r from-blue-600 to-blue-700 flex items-center px-8">
-              <div className="text-white text-2xl font-bold">{site.name}</div>
+              <div className="text-white text-2xl font-bold">{overview.name}</div>
             </div>
 
             <div className="flex-1 p-8 overflow-auto">

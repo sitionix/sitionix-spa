@@ -10,7 +10,6 @@ export function WorkspaceApiProvider({ children }: { children: ReactNode }) {
   const api = useMemo(
     () =>
       createWorkspaceApi({
-        mode: publicEnv.workspaceUseMocks ? "mock" : "http",
         baseUrl: publicEnv.apiBaseUrl,
         requestJson,
       }),

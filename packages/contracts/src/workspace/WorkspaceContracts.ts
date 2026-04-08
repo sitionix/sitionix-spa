@@ -19,6 +19,16 @@ export type WorkspaceSite = {
   thumbnailUrl?: string | null;
 };
 
+export type WorkspaceSiteOverview = {
+  siteId: string;
+  name: string;
+  status: WorkspaceSiteStatus;
+  type: WorkspaceSiteType;
+  description?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type WorkspaceTrashItem = WorkspaceSite & {
   deletedAt: string;
 };
