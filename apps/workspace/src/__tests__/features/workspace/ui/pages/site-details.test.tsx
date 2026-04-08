@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -53,6 +53,11 @@ vi.mock("../../../../../shared/navigation/navigateHost", () => ({
 }));
 
 describe("SiteSettingsPage", () => {
+  beforeEach(() => {
+    navigateHostMock.mockReset();
+    vi.mocked(api.getSiteOverview).mockResolvedValue(mockOverview);
+  });
+
   it("navigates back through host router", async () => {
     const user = userEvent.setup();
 
@@ -95,6 +100,52 @@ describe("SiteSettingsPage", () => {
     expect(screen.getByRole("button", { name: "Публікація" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Аналітика" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Налаштування" })).toBeDisabled();
+  });
+
+  it("opens builder from overview actions", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={["/sites/site-1/settings"]}>
+        <WorkspaceApiProvider>
+          <Routes>
+            <Route path="/sites/:siteId/settings" element={<SiteSettingsPage />} />
+          </Routes>
+        </WorkspaceApiProvider>
+      </MemoryRouter>
+    );
+
+    await screen.findByText("Що далі");
+    await user.click(screen.getAllByRole("button", { name: "Відкрити білдер" })[0]);
+
+    expect(navigateHostMock).toHaveBeenCalledWith("/builder/site-1");
+  });
+
+  it("renders draft overview branches", async () => {
+    vi.mocked(api.getSiteOverview).mockResolvedValueOnce({
+      ...mockOverview,
+      status: "draft",
+      description: "Заповнений опис",
+      updatedAt: mockOverview.createdAt,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/sites/site-1/settings"]}>
+        <WorkspaceApiProvider>
+          <Routes>
+            <Route path="/sites/:siteId/settings" element={<SiteSettingsPage />} />
+          </Routes>
+        </WorkspaceApiProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Що далі")).toBeInTheDocument();
+    expect(screen.getAllByText("Чернетка").length).toBeGreaterThan(0);
+    expect(screen.getByText("У процесі")).toBeInTheDocument();
+    expect(screen.getByText("Заповнений опис")).toBeInTheDocument();
+    expect(screen.queryByText("Останнє оновлення overview")).not.toBeInTheDocument();
+    expect(screen.queryByText("В описі сайту ще немає контенту")).not.toBeInTheDocument();
+    expect(screen.getByText("Сайт ще не опубліковано")).toBeInTheDocument();
   });
 });
 

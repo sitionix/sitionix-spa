@@ -58,7 +58,7 @@ function SiteOverviewStatusCard({
   title,
   status,
   description,
-}: SiteOverviewStatusCardProps) {
+}: Readonly<SiteOverviewStatusCardProps>) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-4">
       <div className="mb-1 text-sm text-zinc-500">{title}</div>
@@ -75,7 +75,7 @@ function SiteOverviewActionItem({
   actionLabel,
   onAction,
   disabled = false,
-}: SiteOverviewActionItemProps) {
+}: Readonly<SiteOverviewActionItemProps>) {
   return (
     <div className="rounded-2xl border border-zinc-200 p-4 transition-colors hover:border-zinc-300">
       <div className="flex items-start justify-between gap-4">
@@ -101,7 +101,7 @@ function SiteOverviewActionItem({
 function SiteOverviewChecklistItem({
   label,
   completed,
-}: SiteOverviewChecklistItemProps) {
+}: Readonly<SiteOverviewChecklistItemProps>) {
   return (
     <div className="flex items-center gap-2 py-1.5">
       <div
@@ -169,14 +169,17 @@ export function SiteSettingsPage() {
   const contentDescription = data.description?.trim()
     ? "Є опис сайту у workspace overview"
     : "Опис поки відсутній у поточному overview";
+  const hasDescription = Boolean(data.description?.trim());
+  const isPublished = data.status === "published";
+  const hasOverviewUpdate = data.updatedAt !== data.createdAt;
   const readinessItems = [
     {
       label: "Заповнено базовий опис сайту",
-      completed: Boolean(data.description?.trim()),
+      completed: hasDescription,
     },
     {
       label: "Сайт опубліковано",
-      completed: data.status === "published",
+      completed: isPublished,
     },
     {
       label: "Підключено домен",
@@ -206,16 +209,16 @@ export function SiteSettingsPage() {
       reason: "Без опису сторінка виглядає неповною",
       actionLabel: "У білдер",
       onAction: openBuilder,
-      disabled: Boolean(data.description?.trim()),
+      disabled: hasDescription,
     },
     {
       title: "Підготувати публікацію",
       description:
-        data.status === "published"
+        isPublished
           ? "Сайт уже опублікований і доступний для перегляду"
           : "Додайте контент у білдері та підготуйте сайт до першої публікації",
       reason:
-        data.status === "published"
+        isPublished
           ? "Можна повертатися до редагування, коли з’являться нові зміни"
           : "Поточний overview показує, що сайт ще не в published стані",
       actionLabel: "Відкрити",
@@ -228,7 +231,7 @@ export function SiteSettingsPage() {
       action: "Створено сайт",
       time: formatDate(data.createdAt),
     },
-    ...(data.updatedAt !== data.createdAt
+    ...(hasOverviewUpdate
       ? [
           {
             action: "Останнє оновлення overview",
@@ -238,8 +241,8 @@ export function SiteSettingsPage() {
       : []),
   ];
   const attentionItems = [
-    !data.description?.trim() ? "В описі сайту ще немає контенту" : null,
-    data.status !== "published" ? "Сайт ще не опубліковано" : null,
+    hasDescription ? null : "В описі сайту ще немає контенту",
+    isPublished ? null : "Сайт ще не опубліковано",
     "Домен і SEO-поля ще не приходять у поточний overview API",
   ].filter((item): item is string => Boolean(item));
   const tabs: SiteOverviewTab[] = [
@@ -251,6 +254,12 @@ export function SiteSettingsPage() {
     { label: "Аналітика", disabled: true },
     { label: "Налаштування", disabled: true },
   ];
+
+  const statusBadgeClassName = isPublished
+    ? "bg-emerald-100 text-emerald-700"
+    : "bg-zinc-100 text-zinc-700";
+  const readinessLabel = isPublished ? "Опубліковано" : "У процесі";
+  const statusDotClassName = isPublished ? "bg-emerald-500" : "bg-zinc-400";
 
   return (
     <div className="-mx-6 -mt-6 min-h-screen bg-zinc-50">
@@ -270,11 +279,7 @@ export function SiteSettingsPage() {
                   {data.name}
                 </h1>
                 <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    data.status === "published"
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-zinc-100 text-zinc-700"
-                  }`}
+                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusBadgeClassName}`}
                 >
                   {statusLabel[data.status]}
                 </span>
@@ -301,23 +306,25 @@ export function SiteSettingsPage() {
       <div className="border-b border-zinc-200 bg-white">
         <div className="mx-auto max-w-[1400px] px-6">
           <nav className="flex gap-8 overflow-x-auto">
-            {tabs.map((tab) => (
-              <button
-                key={tab.label}
-                type="button"
-                disabled={tab.disabled}
-                onClick={tab.onClick}
-                className={`border-b-2 py-4 text-sm font-medium transition-colors ${
-                  tab.active
-                    ? "border-blue-600 text-blue-600"
-                    : tab.disabled
-                    ? "border-transparent text-zinc-400"
-                    : "border-transparent text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+            {tabs.map((tab) => {
+              const tabClassName = tab.active
+                ? "border-blue-600 text-blue-600"
+                : tab.disabled
+                ? "border-transparent text-zinc-400"
+                : "border-transparent text-zinc-600 hover:border-zinc-300 hover:text-zinc-900";
+
+              return (
+                <button
+                  key={tab.label}
+                  type="button"
+                  disabled={tab.disabled}
+                  onClick={tab.onClick}
+                  className={`border-b-2 py-4 text-sm font-medium transition-colors ${tabClassName}`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </nav>
         </div>
       </div>
@@ -373,7 +380,7 @@ export function SiteSettingsPage() {
               <h2 className="mb-2 text-xl font-semibold text-zinc-900">Готовність сайту</h2>
               <div className="mb-4">
                 <div className="mb-2 inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
-                  {data.status === "published" ? "Опубліковано" : "У процесі"}
+                  {readinessLabel}
                 </div>
                 <p className="text-sm text-zinc-600">
                   Цей блок побудований на реальних даних overview. Пункти без backend
@@ -479,9 +486,7 @@ export function SiteSettingsPage() {
               <div className="mb-4">
                 <div className="mb-2 flex items-center gap-2">
                   <div
-                    className={`h-2 w-2 rounded-full ${
-                      data.status === "published" ? "bg-emerald-500" : "bg-zinc-400"
-                    }`}
+                    className={`h-2 w-2 rounded-full ${statusDotClassName}`}
                   />
                   <span className="text-sm font-medium text-zinc-900">
                     {publishingStatus}
