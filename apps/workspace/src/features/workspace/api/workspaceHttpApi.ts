@@ -6,12 +6,12 @@ import type {
   WorkspaceDomain,
   WorkspaceEditorData,
   WorkspaceSite,
+  WorkspaceSiteOverview,
   WorkspaceTrashItem,
 } from "@sitionix/contracts";
 import type {
   RequestJsonFn,
   WorkspaceApi,
-  WorkspaceSiteUpdatePayload,
   WorkspaceSitesQuery,
 } from "./workspaceApi";
 
@@ -60,23 +60,10 @@ export function createHttpWorkspaceApi(requestJson: RequestJsonFn): WorkspaceApi
       return expectOk(result);
     },
 
-    async getSite(siteId: string): Promise<WorkspaceSite> {
-      const result = await requestJson<WorkspaceSite, unknown, undefined>({
+    async getSiteOverview(siteId: string): Promise<WorkspaceSiteOverview> {
+      const result = await requestJson<WorkspaceSiteOverview, unknown, undefined>({
         method: "GET",
-        path: `/api/v1/workspace/sites/${siteId}`,
-      });
-
-      return expectOk(result);
-    },
-
-    async updateSite(
-      siteId: string,
-      payload: WorkspaceSiteUpdatePayload
-    ): Promise<WorkspaceSite> {
-      const result = await requestJson<WorkspaceSite, unknown, WorkspaceSiteUpdatePayload>({
-        method: "PATCH",
-        path: `/api/v1/workspace/sites/${siteId}`,
-        body: payload,
+        path: `/api/v1/sites/${siteId}/overview`,
       });
 
       return expectOk(result);

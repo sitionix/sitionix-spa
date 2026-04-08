@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -21,11 +20,11 @@ import { PageHeader } from "../components/PageHeader";
 import { ConfirmationDialog } from "../components/ConfirmationDialog";
 import { CreateSiteSheet } from "../components/CreateSiteSheet";
 import { toneClasses } from "../colorTokens";
+import { navigateHost } from "../../../../shared/navigation/navigateHost";
 
 type MenuAction =
   | "edit"
   | "settings"
-  | "rename"
   | "duplicate"
   | "collection"
   | "delete";
@@ -65,7 +64,6 @@ const delay = (ms: number): Promise<void> =>
 
 export function SitesPage() {
   const api = useWorkspaceApi();
-  const navigate = useNavigate();
   const isMountedRef = useRef(true);
   const refreshPromiseRef = useRef<Promise<Page<WorkspaceSite> | null> | null>(null);
   const refreshQueryKeyRef = useRef<string | null>(null);
@@ -79,10 +77,8 @@ export function SitesPage() {
   const [sortBy, setSortBy] = useState<"date" | "name" | "edited">("date");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [collectionModalOpen, setCollectionModalOpen] = useState(false);
   const [selectedSite, setSelectedSite] = useState<WorkspaceSite | null>(null);
-  const [newName, setNewName] = useState("");
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
   const [createSheetOpen, setCreateSheetOpen] = useState(false);
   const [sites, setSites] = useState<WorkspaceSite[]>([]);
@@ -285,20 +281,24 @@ export function SitesPage() {
 
   const displayedSites = sites;
 
+  const openBuilder = useCallback((siteId: string) => {
+    navigateHost(`/builder/${siteId}`);
+  }, []);
+
+  const openOverview = useCallback((siteId: string) => {
+    navigateHost(`/workspace/sites/${siteId}/settings`);
+  }, []);
+
   const handleMenuAction = (action: MenuAction, site: WorkspaceSite) => {
     setOpenMenuId(null);
     setSelectedSite(site);
 
     switch (action) {
       case "edit":
-        navigate(`/editor/${site.id}`);
+        openBuilder(site.id);
         break;
       case "settings":
-        navigate(`/sites/${site.id}/settings`);
-        break;
-      case "rename":
-        setNewName(site.name);
-        setRenameModalOpen(true);
+        openOverview(site.id);
         break;
       case "duplicate":
         api.duplicateSite(site.id).then(() => {
@@ -323,12 +323,6 @@ export function SitesPage() {
     setSelectedSite(null);
   };
 
-  const closeRenameModal = () => {
-    setRenameModalOpen(false);
-    setSelectedSite(null);
-    setNewName("");
-  };
-
   const closeCollectionModal = () => {
     setCollectionModalOpen(false);
     setSelectedSite(null);
@@ -346,15 +340,6 @@ export function SitesPage() {
       opened.focus();
     }
     void runAutoRefetchAfterCreate(siteId);
-  };
-
-  const confirmRename = async () => {
-    if (!selectedSite || !newName.trim()) return;
-    await api.updateSite(selectedSite.id, { name: newName.trim() });
-    await refreshSitesPageZero();
-    setRenameModalOpen(false);
-    setSelectedSite(null);
-    setNewName("");
   };
 
   const confirmCollectionChange = async () => {
@@ -442,7 +427,11 @@ export function SitesPage() {
               key={site.id}
               className="relative bg-white rounded-xl border border-zinc-200 p-4 h-[232px] flex gap-4 hover:shadow-lg transition-all duration-200"
             >
-              <div className="w-[420px] h-[200px] rounded-[10px] bg-zinc-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => openOverview(site.id)}
+                className="w-[420px] h-[200px] rounded-[10px] bg-zinc-100 flex items-center justify-center flex-shrink-0 overflow-hidden text-left hover:bg-zinc-200/70 transition-colors"
+              >
                 <div className="text-center text-zinc-400">
                   <div className="w-16 h-16 mx-auto mb-2 rounded-full bg-zinc-200 flex items-center justify-center">
                     <span className="text-2xl font-bold text-zinc-500">
@@ -451,12 +440,16 @@ export function SitesPage() {
                   </div>
                   <p className="text-sm px-4">{site.name}</p>
                 </div>
-              </div>
+              </button>
 
               <div className="flex-1 flex flex-col">
-                <h3 className="text-[18px] font-semibold text-zinc-900 mb-1 truncate">
+                <button
+                  type="button"
+                  onClick={() => openOverview(site.id)}
+                  className="mb-1 w-fit max-w-full truncate text-[18px] font-semibold text-zinc-900 hover:text-blue-700 transition-colors"
+                >
                   {site.name}
-                </h3>
+                </button>
 
                 {site.domain ? (
                   <a
@@ -494,13 +487,13 @@ export function SitesPage() {
 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => navigate(`/editor/${site.id}`)}
+                    onClick={() => openBuilder(site.id)}
                     className="h-10 px-4 min-w-[160px] bg-blue-600 text-white rounded-[10px] hover:bg-blue-700 transition-colors text-sm font-medium active:scale-[0.98]"
                   >
                     Редагувати сайт
                   </button>
                   <button
-                    onClick={() => navigate(`/sites/${site.id}/settings`)}
+                    onClick={() => openOverview(site.id)}
                     className="h-10 px-4 min-w-[160px] border border-zinc-200 text-zinc-700 rounded-[10px] hover:bg-zinc-50 transition-colors text-sm font-medium active:scale-[0.98]"
                   >
                     Налаштування
@@ -540,13 +533,6 @@ export function SitesPage() {
                       >
                         <Settings className="w-4 h-4" />
                         Налаштування
-                      </button>
-                      <button
-                        onClick={() => handleMenuAction("rename", site)}
-                        className="w-full px-4 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50 transition-colors flex items-center gap-2"
-                      >
-                        <Edit className="w-4 h-4" />
-                        Перейменувати
                       </button>
                       <button
                         onClick={() => handleMenuAction("duplicate", site)}
@@ -606,46 +592,6 @@ export function SitesPage() {
         onClose={() => setCreateSheetOpen(false)}
         onCreated={handleSiteCreated}
       />
-
-      {renameModalOpen ? (
-        <>
-          <button
-            type="button"
-            aria-label="Close rename modal"
-            className="fixed inset-0 bg-black/50 z-50"
-            onClick={closeRenameModal}
-          />
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-              <h2 className="text-xl font-bold text-zinc-900 mb-2">
-                Перейменувати сайт
-              </h2>
-              <p className="text-zinc-600 mb-4">
-                Вкажіть нову назву для вибраного сайту.
-              </p>
-              <input
-                value={newName}
-                onChange={(event) => setNewName(event.target.value)}
-                className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              />
-              <div className="flex gap-3 justify-end mt-6">
-                <button
-                  onClick={closeRenameModal}
-                  className="h-10 px-4 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-colors font-medium"
-                >
-                  Скасувати
-                </button>
-                <button
-                  onClick={confirmRename}
-                  className="h-10 px-4 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium active:scale-[0.98]"
-                >
-                  Зберегти
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      ) : null}
 
       {collectionModalOpen ? (
         <>

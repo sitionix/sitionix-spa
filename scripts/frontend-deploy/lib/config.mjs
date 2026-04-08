@@ -181,7 +181,6 @@ export const materializeDeploymentEnvironment = ({ catalog, environment, env = p
     hosts,
     publicEnv: {
       apiBaseUrl: readRequiredEnv(env, "VITE_API_BASE_URL"),
-      workspaceUseMocks: readRequiredEnv(env, "FRONTEND_WORKSPACE_USE_MOCKS"),
     },
     ssl,
     bff: {
@@ -218,7 +217,6 @@ export const buildDeploymentPlan = ({
   const buildEnv = {
     VITE_API_BASE_URL: environment.publicEnv.apiBaseUrl,
     VITE_SHELL_ORIGIN: origins[shellApplication.id],
-    VITE_WORKSPACE_USE_MOCKS: environment.publicEnv.workspaceUseMocks,
   };
 
   for (const application of catalog.applications) {

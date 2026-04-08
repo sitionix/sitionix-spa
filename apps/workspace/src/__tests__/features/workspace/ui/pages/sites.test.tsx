@@ -8,6 +8,10 @@ import type { WorkspaceCollection, WorkspaceSite } from "@sitionix/contracts";
 import { WorkspaceApiProvider } from "../../../../../features/workspace/api/WorkspaceApiProvider";
 import { SitesPage } from "../../../../../features/workspace/ui/pages/SitesPage";
 
+const { navigateHostMock } = vi.hoisted(() => ({
+  navigateHostMock: vi.fn(),
+}));
+
 const getFirstMenuButton = (container: HTMLElement) => {
   const icon = container.querySelector("svg.lucide-ellipsis-vertical");
   const button = icon?.closest("button") as HTMLButtonElement | null;
@@ -137,16 +141,6 @@ const { api, resetSites, createSiteMock, getSitesMock, restoreGetSitesMock } = v
         totalPages: 1,
       },
     }),
-    updateSite: vi.fn().mockImplementation((siteId, payload) => {
-      sites = sites.map((item) =>
-        item.id === siteId ? { ...item, ...payload } : item
-      );
-      const updated = sites.find((item) => item.id === siteId);
-      if (!updated) {
-        throw new Error("Site not found");
-      }
-      return Promise.resolve(updated);
-    }),
     duplicateSite: vi.fn().mockImplementation((siteId) => {
       const source = sites.find((item) => item.id === siteId);
       if (!source) {
@@ -182,6 +176,10 @@ vi.mock("../../../../../features/workspace/api/sitesApi", () => ({
   },
 }));
 
+vi.mock("../../../../../shared/navigation/navigateHost", () => ({
+  navigateHost: navigateHostMock,
+}));
+
 describe("SitesPage", () => {
   let windowOpenSpy: ReturnType<typeof vi.spyOn>;
   let originalIntersectionObserver: typeof window.IntersectionObserver | undefined;
@@ -194,6 +192,7 @@ describe("SitesPage", () => {
     vi.mocked(api.addToCollection).mockClear();
     vi.mocked(api.removeFromCollection).mockClear();
     vi.mocked(api.duplicateSite).mockClear();
+    navigateHostMock.mockReset();
     windowOpenSpy = vi.spyOn(window, "open").mockReturnValue(null);
     originalIntersectionObserver = window.IntersectionObserver;
   });
@@ -211,7 +210,7 @@ describe("SitesPage", () => {
     MockIntersectionObserver.disconnect.mockReset();
   });
 
-  it("renders sites and supports rename/delete/collection actions", async () => {
+  it("renders sites and supports delete/collection actions", async () => {
     const user = userEvent.setup();
 
     const { container } = render(
@@ -233,23 +232,11 @@ describe("SitesPage", () => {
     });
 
     await user.click(getFirstMenuButton(container));
-    await user.click(screen.getByText("Перейменувати"));
-
-    const inputs = screen.getAllByRole("textbox");
-    const renameInput = inputs[inputs.length - 1];
-    await user.clear(renameInput);
-    await user.type(renameInput, "Новий сайт");
-    await user.click(screen.getByRole("button", { name: "Зберегти" }));
-
-    const renamed = await screen.findAllByText("Новий сайт");
-    expect(renamed.length).toBeGreaterThan(0);
-
-    await user.click(getFirstMenuButton(container));
     await user.click(screen.getByText("Видалити"));
     await user.click(screen.getByRole("button", { name: "Перемістити" }));
 
     await waitFor(() => {
-      expect(screen.queryByText("Новий сайт")).not.toBeInTheDocument();
+      expect(screen.queryByText("Портфоліо агенції")).not.toBeInTheDocument();
     });
 
     await user.click(getFirstMenuButton(container));
@@ -360,7 +347,7 @@ describe("SitesPage", () => {
       </MemoryRouter>
     );
 
-    await screen.findByRole("heading", { name: "Початковий сайт" });
+    await screen.findByRole("button", { name: "Початковий сайт" });
     const refreshButton = screen.getByRole("button", { name: "Refresh" });
 
     await user.click(refreshButton);
@@ -411,7 +398,7 @@ describe("SitesPage", () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole("heading", { name: "Перший сайт" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Перший сайт" })).toBeInTheDocument();
     expect(MockIntersectionObserver.observe).toHaveBeenCalled();
     expect(MockIntersectionObserver.callback).toBeTruthy();
 
@@ -441,8 +428,8 @@ describe("SitesPage", () => {
     await waitFor(() => {
       expect(screen.queryByText("Завантаження...")).not.toBeInTheDocument();
     });
-    expect(screen.getByRole("heading", { name: "Другий сайт" })).toBeInTheDocument();
-    expect(container.querySelectorAll("h3").length).toBeGreaterThan(1);
+    expect(screen.getByRole("button", { name: "Другий сайт" })).toBeInTheDocument();
+    expect(container.querySelectorAll("button").length).toBeGreaterThan(1);
     expect(screen.getByText("Мої сайти (2)")).toBeInTheDocument();
 
   });
@@ -470,7 +457,7 @@ describe("SitesPage", () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole("heading", { name: "Перший сайт" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Перший сайт" })).toBeInTheDocument();
 
     if (!MockIntersectionObserver.callback) {
       throw new Error("IntersectionObserver callback was not set");
@@ -529,7 +516,7 @@ describe("SitesPage", () => {
     expect(addToCollection).not.toHaveBeenCalled();
   });
 
-  it("navigates to editor and settings from primary action buttons", async () => {
+  it("opens builder from primary action button", async () => {
     const user = userEvent.setup();
 
     render(
@@ -537,8 +524,6 @@ describe("SitesPage", () => {
         <WorkspaceApiProvider>
           <Routes>
             <Route path="/sites" element={<SitesPage />} />
-            <Route path="/sites/:siteId/settings" element={<div>Settings Route</div>} />
-            <Route path="/editor/:siteId" element={<div>Editor Route</div>} />
           </Routes>
         </WorkspaceApiProvider>
       </MemoryRouter>
@@ -546,10 +531,10 @@ describe("SitesPage", () => {
 
     expect(await screen.findByText("Мої сайти (2)")).toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: "Редагувати сайт" })[0]);
-    expect(screen.getByText("Editor Route")).toBeInTheDocument();
+    expect(navigateHostMock).toHaveBeenCalledWith("/builder/site-1");
   });
 
-  it("navigates from menu actions", async () => {
+  it("opens overview from preview card, title, and settings actions", async () => {
     const user = userEvent.setup();
 
     render(
@@ -557,14 +542,30 @@ describe("SitesPage", () => {
         <WorkspaceApiProvider>
           <Routes>
             <Route path="/sites" element={<SitesPage />} />
-            <Route path="/sites/:siteId/settings" element={<div>Settings Route</div>} />
-            <Route path="/editor/:siteId" element={<div>Editor Route</div>} />
           </Routes>
         </WorkspaceApiProvider>
       </MemoryRouter>
     );
 
     expect(await screen.findByText("Мої сайти (2)")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Портфоліо агенції" }));
+    expect(navigateHostMock).toHaveBeenNthCalledWith(
+      1,
+      "/workspace/sites/site-1/settings"
+    );
+
+    await user.click(screen.getAllByRole("button", { name: "Портфоліо агенції" })[1]);
+    expect(navigateHostMock).toHaveBeenNthCalledWith(
+      2,
+      "/workspace/sites/site-1/settings"
+    );
+
+    await user.click(screen.getAllByRole("button", { name: "Налаштування" })[0]);
+    expect(navigateHostMock).toHaveBeenNthCalledWith(
+      3,
+      "/workspace/sites/site-1/settings"
+    );
+
     const firstMenuButton = document.querySelector("svg.lucide-ellipsis-vertical")?.closest("button");
     if (!(firstMenuButton instanceof HTMLButtonElement)) {
       throw new Error("first menu button not found");
@@ -579,7 +580,10 @@ describe("SitesPage", () => {
       throw new Error("menu settings action not found");
     }
     await user.click(menuSettingsAction);
-    expect(screen.getByText("Settings Route")).toBeInTheDocument();
+    expect(navigateHostMock).toHaveBeenNthCalledWith(
+      4,
+      "/workspace/sites/site-1/settings"
+    );
   });
 
   it("shows a toast when create request fails and keeps sheet open", async () => {

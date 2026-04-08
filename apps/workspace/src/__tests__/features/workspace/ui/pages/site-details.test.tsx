@@ -1,30 +1,27 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import type { ReactNode } from "react";
 import type { WorkspaceApi } from "../../../../../features/workspace/api/workspaceApi";
-import type { WorkspaceEditorData, WorkspaceSite } from "@sitionix/contracts";
+import type { WorkspaceEditorData, WorkspaceSiteOverview } from "@sitionix/contracts";
 import { WorkspaceApiProvider } from "../../../../../features/workspace/api/WorkspaceApiProvider";
 import { SiteSettingsPage } from "../../../../../features/workspace/ui/pages/SiteSettingsPage";
 import { SiteEditorPage } from "../../../../../features/workspace/ui/pages/SiteEditorPage";
 
-const { mockSite, api } = vi.hoisted(() => {
-  const mockSite: WorkspaceSite = {
-    id: "site-1",
+const { navigateHostMock } = vi.hoisted(() => ({
+  navigateHostMock: vi.fn(),
+}));
+
+const { mockOverview, api } = vi.hoisted(() => {
+  const mockOverview: WorkspaceSiteOverview = {
+    siteId: "site-1",
     name: "Корпоративний сайт",
-    domain: "corporate.sitionix.com",
     description: null,
-    seoTitle: null,
-    seoDescription: null,
     type: "standalone",
     status: "published",
     createdAt: "2026-02-01T12:00:00.000Z",
     updatedAt: "2026-02-02T12:00:00.000Z",
-    visits: 0,
-    ecosystemName: null,
-    collectionId: null,
-    thumbnailUrl: null,
   };
 
   const mockEditor: WorkspaceEditorData = {
@@ -39,12 +36,11 @@ const { mockSite, api } = vi.hoisted(() => {
   };
 
   const api: WorkspaceApi = {
-    getSite: vi.fn().mockResolvedValue(mockSite),
-    updateSite: vi.fn().mockResolvedValue(mockSite),
+    getSiteOverview: vi.fn().mockResolvedValue(mockOverview),
     getEditorData: vi.fn().mockResolvedValue(mockEditor),
   } as unknown as WorkspaceApi;
 
-  return { mockSite, mockEditor, api };
+  return { mockOverview, mockEditor, api };
 });
 
 vi.mock("../../../../../features/workspace/api/WorkspaceApiProvider", () => ({
@@ -52,10 +48,36 @@ vi.mock("../../../../../features/workspace/api/WorkspaceApiProvider", () => ({
   useWorkspaceApi: () => api,
 }));
 
+vi.mock("../../../../../shared/navigation/navigateHost", () => ({
+  navigateHost: navigateHostMock,
+}));
+
 describe("SiteSettingsPage", () => {
-  it("loads site data and saves", async () => {
+  beforeEach(() => {
+    navigateHostMock.mockReset();
+    vi.mocked(api.getSiteOverview).mockResolvedValue(mockOverview);
+  });
+
+  it("navigates back through host router", async () => {
     const user = userEvent.setup();
 
+    render(
+      <MemoryRouter initialEntries={["/sites/site-1/settings"]}>
+        <WorkspaceApiProvider>
+          <Routes>
+            <Route path="/sites/:siteId/settings" element={<SiteSettingsPage />} />
+          </Routes>
+        </WorkspaceApiProvider>
+      </MemoryRouter>
+    );
+
+    await screen.findByText("Що далі");
+    await user.click(screen.getAllByRole("button", { name: "Назад до сайтів" })[0]);
+
+    expect(navigateHostMock).toHaveBeenCalledWith("/workspace/sites");
+  });
+
+  it("loads overview data", async () => {
     render(
       <MemoryRouter initialEntries={["/sites/site-1/settings"]}>
         <WorkspaceApiProvider>
@@ -67,14 +89,63 @@ describe("SiteSettingsPage", () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText("Налаштування сайту")).toBeInTheDocument();
+    expect(await screen.findByText("Що далі")).toBeInTheDocument();
+    expect(screen.getAllByText("Корпоративний сайт").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Опублікований").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Standalone").length).toBeGreaterThan(0);
+    expect(screen.getByText("Site ID: site-1")).toBeInTheDocument();
+    expect(screen.getByText("Швидкі дії")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Сторінки" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Домени" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Публікація" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Аналітика" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Налаштування" })).toBeDisabled();
+  });
 
-    const nameInput = screen.getByLabelText("Назва сайту");
-    await user.clear(nameInput);
-    await user.type(nameInput, "Оновлений сайт");
+  it("opens builder from overview actions", async () => {
+    const user = userEvent.setup();
 
-    await user.click(screen.getByRole("button", { name: /Зберегти зміни/ }));
-    expect(await screen.findByText("Sites Route")).toBeInTheDocument();
+    render(
+      <MemoryRouter initialEntries={["/sites/site-1/settings"]}>
+        <WorkspaceApiProvider>
+          <Routes>
+            <Route path="/sites/:siteId/settings" element={<SiteSettingsPage />} />
+          </Routes>
+        </WorkspaceApiProvider>
+      </MemoryRouter>
+    );
+
+    await screen.findByText("Що далі");
+    await user.click(screen.getAllByRole("button", { name: "Відкрити білдер" })[0]);
+
+    expect(navigateHostMock).toHaveBeenCalledWith("/builder/site-1");
+  });
+
+  it("renders draft overview branches", async () => {
+    vi.mocked(api.getSiteOverview).mockResolvedValueOnce({
+      ...mockOverview,
+      status: "draft",
+      description: "Заповнений опис",
+      updatedAt: mockOverview.createdAt,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/sites/site-1/settings"]}>
+        <WorkspaceApiProvider>
+          <Routes>
+            <Route path="/sites/:siteId/settings" element={<SiteSettingsPage />} />
+          </Routes>
+        </WorkspaceApiProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Що далі")).toBeInTheDocument();
+    expect(screen.getAllByText("Чернетка").length).toBeGreaterThan(0);
+    expect(screen.getByText("У процесі")).toBeInTheDocument();
+    expect(screen.getByText("Заповнений опис")).toBeInTheDocument();
+    expect(screen.queryByText("Останнє оновлення overview")).not.toBeInTheDocument();
+    expect(screen.queryByText("В описі сайту ще немає контенту")).not.toBeInTheDocument();
+    expect(screen.getByText("Сайт ще не опубліковано")).toBeInTheDocument();
   });
 });
 
@@ -92,7 +163,7 @@ describe("SiteEditorPage", () => {
       </MemoryRouter>
     );
 
-    const matching = await screen.findAllByText(mockSite.name, {}, { timeout: 3000 });
+    const matching = await screen.findAllByText(mockOverview.name, {}, { timeout: 3000 });
     expect(matching.length).toBeGreaterThan(0);
     let canvas = container.querySelector(".shadow-2xl");
     expect(canvas?.className).toContain("w-full");

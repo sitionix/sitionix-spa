@@ -50,7 +50,6 @@ Build-time frontend values are derived from that profile:
 - `VITE_WORKSPACE_REMOTE_ORIGIN=https://workspace.dev.sitionix.com`
 - `VITE_BUILDER_REMOTE_ORIGIN=https://builder.dev.sitionix.com`
 - `VITE_API_BASE_URL=/bffssox`
-- `VITE_WORKSPACE_USE_MOCKS=false`
 
 The deployed runtime does not use `vite preview`. GitHub Actions builds static assets, uploads a release payload to the VM, updates `/opt/sitionix/app/frontend/current/*`, renders the Nginx site config, runs `nginx -t`, and reloads Nginx only after validation passes.
 
@@ -81,7 +80,6 @@ Required environment variables:
 - `FRONTEND_HOST_WORKSPACE`
 - `FRONTEND_HOST_BUILDER`
 - `VITE_API_BASE_URL`
-- `FRONTEND_WORKSPACE_USE_MOCKS`
 
 Required environment secrets:
 - `DEPLOY_VM_HOST`
