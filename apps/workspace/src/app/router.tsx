@@ -4,6 +4,7 @@ import { SitesPage } from "../features/workspace/ui/pages/SitesPage";
 import { CollectionsPage } from "../features/workspace/ui/pages/CollectionsPage";
 import { DomainsPage } from "../features/workspace/ui/pages/DomainsPage";
 import { TrashPage } from "../features/workspace/ui/pages/TrashPage";
+import { AutomationPage } from "../features/workspace/ui/pages/AutomationPage";
 import { SiteSettingsPage } from "../features/workspace/ui/pages/SiteSettingsPage";
 import { SiteEditorPage } from "../features/workspace/ui/pages/SiteEditorPage";
 import { CRMPage } from "../features/workspace/ui/pages/CRMPage";
@@ -19,6 +20,7 @@ export function WorkspaceRoutes() {
         <Route path="collections" element={<CollectionsPage />} />
         <Route path="domains" element={<DomainsPage />} />
         <Route path="trash" element={<TrashPage />} />
+        <Route path="automation" element={<AutomationPage />} />
         <Route path="crm" element={<CRMPage />} />
       </Route>
 

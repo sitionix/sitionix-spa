@@ -5,6 +5,7 @@ import {
   FolderOpen,
   Link2,
   Trash2,
+  Bot,
   BarChart3,
 } from "lucide-react";
 
@@ -14,6 +15,7 @@ const menuItems = [
   { id: "collections", label: "Колекції", path: "/collections", icon: FolderOpen },
   { id: "domains", label: "Домени", path: "/domains", icon: Link2 },
   { id: "trash", label: "Кошик", path: "/trash", icon: Trash2 },
+  { id: "automation", label: "Automation", path: "/automation", icon: Bot },
 ];
 
 export function Sidebar() {
