@@ -50,29 +50,21 @@ export default createViteConfig({
         "./mount": "./src/mf/mount.tsx",
       },
       shared: {
-        react: { import: false, generate: false, packagePath: "react" },
+        react: { packagePath: "react" },
         "react/jsx-runtime": {
-          import: false,
-          generate: false,
           packagePath: "react/jsx-runtime",
           version: "18.3.1",
         },
         "react/jsx-dev-runtime": {
-          import: false,
-          generate: false,
           packagePath: "react/jsx-dev-runtime",
           version: "18.3.1",
         },
-        "react-dom": { import: false, generate: false, packagePath: "react-dom" },
+        "react-dom": { packagePath: "react-dom" },
         "react-dom/client": {
-          import: false,
-          generate: false,
           packagePath: "react-dom/client",
           version: "18.3.1",
         },
         "react-router-dom": {
-          import: false,
-          generate: false,
           packagePath: "react-router-dom",
         },
       },
