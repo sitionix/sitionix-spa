@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from "react";
 import { X } from "lucide-react";
 import { createAgent, type AutomationAgent } from "../../api/agentsApi";
 
@@ -10,6 +10,70 @@ type CreateAgentSheetProps = {
 
 const NAME_MAX_LENGTH = 60;
 const DESCRIPTION_MAX_LENGTH = 160;
+const FIELD_BASE_CLASS =
+  "w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-4";
+const FIELD_ERROR_CLASS = "border-red-300 bg-red-50 focus:border-red-400 focus:ring-red-100";
+const FIELD_DEFAULT_CLASS = "border-zinc-200 bg-white focus:border-blue-400 focus:ring-blue-100";
+
+type FormFieldProps = {
+  id: string;
+  label: string;
+  value: string;
+  maxLength: number;
+  isInvalid: boolean;
+  errorMessage: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+  inputRef?: RefObject<HTMLInputElement | null>;
+  multiline?: boolean;
+};
+
+function FormField({
+  id,
+  label,
+  value,
+  maxLength,
+  isInvalid,
+  errorMessage,
+  placeholder,
+  onChange,
+  inputRef,
+  multiline = false,
+}: FormFieldProps) {
+  const className = `${FIELD_BASE_CLASS} ${isInvalid ? FIELD_ERROR_CLASS : FIELD_DEFAULT_CLASS}`;
+
+  return (
+    <div className="mt-6 space-y-2">
+      <label htmlFor={id} className="block text-sm font-medium text-zinc-800">
+        {label}
+      </label>
+
+      {multiline ? (
+        <textarea
+          id={id}
+          maxLength={maxLength}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          rows={5}
+          className={className}
+          placeholder={placeholder}
+        />
+      ) : (
+        <input
+          id={id}
+          ref={inputRef}
+          maxLength={maxLength}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className={className}
+          placeholder={placeholder}
+        />
+      )}
+
+      {isInvalid ? <p className="text-sm text-red-600">{errorMessage}</p> : null}
+    </div>
+  );
+}
 
 export function CreateAgentSheet({ open, onClose, onCreated }: CreateAgentSheetProps) {
   const nameInputRef = useRef<HTMLInputElement | null>(null);
@@ -167,52 +231,29 @@ export function CreateAgentSheet({ open, onClose, onCreated }: CreateAgentSheetP
             </button>
           </div>
 
-          <div className="mt-6 space-y-2">
-            <label htmlFor="create-agent-name" className="block text-sm font-medium text-zinc-800">
-              Name
-            </label>
-            <input
-              id="create-agent-name"
-              ref={nameInputRef}
-              maxLength={NAME_MAX_LENGTH}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-4 ${
-                hasSubmitted && !isNameValid
-                  ? "border-red-300 bg-red-50 focus:border-red-400 focus:ring-red-100"
-                  : "border-zinc-200 bg-white focus:border-blue-400 focus:ring-blue-100"
-              }`}
-              placeholder="Architecture Reviewer"
-            />
-            {hasSubmitted && !isNameValid ? (
-              <p className="text-sm text-red-600">Назва агента обов'язкова.</p>
-            ) : null}
-          </div>
+          <FormField
+            id="create-agent-name"
+            label="Name"
+            inputRef={nameInputRef}
+            value={name}
+            maxLength={NAME_MAX_LENGTH}
+            isInvalid={hasSubmitted && !isNameValid}
+            errorMessage="Назва агента обов'язкова."
+            placeholder="Architecture Reviewer"
+            onChange={setName}
+          />
 
-          <div className="mt-6 space-y-2">
-            <label
-              htmlFor="create-agent-description"
-              className="block text-sm font-medium text-zinc-800"
-            >
-              Description
-            </label>
-            <textarea
-              id="create-agent-description"
-              maxLength={DESCRIPTION_MAX_LENGTH}
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              rows={5}
-              className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-4 ${
-                hasSubmitted && !isDescriptionValid
-                  ? "border-red-300 bg-red-50 focus:border-red-400 focus:ring-red-100"
-                  : "border-zinc-200 bg-white focus:border-blue-400 focus:ring-blue-100"
-              }`}
-              placeholder="Minimal internal agent foundation entry"
-            />
-            {hasSubmitted && !isDescriptionValid ? (
-              <p className="text-sm text-red-600">Опис агента обов'язковий.</p>
-            ) : null}
-          </div>
+          <FormField
+            id="create-agent-description"
+            label="Description"
+            value={description}
+            maxLength={DESCRIPTION_MAX_LENGTH}
+            isInvalid={hasSubmitted && !isDescriptionValid}
+            errorMessage="Опис агента обов'язковий."
+            placeholder="Minimal internal agent foundation entry"
+            onChange={setDescription}
+            multiline
+          />
 
           <div className="mt-auto flex items-center justify-end gap-3 border-t border-zinc-200 pt-6">
             <button
