@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from "react";
 import { X } from "lucide-react";
-import { createAgent, type AutomationAgent } from "../../api/agentsApi";
+import { createAgent } from "../api";
+import {
+  AGENT_DESCRIPTION_MAX_LENGTH,
+  AGENT_NAME_MAX_LENGTH,
+  CREATE_AGENT_ERROR_MESSAGE,
+} from "../model/constants";
+import type { AutomationAgent } from "../model/types";
 
 type CreateAgentSheetProps = {
   open: boolean;
@@ -8,8 +14,6 @@ type CreateAgentSheetProps = {
   onCreated: (agent: AutomationAgent) => void;
 };
 
-const NAME_MAX_LENGTH = 60;
-const DESCRIPTION_MAX_LENGTH = 160;
 const FIELD_BASE_CLASS =
   "w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-4";
 const FIELD_ERROR_CLASS = "border-red-300 bg-red-50 focus:border-red-400 focus:ring-red-100";
@@ -202,7 +206,7 @@ export function CreateAgentSheet({ open, onClose, onCreated }: CreateAgentSheetP
         onClose();
         onCreated(createdAgent);
       } catch {
-        setToastMessage("Не вдалося створити агента. Спробуйте ще раз.");
+        setToastMessage(CREATE_AGENT_ERROR_MESSAGE);
       } finally {
         setIsSubmitting(false);
       }
@@ -264,7 +268,7 @@ export function CreateAgentSheet({ open, onClose, onCreated }: CreateAgentSheetP
             label="Name"
             inputRef={nameInputRef}
             value={name}
-            maxLength={NAME_MAX_LENGTH}
+            maxLength={AGENT_NAME_MAX_LENGTH}
             isInvalid={hasSubmitted && !isNameValid}
             errorMessage="Назва агента обов'язкова."
             placeholder="Architecture Reviewer"
@@ -275,7 +279,7 @@ export function CreateAgentSheet({ open, onClose, onCreated }: CreateAgentSheetP
             id="create-agent-description"
             label="Description"
             value={description}
-            maxLength={DESCRIPTION_MAX_LENGTH}
+            maxLength={AGENT_DESCRIPTION_MAX_LENGTH}
             isInvalid={hasSubmitted && !isDescriptionValid}
             errorMessage="Опис агента обов'язковий."
             placeholder="Minimal internal agent foundation entry"

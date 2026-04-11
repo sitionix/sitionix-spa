@@ -1,19 +1,6 @@
 import type { ApiError } from "@sitionix/contracts";
-import { requestJson } from "../../../shared/http/httpClient";
-
-export type AutomationAgent = {
-  id: string;
-  name: string;
-  description: string;
-  status: "DRAFT";
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type CreateAgentRequest = {
-  name: string;
-  description: string;
-};
+import { requestJson } from "../../../../../shared/http/httpClient";
+import type { AutomationAgent, CreateAgentRequest } from "../model/types";
 
 type AgentsApiResponse = {
   items: AutomationAgent[];

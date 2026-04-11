@@ -4,7 +4,7 @@ import { SitesPage } from "../features/workspace/ui/pages/SitesPage";
 import { CollectionsPage } from "../features/workspace/ui/pages/CollectionsPage";
 import { DomainsPage } from "../features/workspace/ui/pages/DomainsPage";
 import { TrashPage } from "../features/workspace/ui/pages/TrashPage";
-import { AutomationPage } from "../features/workspace/ui/pages/AutomationPage";
+import { AutomationPage } from "../features/workspace/modules/automation";
 import { SiteSettingsPage } from "../features/workspace/ui/pages/SiteSettingsPage";
 import { SiteEditorPage } from "../features/workspace/ui/pages/SiteEditorPage";
 import { CRMPage } from "../features/workspace/ui/pages/CRMPage";

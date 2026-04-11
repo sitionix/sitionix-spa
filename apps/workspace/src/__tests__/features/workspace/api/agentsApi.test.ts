@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requestJson } from "../../../../shared/http/httpClient";
-import { createAgent, getAgents } from "../../../../features/workspace/api/agentsApi";
+import { createAgent, getAgents } from "../../../../features/workspace/modules/automation/api/agentsApi";
 
 vi.mock("../../../../shared/http/httpClient", () => ({
   requestJson: vi.fn(),

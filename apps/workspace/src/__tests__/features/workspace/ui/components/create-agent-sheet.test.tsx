@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { CreateAgentSheet } from "../../../../../features/workspace/ui/components/CreateAgentSheet";
-import { createAgent } from "../../../../../features/workspace/api/agentsApi";
+import { CreateAgentSheet } from "../../../../../features/workspace/modules/automation/components/CreateAgentSheet";
+import { createAgent } from "../../../../../features/workspace/modules/automation/api/agentsApi";
 
-vi.mock("../../../../../features/workspace/api/agentsApi", () => ({
+vi.mock("../../../../../features/workspace/modules/automation/api/agentsApi", () => ({
   createAgent: vi.fn(),
 }));
 

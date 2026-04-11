@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bot, Loader2, Plus, RefreshCw } from "lucide-react";
-import { getAgents, type AutomationAgent } from "../../api/agentsApi";
-import { formatDate } from "../../model/formatters";
-import { CreateAgentSheet } from "../components/CreateAgentSheet";
-import { PageHeader } from "../components/PageHeader";
-
-const toErrorMessage = (error: unknown): string => {
-  return error instanceof Error ? error.message : "Unexpected error";
-};
+import { PageHeader } from "../../../ui/components/PageHeader";
+import { formatDate } from "../../../model/formatters";
+import { getAgents } from "../api";
+import { CreateAgentSheet } from "../components";
+import { LOAD_AUTOMATION_ERROR_TITLE } from "../model/constants";
+import { toAutomationErrorMessage } from "../model/mappers";
+import type { AutomationAgent, AutomationPageStatus } from "../model/types";
 
 export function AutomationPage() {
   const [createSheetOpen, setCreateSheetOpen] = useState(false);
   const [agents, setAgents] = useState<AutomationAgent[]>([]);
-  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [status, setStatus] = useState<AutomationPageStatus>("idle");
   const [error, setError] = useState<string | null>(null);
 
   const loadAgents = useCallback(async () => {
@@ -24,7 +23,7 @@ export function AutomationPage() {
       setAgents(response);
       setStatus("ready");
     } catch (loadError) {
-      setError(toErrorMessage(loadError));
+      setError(toAutomationErrorMessage(loadError));
       setStatus("error");
     }
   }, []);
@@ -68,7 +67,7 @@ export function AutomationPage() {
 
       {status === "error" ? (
         <div className="rounded-3xl border border-red-200 bg-red-50 p-8">
-          <h2 className="text-lg font-semibold text-red-900">Не вдалося завантажити Automation</h2>
+          <h2 className="text-lg font-semibold text-red-900">{LOAD_AUTOMATION_ERROR_TITLE}</h2>
           <p className="mt-2 text-sm text-red-700">{error ?? "Unknown error"}</p>
           <button
             type="button"
