@@ -51,7 +51,7 @@ function FormField({
   onChange,
   inputRef,
   multiline = false,
-}: FormFieldProps) {
+}: Readonly<FormFieldProps>) {
   const className = `${FIELD_BASE_CLASS} ${isInvalid ? FIELD_ERROR_CLASS : FIELD_DEFAULT_CLASS}`;
 
   return (
@@ -93,20 +93,22 @@ function useCreateAgentSheetLifecycle({
   focusRef,
   toastMessage,
   clearToast,
-}: SheetLifecycleOptions) {
+}: Readonly<SheetLifecycleOptions>) {
+  const browserWindow = globalThis.window;
+
   useEffect(() => {
     if (!open) {
       return;
     }
 
-    const frameId = window.requestAnimationFrame(() => {
+    const frameId = browserWindow.requestAnimationFrame(() => {
       focusRef.current?.focus();
     });
 
     return () => {
-      window.cancelAnimationFrame(frameId);
+      browserWindow.cancelAnimationFrame(frameId);
     };
-  }, [focusRef, open]);
+  }, [browserWindow, focusRef, open]);
 
   useEffect(() => {
     if (!open) {
@@ -121,28 +123,28 @@ function useCreateAgentSheetLifecycle({
       closeSheet();
     };
 
-    window.addEventListener("keydown", onWindowKeyDown);
+    browserWindow.addEventListener("keydown", onWindowKeyDown);
     return () => {
-      window.removeEventListener("keydown", onWindowKeyDown);
+      browserWindow.removeEventListener("keydown", onWindowKeyDown);
     };
-  }, [closeSheet, open]);
+  }, [browserWindow, closeSheet, open]);
 
   useEffect(() => {
     if (toastMessage === null) {
       return;
     }
 
-    const timerId = window.setTimeout(() => {
+    const timerId = browserWindow.setTimeout(() => {
       clearToast();
     }, 4000);
 
     return () => {
-      window.clearTimeout(timerId);
+      browserWindow.clearTimeout(timerId);
     };
-  }, [clearToast, toastMessage]);
+  }, [browserWindow, clearToast, toastMessage]);
 }
 
-export function CreateAgentSheet({ open, onClose, onCreated }: CreateAgentSheetProps) {
+export function CreateAgentSheet({ open, onClose, onCreated }: Readonly<CreateAgentSheetProps>) {
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
