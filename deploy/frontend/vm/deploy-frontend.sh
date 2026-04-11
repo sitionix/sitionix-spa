@@ -113,7 +113,8 @@ for app in "${selected_apps[@]}"; do
   current_link="${current_root}/${app}"
   next_link="${current_link}.next"
   ln -sfn "${release_root}/${app}" "${next_link}"
-  mv -f "${next_link}" "${current_link}"
+  # Replace the symlink itself (not a directory target when current_link already resolves).
+  mv -Tf "${next_link}" "${current_link}"
 done
 
 if ! run_privileged \
