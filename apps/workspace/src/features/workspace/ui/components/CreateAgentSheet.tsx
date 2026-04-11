@@ -28,6 +28,14 @@ type FormFieldProps = {
   multiline?: boolean;
 };
 
+type SheetLifecycleOptions = {
+  open: boolean;
+  closeSheet: () => void;
+  focusRef: RefObject<HTMLInputElement | null>;
+  toastMessage: string | null;
+  clearToast: () => void;
+};
+
 function FormField({
   id,
   label,
@@ -75,6 +83,61 @@ function FormField({
   );
 }
 
+function useCreateAgentSheetLifecycle({
+  open,
+  closeSheet,
+  focusRef,
+  toastMessage,
+  clearToast,
+}: SheetLifecycleOptions) {
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      focusRef.current?.focus();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [focusRef, open]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const onWindowKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      event.preventDefault();
+      closeSheet();
+    };
+
+    window.addEventListener("keydown", onWindowKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onWindowKeyDown);
+    };
+  }, [closeSheet, open]);
+
+  useEffect(() => {
+    if (toastMessage === null) {
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      clearToast();
+    }, 4000);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [clearToast, toastMessage]);
+}
+
 export function CreateAgentSheet({ open, onClose, onCreated }: CreateAgentSheetProps) {
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const [name, setName] = useState("");
@@ -104,51 +167,16 @@ export function CreateAgentSheet({ open, onClose, onCreated }: CreateAgentSheetP
     onClose();
   }, [isSubmitting, onClose, resetForm]);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const rafId = window.requestAnimationFrame(() => {
-      nameInputRef.current?.focus();
-    });
-
-    return () => {
-      window.cancelAnimationFrame(rafId);
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        handleClose();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [handleClose, open]);
-
-  useEffect(() => {
-    if (!toastMessage) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setToastMessage(null);
-    }, 4000);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [toastMessage]);
+  const clearToast = useCallback(() => {
+    setToastMessage(null);
+  }, []);
+  useCreateAgentSheetLifecycle({
+    open,
+    closeSheet: handleClose,
+    focusRef: nameInputRef,
+    toastMessage,
+    clearToast,
+  });
 
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
