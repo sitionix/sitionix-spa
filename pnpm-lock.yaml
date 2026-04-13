@@ -263,6 +263,9 @@ importers:
 
   apps/workspace:
     dependencies:
+      '@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable':
+        specifier: 0.0.19
+        version: 0.0.19
       '@sitionix/auth-session':
         specifier: workspace:*
         version: link:../../packages/auth-session
@@ -885,6 +888,9 @@ packages:
     resolution: {integrity: sha512-hYT5d3YNdSh3mbCU1gwQyPgQd3T2ne0A3KG8KSBdav5TiBg6eInVmV+TeR5uHufiIgSFg0XsOWGW5/RhNcSvPg==}
     cpu: [x64]
     os: [win32]
+
+  '@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable@0.0.19':
+    resolution: {integrity: sha512-2TgYkTZWUfaDyncsypkvnqiSAheY8RXtxpr1JceOVT/wRM04NFqH9RMwXBre6YgElk8ZTKrBJMfaC6tGrLL34Q==, tarball: https://npm.pkg.github.com/download/@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/0.0.19/80b1315cbec5ba82729976609eb1cd57f10f8665}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -2364,6 +2370,8 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.54.0':
     optional: true
+
+  '@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable@0.0.19': {}
 
   '@standard-schema/spec@1.1.0': {}
 

@@ -44,6 +44,8 @@ runs:
 
     - name: Install dependencies
       shell: bash
+      env:
+        NODE_AUTH_TOKEN: ${{ github.token }}
       run: pnpm install --frozen-lockfile
 
     - name: Build selected frontend applications
