@@ -1,21 +1,48 @@
-import type { RegisterUserRequest, RegisterUserResponse, ApiError } from "@sitionix/contracts";
+import { UserApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/apis";
+import type {
+  ErrorDTO,
+  RegisterUserDTO,
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
+import { ResponseError } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable";
 import type { RegisterUserResult } from "../model/registerUserTypes";
-import { requestJson } from "../../../shared/http/httpClient";
+import { bffApiConfiguration } from "../../../shared/http/httpClient";
 
-export async function registerUserApi(
-  request: RegisterUserRequest,
-  signal?: AbortSignal
-): Promise<RegisterUserResult> {
-  const res = await requestJson<RegisterUserResponse, ApiError, RegisterUserRequest>({
-    method: "POST",
-    path: "/api/v1/users",
-    body: request,
-    signal,
-  });
+const userApi = new UserApi(bffApiConfiguration);
 
-  if (res.ok) {
-    return { ok: true, data: res.data };
+const parseError = async (error: unknown): Promise<ErrorDTO> => {
+  if (error instanceof ResponseError) {
+    const status = error.response.status;
+    const payload = (await error.response.clone().json().catch(() => null)) as
+      | ErrorDTO
+      | null;
+
+    return (
+      payload ?? {
+        code: status,
+        title: "Request failed",
+        details: "Register request failed",
+      }
+    );
   }
 
-  return { ok: false, error: res.error };
+  return {
+    code: 0,
+    title: "Request failed",
+    details: "Register request failed",
+  };
+};
+
+export async function registerUserApi(
+  request: RegisterUserDTO,
+  signal?: AbortSignal
+): Promise<RegisterUserResult> {
+  try {
+    const response = await userApi.registerUser(
+      { registerUserDTO: request },
+      signal ? { signal } : undefined
+    );
+    return { ok: true, data: response };
+  } catch (error) {
+    return { ok: false, error: await parseError(error) };
+  }
 }

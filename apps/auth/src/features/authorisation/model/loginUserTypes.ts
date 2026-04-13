@@ -1,4 +1,9 @@
-import type { ApiError } from "@sitionix/contracts";
+import type {
+  ErrorDTO,
+  LoginRequestDTO,
+  LoginResponseDTO,
+  RegisterUserDTORoleEnum,
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
 
 export type LoginFormValues = {
   email: string;
@@ -6,20 +11,10 @@ export type LoginFormValues = {
   rememberMe: boolean;
 };
 
-export type LoginUserRequest = {
-  email: string;
-  password: string;
-  siteId?: string;
-  sessionSourceId: string;
-  userAgent: string;
-};
-
-export type LoginUserResponse = {
-  accessToken: string;
-  expiresIn: number;
-  tokenType: string;
-};
+export type GlobalUserRole = RegisterUserDTORoleEnum;
+export type LoginUserRequest = LoginRequestDTO;
+export type LoginUserResponse = LoginResponseDTO;
 
 export type LoginUserResult =
   | { ok: true; data: LoginUserResponse }
-  | { ok: false; error: ApiError };
+  | { ok: false; error: ErrorDTO };

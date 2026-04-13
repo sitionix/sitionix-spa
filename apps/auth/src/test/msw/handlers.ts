@@ -1,12 +1,15 @@
 import { http, HttpResponse } from "msw";
-import type { RegisterUserRequest, RegisterUserResponse } from "@sitionix/contracts";
+import type {
+  RegisterUserDTO,
+  ResponseRegisterUserDTO,
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
 import type { LoginUserRequest, LoginUserResponse } from "../../features/authorisation/model/loginUserTypes";
 
 export const handlers = [
   http.post("http://localhost/api/v1/users", async ({ request }) => {
-    const body = (await request.json()) as RegisterUserRequest;
+    const body = (await request.json()) as RegisterUserDTO;
 
-    const response: RegisterUserResponse = {
+    const response: ResponseRegisterUserDTO = {
       message: `User ${body.email} registered`,
       userId: 123,
       status: "PENDING_EMAIL_VERIFY",

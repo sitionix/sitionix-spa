@@ -23,12 +23,12 @@ importers:
 
   apps/auth:
     dependencies:
+      '@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable':
+        specifier: 0.0.19
+        version: 0.0.19
       '@sitionix/auth-session':
         specifier: workspace:*
         version: link:../../packages/auth-session
-      '@sitionix/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
       '@sitionix/http-client':
         specifier: workspace:*
         version: link:../../packages/http-client
@@ -269,9 +269,6 @@ importers:
       '@sitionix/auth-session':
         specifier: workspace:*
         version: link:../../packages/auth-session
-      '@sitionix/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
       '@sitionix/http-client':
         specifier: workspace:*
         version: link:../../packages/http-client

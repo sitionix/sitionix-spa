@@ -11,7 +11,11 @@ import {
   ExternalLink,
   RefreshCw,
 } from "lucide-react";
-import type { Page, WorkspaceCollection, WorkspaceSite } from "@sitionix/contracts";
+import type {
+  Page,
+  WorkspaceCollection,
+  WorkspaceSite,
+} from "../../model/workspaceTypes";
 import { useWorkspaceApi } from "../../api/WorkspaceApiProvider";
 import { getSites } from "../../api/sitesApi";
 import { useWorkspaceQuery } from "../../model/useWorkspaceQuery";

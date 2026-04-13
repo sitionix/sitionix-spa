@@ -1,6 +1,6 @@
-import type { ApiError } from "@sitionix/contracts";
+import type { ErrorDTO } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
 
-export function normalizeRegisterError(error: ApiError | null | undefined): ApiError {
+export function normalizeRegisterError(error: ErrorDTO | null | undefined): ErrorDTO {
   if (!error) {
     return {
       code: 0,

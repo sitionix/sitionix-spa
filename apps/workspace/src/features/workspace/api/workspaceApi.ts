@@ -8,7 +8,7 @@ import type {
   WorkspaceSite,
   WorkspaceSiteOverview,
   WorkspaceTrashItem,
-} from "@sitionix/contracts";
+} from "../model/workspaceTypes";
 import type { HttpRequestOptions, HttpResult } from "@sitionix/http-client";
 import { createRequestJson } from "@sitionix/http-client";
 import { createHttpWorkspaceApi } from "./workspaceHttpApi";

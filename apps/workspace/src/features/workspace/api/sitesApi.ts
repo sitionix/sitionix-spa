@@ -1,5 +1,18 @@
-import type { ApiError, Page, WorkspaceSite } from "@sitionix/contracts";
-import { requestJson } from "../../../shared/http/httpClient";
+import { SiteApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/apis";
+import type {
+  CreateSiteRequestDTO,
+  CreateSiteRequestDTOTemplateEnum,
+  CreateSiteRequestDTOTypeEnum,
+  SiteOverviewDTO,
+  WorkspaceSiteCardResponseDTO,
+  WorkspaceSitesResponseDTO,
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
+import { bffApiConfiguration } from "../../../shared/http/httpClient";
+import type {
+  Page,
+  WorkspaceSite,
+  WorkspaceSiteOverview,
+} from "../model/workspaceTypes";
 
 export type CreateSiteRequest = {
   name: string;
@@ -21,39 +34,15 @@ export type GetSitesQuery = {
 
 type CreateSiteApiRequest = {
   name: string;
-  type?: "PORTFOLIO" | "BUSINESS" | "BLOG" | "STORE" | "LANDING" | "OTHER";
+  type?: CreateSiteRequestDTOTypeEnum;
   description?: string;
-  template?: "BLANK" | "PORTFOLIO" | "BUSINESS";
+  template?: CreateSiteRequestDTOTemplateEnum;
 };
-
-type CreateSiteApiResponse = {
-  siteId: string;
-  name: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type GetSitesApiItem = {
-  siteId: string;
-  name: string;
-  status: string;
-  type: string;
-  description?: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type GetSitesApiResponse = {
-  items: GetSitesApiItem[];
-  page: number;
-  size: number;
-  hasNext: boolean;
-};
+const siteApi = new SiteApi(bffApiConfiguration);
 
 const SITE_TYPE_TO_API: Record<
   NonNullable<CreateSiteRequest["type"]>,
-  NonNullable<CreateSiteApiRequest["type"]>
+  CreateSiteRequestDTOTypeEnum
 > = {
   portfolio: "PORTFOLIO",
   business: "BUSINESS",
@@ -65,17 +54,17 @@ const SITE_TYPE_TO_API: Record<
 
 const SITE_TEMPLATE_TO_API: Record<
   NonNullable<CreateSiteRequest["template"]>,
-  NonNullable<CreateSiteApiRequest["template"]>
+  CreateSiteRequestDTOTemplateEnum
 > = {
   blank: "BLANK",
-  portfolio: "PORTFOLIO",
-  business: "BUSINESS",
+  portfolio: "BLANK",
+  business: "BLANK",
 };
 
 const toWorkspaceSiteStatus = (value: string): WorkspaceSite["status"] =>
   value.toUpperCase() === "PUBLISHED" ? "published" : "draft";
 
-const toWorkspaceSite = (item: GetSitesApiItem): WorkspaceSite => ({
+const toWorkspaceSite = (item: WorkspaceSiteCardResponseDTO): WorkspaceSite => ({
   id: item.siteId,
   name: item.name,
   domain: "",
@@ -92,7 +81,9 @@ const toWorkspaceSite = (item: GetSitesApiItem): WorkspaceSite => ({
   thumbnailUrl: null,
 });
 
-const normalizeSitesPage = (response: GetSitesApiResponse): Page<WorkspaceSite> => {
+const normalizeSitesPage = (
+  response: WorkspaceSitesResponseDTO
+): Page<WorkspaceSite> => {
   const page = Number.isFinite(response.page) ? Math.max(0, response.page) : 0;
   const size = Number.isFinite(response.size) ? Math.max(1, response.size) : 20;
   const hasNext = Boolean(response.hasNext);
@@ -115,31 +106,12 @@ const normalizeSitesPage = (response: GetSitesApiResponse): Page<WorkspaceSite> 
 };
 
 export async function getSites(query?: GetSitesQuery): Promise<Page<WorkspaceSite>> {
-  const params = new URLSearchParams();
-  if (query?.search) {
-    params.set("search", query.search);
-  }
-  if (query?.sortBy) {
-    params.set("sortBy", query.sortBy);
-  }
-  if (typeof query?.page === "number") {
-    params.set("page", query.page.toString());
-  }
-  if (typeof query?.size === "number") {
-    params.set("size", query.size.toString());
-  }
-
-  const queryString = params.toString();
-  const result = await requestJson<GetSitesApiResponse, ApiError, undefined>({
-    method: "GET",
-    path: `/api/v1/sites${queryString ? `?${queryString}` : ""}`,
+  const response = await siteApi.getSites({
+    ...(typeof query?.page === "number" ? { page: query.page } : {}),
+    ...(typeof query?.size === "number" ? { size: query.size } : {}),
   });
 
-  if (!result.ok) {
-    throw result.error ?? new Error("Get sites request failed");
-  }
-
-  return normalizeSitesPage(result.data);
+  return normalizeSitesPage(response);
 }
 
 export async function createSite(payload: CreateSiteRequest): Promise<CreateSiteResponse> {
@@ -155,26 +127,37 @@ export async function createSite(payload: CreateSiteRequest): Promise<CreateSite
     ...(payload.template ? { template: SITE_TEMPLATE_TO_API[payload.template] } : {}),
   };
 
-  const result = await requestJson<CreateSiteApiResponse, ApiError, CreateSiteApiRequest>({
-    method: "POST",
-    path: "/api/v1/sites",
-    body: apiPayload,
+  const requestBody: CreateSiteRequestDTO = apiPayload;
+  const response = await siteApi.createSite({
+    createSiteRequestDTO: requestBody,
   });
 
-  if (!result.ok) {
-    throw result.error ?? new Error("Create site request failed");
-  }
-
-  if (!result.data.siteId) {
+  if (!response.siteId) {
     throw new Error("Invalid create site response");
   }
 
   return {
-    id: result.data.siteId,
+    id: response.siteId,
   };
+}
+
+const toWorkspaceSiteOverview = (item: SiteOverviewDTO): WorkspaceSiteOverview => ({
+  siteId: item.siteId,
+  name: item.name,
+  status: toWorkspaceSiteStatus(item.status),
+  type: "standalone",
+  description: item.description ?? null,
+  createdAt: item.createdAt,
+  updatedAt: item.updatedAt,
+});
+
+export async function getSiteOverview(siteId: string): Promise<WorkspaceSiteOverview> {
+  const response = await siteApi.getSiteOverview({ siteId });
+  return toWorkspaceSiteOverview(response);
 }
 
 export const sitesApi = {
   getSites,
   createSite,
+  getSiteOverview,
 };

@@ -1,23 +1,15 @@
+import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/apis";
 import type {
-  AgentDTO,
-  AgentsResponseDTO,
   CreateAgentRequestDTO,
-  ErrorDTO,
 } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
-import { requestJson } from "../../../../../shared/http/httpClient";
+import { bffApiConfiguration } from "../../../../../shared/http/httpClient";
 import type { AutomationAgent, CreateAgentRequest } from "../model/types";
 
+const agentApi = new AgentApi(bffApiConfiguration);
+
 export async function getAgents(): Promise<AutomationAgent[]> {
-  const result = await requestJson<AgentsResponseDTO, ErrorDTO, undefined>({
-    method: "GET",
-    path: "/api/v1/agents",
-  });
-
-  if (!result.ok) {
-    throw result.error ?? new Error("Get agents request failed");
-  }
-
-  return Array.isArray(result.data.items) ? result.data.items : [];
+  const response = await agentApi.getAgents();
+  return Array.isArray(response.items) ? response.items : [];
 }
 
 export async function createAgent(payload: CreateAgentRequest): Promise<AutomationAgent> {
@@ -36,17 +28,11 @@ export async function createAgent(payload: CreateAgentRequest): Promise<Automati
     description,
   };
 
-  const result = await requestJson<AgentDTO, ErrorDTO, CreateAgentRequestDTO>({
-    method: "POST",
-    path: "/api/v1/agents",
-    body: requestBody,
+  const response = await agentApi.createAgent({
+    createAgentRequestDTO: requestBody,
   });
 
-  if (!result.ok) {
-    throw result.error ?? new Error("Create agent request failed");
-  }
-
-  return result.data;
+  return response;
 }
 
 export const agentsApi = {

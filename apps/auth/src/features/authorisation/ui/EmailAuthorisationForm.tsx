@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import type { GlobalUserRole } from "@sitionix/contracts";
 import { AuthButton, AuthInput } from "@sitionix/ui";
 import {
   authSessionManager,
@@ -9,7 +8,7 @@ import {
 import { loginUserApi } from "../api/loginUserApi";
 import { mapFormToLoginRequest } from "../model/loginUserMapper";
 import type { LoginContext } from "../model/LoginContext";
-import type { LoginFormValues } from "../model/loginUserTypes";
+import type { GlobalUserRole, LoginFormValues } from "../model/loginUserTypes";
 
 type Props = {
   onSuccess: () => void;

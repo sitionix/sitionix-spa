@@ -8,12 +8,13 @@ import type {
   WorkspaceSite,
   WorkspaceSiteOverview,
   WorkspaceTrashItem,
-} from "@sitionix/contracts";
+} from "../model/workspaceTypes";
 import type {
   RequestJsonFn,
   WorkspaceApi,
   WorkspaceSitesQuery,
 } from "./workspaceApi";
+import { getSiteOverview, getSites } from "./sitesApi";
 
 const expectOk = <TSuccess, TError>(
   result: { ok: true; data: TSuccess } | { ok: false; error: TError }
@@ -37,36 +38,11 @@ export function createHttpWorkspaceApi(requestJson: RequestJsonFn): WorkspaceApi
     },
 
     async getSites(query?: WorkspaceSitesQuery): Promise<Page<WorkspaceSite>> {
-      const params = new URLSearchParams();
-      if (query?.search) {
-        params.set("search", query.search);
-      }
-      if (query?.sortBy) {
-        params.set("sortBy", query.sortBy);
-      }
-      if (query?.page) {
-        params.set("page", query.page.toString());
-      }
-      if (query?.size) {
-        params.set("size", query.size.toString());
-      }
-
-      const queryString = params.toString();
-      const result = await requestJson<Page<WorkspaceSite>, unknown, undefined>({
-        method: "GET",
-        path: `/api/v1/workspace/sites${queryString ? `?${queryString}` : ""}`,
-      });
-
-      return expectOk(result);
+      return getSites(query);
     },
 
     async getSiteOverview(siteId: string): Promise<WorkspaceSiteOverview> {
-      const result = await requestJson<WorkspaceSiteOverview, unknown, undefined>({
-        method: "GET",
-        path: `/api/v1/sites/${siteId}/overview`,
-      });
-
-      return expectOk(result);
+      return getSiteOverview(siteId);
     },
 
     async duplicateSite(siteId: string): Promise<WorkspaceSite> {

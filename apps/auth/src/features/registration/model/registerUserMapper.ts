@@ -1,4 +1,4 @@
-import type { RegisterUserRequest} from "@sitionix/contracts";
+import type { RegisterUserDTO } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
 
 import type { RegisterFormValues } from "../validation/registerFormSchema";
 import type { RegisterContext } from "./RegisterContext";
@@ -6,7 +6,7 @@ import type { RegisterContext } from "./RegisterContext";
 export function mapFormToRegisterRequest(
   values: RegisterFormValues,
   ctx: RegisterContext
-): RegisterUserRequest {
+): RegisterUserDTO {
   return {
     email: values.email,
     password: values.password,
@@ -14,4 +14,3 @@ export function mapFormToRegisterRequest(
     role: ctx.role,
   };
 }
-

@@ -1,36 +1,68 @@
-import type { ApiError } from "@sitionix/contracts";
-import { requestJson } from "../../../shared/http/httpClient";
+import { AuthApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/apis";
+import type { ErrorDTO } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
+import { ResponseError } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable";
+import { bffApiConfiguration } from "../../../shared/http/httpClient";
 import type {
   LoginUserRequest,
-  LoginUserResponse,
   LoginUserResult,
 } from "../model/loginUserTypes";
+
+const authApi = new AuthApi(bffApiConfiguration);
+
+const unauthorizedError = (code: number): ErrorDTO => ({
+  code,
+  title: "Unauthorized",
+  details: "Невірна пошта або пароль",
+});
+
+const parseError = async (error: unknown): Promise<{ status: number; error: ErrorDTO }> => {
+  if (error instanceof ResponseError) {
+    const status = error.response.status;
+    const payload = (await error.response.clone().json().catch(() => null)) as
+      | ErrorDTO
+      | null;
+
+    return {
+      status,
+      error:
+        payload ??
+        ({
+          code: status,
+          title: "Request failed",
+          details: "Login request failed",
+        } satisfies ErrorDTO),
+    };
+  }
+
+  return {
+    status: 0,
+    error: {
+      code: 0,
+      title: "Request failed",
+      details: "Login request failed",
+    },
+  };
+};
 
 export async function loginUserApi(
   request: LoginUserRequest,
   signal?: AbortSignal
 ): Promise<LoginUserResult> {
-  const res = await requestJson<LoginUserResponse, ApiError, LoginUserRequest>({
-    method: "POST",
-    path: "/api/v1/auth/login",
-    body: request,
-    ...(signal ? { signal } : {}),
-  });
+  try {
+    const response = await authApi.login(
+      { loginRequestDTO: request },
+      signal ? { signal } : undefined
+    );
+    return { ok: true, data: response };
+  } catch (error) {
+    const parsed = await parseError(error);
+    if (parsed.status === 401 || parsed.status === 403) {
+      return { ok: false, error: unauthorizedError(parsed.status) };
+    }
 
-  if (res.ok) {
-    return { ok: true, data: res.data };
-  }
-
-  if (res.status === 401 || res.status === 403) {
     return {
       ok: false,
-      error: {
-        code: res.status,
-        title: "Unauthorized",
-        details: "Невірна пошта або пароль",
-      },
+      error: parsed.error,
     };
   }
-
-  return { ok: false, error: res.error };
 }
