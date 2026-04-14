@@ -80,7 +80,6 @@ jobs:
         with:
           github_environment: ${{ needs.resolve.outputs.github_environment }}
         env:
-          PACKAGE_REGISTRY_AUTH: ${{ secrets.PACKAGE_REGISTRY_TOKEN }}
           DEPLOY_VM_PORT: ${{ vars.DEPLOY_VM_PORT }}
           DEPLOY_VM_HOST: ${{ secrets.DEPLOY_VM_HOST }}
           DEPLOY_VM_USER: ${{ secrets.DEPLOY_VM_USER }}
