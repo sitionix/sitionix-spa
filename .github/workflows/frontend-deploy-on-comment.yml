@@ -152,6 +152,7 @@ jobs:
           DEPLOY_VM_HOST: ${{ secrets.DEPLOY_VM_HOST }}
           DEPLOY_VM_USER: ${{ secrets.DEPLOY_VM_USER }}
           DEPLOY_VM_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_VM_SSH_PRIVATE_KEY_DEV_ONLY }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Post success comment
         if: success()

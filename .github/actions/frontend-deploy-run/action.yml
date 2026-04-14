@@ -44,7 +44,12 @@ runs:
 
     - name: Install dependencies
       shell: bash
-      run: NODE_AUTH_TOKEN="${GITHUB_TOKEN}" pnpm install --frozen-lockfile
+      run: |
+        if [[ -z "${NPM_TOKEN:-}" ]]; then
+          echo "Missing required secret: NPM_TOKEN" >&2
+          exit 1
+        fi
+        NODE_AUTH_TOKEN="${NPM_TOKEN}" pnpm install --frozen-lockfile
 
     - name: Build selected frontend applications
       shell: bash
