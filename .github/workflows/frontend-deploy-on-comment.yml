@@ -149,6 +149,7 @@ jobs:
           github_environment: ${{ needs.resolve.outputs.github_environment }}
         env:
           DEPLOY_VM_PORT: ${{ vars.DEPLOY_VM_PORT }}
+          APP_AFESOX: ${{ secrets.APP_AFESOX }}
           DEPLOY_VM_HOST: ${{ secrets.DEPLOY_VM_HOST }}
           DEPLOY_VM_USER: ${{ secrets.DEPLOY_VM_USER }}
           DEPLOY_VM_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_VM_SSH_PRIVATE_KEY_DEV_ONLY }}

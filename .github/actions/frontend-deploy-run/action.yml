@@ -44,7 +44,9 @@ runs:
 
     - name: Install dependencies
       shell: bash
-      run: NODE_AUTH_TOKEN="${GITHUB_TOKEN}" pnpm install --frozen-lockfile
+      run: |
+        registry_token="${APP_AFESOX:-${GITHUB_TOKEN:-}}"
+        NODE_AUTH_TOKEN="${registry_token}" pnpm install --frozen-lockfile
 
     - name: Build selected frontend applications
       shell: bash
