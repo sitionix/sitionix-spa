@@ -1,9 +1,10 @@
-import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-112-unstable/apis";
 import type {
   CreateAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+  PatchAgentRequestDTO,
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-112-unstable/models";
 import { bffApiConfiguration } from "../../../../../shared/http/httpClient";
-import type { AutomationAgent, CreateAgentRequest } from "../model/types";
+import type { AutomationAgent, CreateAgentRequest, PatchAgentRequest } from "../model/types";
 
 const agentApi = new AgentApi(bffApiConfiguration);
 
@@ -39,6 +40,38 @@ export async function createAgent(payload: CreateAgentRequest): Promise<Automati
   return response;
 }
 
+export async function patchAgent(agentId: string, payload: PatchAgentRequest): Promise<AutomationAgent> {
+  const requestBody: PatchAgentRequestDTO = {};
+
+  if (Object.prototype.hasOwnProperty.call(payload, "name")) {
+    const name = payload.name?.trim() ?? "";
+    if (!name) {
+      throw new Error("Agent name is required");
+    }
+    requestBody.name = name;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, "description")) {
+    const description = payload.description?.trim() ?? "";
+    if (!description) {
+      throw new Error("Agent description is required");
+    }
+    requestBody.description = description;
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(requestBody, "name")
+    && !Object.prototype.hasOwnProperty.call(requestBody, "description")) {
+    throw new Error("At least one field (name or description) must be provided");
+  }
+
+  const response = await agentApi.patchAgent({
+    agentId,
+    patchAgentRequestDTO: requestBody,
+  });
+
+  return response;
+}
+
 type ErrorWithStatus = {
   status?: unknown;
   response?: {
@@ -67,5 +100,6 @@ export const agentsApi = {
   getAgents,
   getAgentById,
   createAgent,
+  patchAgent,
   getErrorHttpStatus,
 };

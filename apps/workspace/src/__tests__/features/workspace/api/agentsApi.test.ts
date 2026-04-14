@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-112-unstable/apis";
 import {
   createAgent,
   getAgentById,
