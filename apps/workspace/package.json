@@ -15,6 +15,7 @@
   "dependencies": {
     "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable": "0.0.19",
     "@sitionix/auth-session": "workspace:*",
+    "@sitionix/contracts": "workspace:*",
     "@sitionix/http-client": "workspace:*",
     "@sitionix/ui": "workspace:*",
     "lucide-react": "^0.487.0",

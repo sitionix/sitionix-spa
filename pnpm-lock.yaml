@@ -269,6 +269,9 @@ importers:
       '@sitionix/auth-session':
         specifier: workspace:*
         version: link:../../packages/auth-session
+      '@sitionix/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@sitionix/http-client':
         specifier: workspace:*
         version: link:../../packages/http-client
