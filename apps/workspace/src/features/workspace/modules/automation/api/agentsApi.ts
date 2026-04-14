@@ -1,8 +1,8 @@
-import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-112-unstable/apis";
+import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
 import type {
   CreateAgentRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-sitionix-112-unstable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 import { bffApiConfiguration } from "../../../../../shared/http/httpClient";
 import type { AutomationAgent, CreateAgentRequest, PatchAgentRequest } from "../model/types";
 
