@@ -44,8 +44,6 @@ runs:
 
     - name: Install dependencies
       shell: bash
-      env:
-        NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }}
       run: pnpm install --frozen-lockfile
 
     - name: Build selected frontend applications
