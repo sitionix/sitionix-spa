@@ -212,14 +212,14 @@ export function AgentOverviewPage() {
 
         <aside className="grid gap-6">
           <section className="rounded-3xl border border-zinc-200 bg-white p-6">
-            <h2 className="text-lg font-semibold text-zinc-900">Suggested guidance</h2>
+            <h2 className="text-lg font-semibold text-zinc-900">Suggested Rules</h2>
             <div className="mt-4 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-4">
               <div className="flex items-center gap-2 text-sm font-medium text-zinc-700">
                 <Sparkles className="h-4 w-4" />
-                Future insights
+                Future rule suggestions
               </div>
               <p className="mt-2 text-sm leading-6 text-zinc-600">
-                System recommendations and suggested improvements will appear here.
+                System-suggested candidate rules will appear here once rule suggestions are available.
               </p>
             </div>
           </section>

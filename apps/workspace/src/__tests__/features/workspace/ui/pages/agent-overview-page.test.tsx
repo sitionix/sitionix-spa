@@ -61,7 +61,11 @@ describe("AgentOverviewPage", () => {
 
     expect(screen.getByRole("heading", { name: "Configuration" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Suggested guidance" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Suggested Rules" })).toBeInTheDocument();
+    expect(
+      screen.getByText("System-suggested candidate rules will appear here once rule suggestions are available.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/guidance support/i)).not.toBeInTheDocument();
   });
 
   it("renders not-found state for 404 and supports back navigation", async () => {
