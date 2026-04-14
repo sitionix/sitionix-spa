@@ -1,6 +1,6 @@
-import type { GlobalUserRole } from "@sitionix/contracts"
+import type { RegisterUserDTORoleEnum } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
 
 export type RegisterContext = {
-    role: GlobalUserRole;
+    role: RegisterUserDTORoleEnum;
     siteId?: string | null
 }

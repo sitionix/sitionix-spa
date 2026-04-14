@@ -1,4 +1,4 @@
-import type { GlobalUserRole } from "@sitionix/contracts";
+import type { GlobalUserRole } from "./loginUserTypes";
 
 export type LoginContext = {
   role: GlobalUserRole;

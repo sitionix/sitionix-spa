@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { registerUserApi } from "../api/registerUserApi";
 import { mapFormToRegisterRequest } from "../model/registerUserMapper";
-import type { GlobalUserRole } from "@sitionix/contracts";
+import type { RegisterUserDTORoleEnum } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
 import { AuthButton, AuthInput } from "@sitionix/ui";
 
 type Props = {
   onSuccess: () => void;
   siteId?: string;
-  role: GlobalUserRole;
+  role: RegisterUserDTORoleEnum;
 };
 
 export default function EmailRegisterForm({ onSuccess, siteId, role }: Props) {

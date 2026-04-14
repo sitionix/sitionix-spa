@@ -47,7 +47,7 @@ export function createRefreshClient(options: RefreshClientOptions = {}): Refresh
 
     const contentType = response.headers.get("content-type") ?? "";
     const isJson = contentType.includes("application/json");
-    const data = (isJson ? await response.json() : null) as
+    const refreshResponse = (isJson ? await response.json() : null) as
       | RefreshAccessTokenResponse
       | null;
 
@@ -56,14 +56,14 @@ export function createRefreshClient(options: RefreshClientOptions = {}): Refresh
     }
 
     if (
-      !data ||
-      typeof data.accessToken !== "string" ||
-      typeof data.expiresIn !== "number" ||
-      typeof data.tokenType !== "string"
+      !refreshResponse ||
+      typeof refreshResponse.accessToken !== "string" ||
+      typeof refreshResponse.expiresIn !== "number" ||
+      typeof refreshResponse.tokenType !== "string"
     ) {
       throw new RefreshClientError("Invalid refresh response payload", response.status);
     }
 
-    return data;
+    return refreshResponse;
   };
 }

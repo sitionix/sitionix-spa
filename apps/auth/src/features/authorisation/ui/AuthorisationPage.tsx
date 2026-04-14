@@ -7,7 +7,7 @@ import {
   type SocialAuthActions,
 } from "@sitionix/ui";
 import { useNavigate } from "react-router-dom";
-import type { GlobalUserRole } from "@sitionix/contracts";
+import type { GlobalUserRole } from "../model/loginUserTypes";
 import EmailAuthorisationForm from "./EmailAuthorisationForm";
 
 function readSiteIdFromUrl(): string | null {

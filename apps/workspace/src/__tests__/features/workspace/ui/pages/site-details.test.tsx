@@ -4,7 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import type { ReactNode } from "react";
 import type { WorkspaceApi } from "../../../../../features/workspace/api/workspaceApi";
-import type { WorkspaceEditorData, WorkspaceSiteOverview } from "@sitionix/contracts";
+import type {
+  WorkspaceEditorData,
+  WorkspaceSiteOverview,
+} from "../../../../../features/workspace/model/workspaceTypes";
 import { WorkspaceApiProvider } from "../../../../../features/workspace/api/WorkspaceApiProvider";
 import { SiteSettingsPage } from "../../../../../features/workspace/ui/pages/SiteSettingsPage";
 import { SiteEditorPage } from "../../../../../features/workspace/ui/pages/SiteEditorPage";

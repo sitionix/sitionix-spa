@@ -9,8 +9,17 @@ import type {
   WorkspaceSite,
   WorkspaceSiteOverview,
   WorkspaceTrashItem,
-} from "@sitionix/contracts";
+} from "../../../../features/workspace/model/workspaceTypes";
 import { createHttpWorkspaceApi } from "../../../../features/workspace/api/workspaceHttpApi";
+import { getSiteOverview, getSites } from "../../../../features/workspace/api/sitesApi";
+
+vi.mock("../../../../features/workspace/api/sitesApi", () => ({
+  getSites: vi.fn(),
+  getSiteOverview: vi.fn(),
+}));
+
+const getSitesMock = vi.mocked(getSites);
+const getSiteOverviewMock = vi.mocked(getSiteOverview);
 
 const ok = <T>(data: T) => ({ ok: true as const, data });
 
@@ -112,11 +121,12 @@ const sampleTrash: Page<WorkspaceTrashItem> = samplePage([
 
 describe("createHttpWorkspaceApi", () => {
   it("calls expected endpoints", async () => {
+    getSitesMock.mockResolvedValue(samplePage([sampleSite]));
+    getSiteOverviewMock.mockResolvedValue(sampleOverview);
+
     const requestJson = vi
       .fn()
       .mockResolvedValueOnce(ok(sampleDashboard))
-      .mockResolvedValueOnce(ok(samplePage([sampleSite])))
-      .mockResolvedValueOnce(ok(sampleOverview))
       .mockResolvedValueOnce(ok(sampleSite))
       .mockResolvedValueOnce(ok({ ok: true }))
       .mockResolvedValueOnce(ok({ ok: true }))
@@ -153,73 +163,71 @@ describe("createHttpWorkspaceApi", () => {
       path: "/api/v1/workspace/dashboard",
     });
 
+    expect(getSitesMock).toHaveBeenCalledWith({
+      search: "site",
+      sortBy: "name",
+      page: 2,
+      size: 5,
+    });
+    expect(getSiteOverviewMock).toHaveBeenCalledWith("site-1");
+
     expect(requestJson).toHaveBeenNthCalledWith(2, {
-      method: "GET",
-      path: "/api/v1/workspace/sites?search=site&sortBy=name&page=2&size=5",
-    });
-
-    expect(requestJson).toHaveBeenNthCalledWith(3, {
-      method: "GET",
-      path: "/api/v1/sites/site-1/overview",
-    });
-
-    expect(requestJson).toHaveBeenNthCalledWith(4, {
       method: "POST",
       path: "/api/v1/workspace/sites/site-1/duplicate",
     });
 
-    expect(requestJson).toHaveBeenNthCalledWith(5, {
+    expect(requestJson).toHaveBeenNthCalledWith(3, {
       method: "DELETE",
       path: "/api/v1/workspace/sites/site-1",
     });
 
-    expect(requestJson).toHaveBeenNthCalledWith(6, {
+    expect(requestJson).toHaveBeenNthCalledWith(4, {
       method: "POST",
       path: "/api/v1/workspace/trash/site-1/restore",
     });
 
-    expect(requestJson).toHaveBeenNthCalledWith(7, {
+    expect(requestJson).toHaveBeenNthCalledWith(5, {
       method: "DELETE",
       path: "/api/v1/workspace/trash/site-1",
     });
 
-    expect(requestJson).toHaveBeenNthCalledWith(8, {
+    expect(requestJson).toHaveBeenNthCalledWith(6, {
       method: "DELETE",
       path: "/api/v1/workspace/trash",
     });
 
-    expect(requestJson).toHaveBeenNthCalledWith(9, {
+    expect(requestJson).toHaveBeenNthCalledWith(7, {
       method: "POST",
       path: "/api/v1/workspace/sites/site-1/collection",
       body: { collectionId: "col-1" },
     });
 
-    expect(requestJson).toHaveBeenNthCalledWith(10, {
+    expect(requestJson).toHaveBeenNthCalledWith(8, {
       method: "DELETE",
       path: "/api/v1/workspace/sites/site-1/collection",
     });
 
-    expect(requestJson).toHaveBeenNthCalledWith(11, {
+    expect(requestJson).toHaveBeenNthCalledWith(9, {
       method: "GET",
       path: "/api/v1/workspace/collections",
     });
 
-    expect(requestJson).toHaveBeenNthCalledWith(12, {
+    expect(requestJson).toHaveBeenNthCalledWith(10, {
       method: "GET",
       path: "/api/v1/workspace/domains",
     });
 
-    expect(requestJson).toHaveBeenNthCalledWith(13, {
+    expect(requestJson).toHaveBeenNthCalledWith(11, {
       method: "GET",
       path: "/api/v1/workspace/trash",
     });
 
-    expect(requestJson).toHaveBeenNthCalledWith(14, {
+    expect(requestJson).toHaveBeenNthCalledWith(12, {
       method: "GET",
       path: "/api/v1/workspace/crm",
     });
 
-    expect(requestJson).toHaveBeenNthCalledWith(15, {
+    expect(requestJson).toHaveBeenNthCalledWith(13, {
       method: "GET",
       path: "/api/v1/workspace/editor/site-1",
     });
