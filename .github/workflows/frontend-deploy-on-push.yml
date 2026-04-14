@@ -80,7 +80,7 @@ jobs:
         with:
           github_environment: ${{ needs.resolve.outputs.github_environment }}
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.APP_AFESOX }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
           DEPLOY_VM_PORT: ${{ vars.DEPLOY_VM_PORT }}
           DEPLOY_VM_HOST: ${{ secrets.DEPLOY_VM_HOST }}
           DEPLOY_VM_USER: ${{ secrets.DEPLOY_VM_USER }}
