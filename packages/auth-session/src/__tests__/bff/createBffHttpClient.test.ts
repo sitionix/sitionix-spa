@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createBffHttpClient } from "../../bff/createBffHttpClient";
+import { createBffFetchWithAuthRetry } from "../../bff/createBffHttpClient";
 
-describe("createBffHttpClient", () => {
+describe("createBffFetchWithAuthRetry", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -15,10 +15,10 @@ describe("createBffHttpClient", () => {
       getAccessToken: vi.fn(() => "initial-token"),
       refresh: vi.fn().mockResolvedValue("refreshed-token"),
     };
-    const client = createBffHttpClient("http://localhost", sessionManager);
+    const fetchWithAuthRetry = createBffFetchWithAuthRetry("http://localhost", sessionManager);
 
     // When
-    const response = await client.configuration.fetchApi("/api/v1/agents", {
+    const response = await fetchWithAuthRetry("/api/v1/agents", {
       method: "GET",
     });
 
@@ -38,10 +38,10 @@ describe("createBffHttpClient", () => {
       getAccessToken: vi.fn(() => "initial-token"),
       refresh: vi.fn().mockResolvedValue("refreshed-token"),
     };
-    const client = createBffHttpClient("http://localhost", sessionManager);
+    const fetchWithAuthRetry = createBffFetchWithAuthRetry("http://localhost", sessionManager);
 
     // When
-    const response = await client.configuration.fetchApi("/api/v1/agents", {
+    const response = await fetchWithAuthRetry("/api/v1/agents", {
       method: "GET",
     });
 
@@ -65,10 +65,10 @@ describe("createBffHttpClient", () => {
       getAccessToken: vi.fn(() => "initial-token"),
       refresh: vi.fn().mockResolvedValue("refreshed-token"),
     };
-    const client = createBffHttpClient("http://localhost", sessionManager);
+    const fetchWithAuthRetry = createBffFetchWithAuthRetry("http://localhost", sessionManager);
 
     // When
-    const response = await client.configuration.fetchApi("/api/v1/auth/refresh", {
+    const response = await fetchWithAuthRetry("/api/v1/auth/refresh", {
       method: "POST",
     });
 
@@ -87,10 +87,10 @@ describe("createBffHttpClient", () => {
       getAccessToken: vi.fn(() => "initial-token"),
       refresh: vi.fn().mockResolvedValue(null),
     };
-    const client = createBffHttpClient("http://localhost", sessionManager);
+    const fetchWithAuthRetry = createBffFetchWithAuthRetry("http://localhost", sessionManager);
 
     // When
-    const response = await client.configuration.fetchApi("/api/v1/agents", {
+    const response = await fetchWithAuthRetry("/api/v1/agents", {
       method: "GET",
     });
 
@@ -100,19 +100,26 @@ describe("createBffHttpClient", () => {
     expect(sessionManager.refresh).toHaveBeenCalledTimes(1);
   });
 
-  it("Given missing access token When accessToken callback invoked Then returns empty string", async () => {
+  it("Given absolute URL for protected path When fetchApi called Then retries by extracted pathname", async () => {
     // Given
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
     const sessionManager = {
       getAccessToken: vi.fn(() => null),
       refresh: vi.fn().mockResolvedValue("refreshed-token"),
     };
-    const client = createBffHttpClient("http://localhost", sessionManager);
+    const fetchWithAuthRetry = createBffFetchWithAuthRetry("http://localhost", sessionManager);
 
     // When
-    const token = await client.configuration.accessToken();
+    const response = await fetchWithAuthRetry("http://localhost/api/v1/agents", {
+      method: "GET",
+    });
 
     // Then
-    expect(token).toBe("");
+    expect(response.status).toBe(200);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(sessionManager.refresh).toHaveBeenCalledTimes(1);
   });
 });
-

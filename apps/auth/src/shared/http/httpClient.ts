@@ -1,11 +1,23 @@
-import { authSessionManager, createBffHttpClient } from "@sitionix/auth-session";
+import { authSessionManager, createBffFetchWithAuthRetry } from "@sitionix/auth-session";
 import { Configuration } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable";
+import { configureAuthSessionBridge, createRequestJson } from "@sitionix/http-client";
 import { publicEnv } from "../env/publicEnv";
 
-const bffHttpClient = createBffHttpClient(publicEnv.apiBaseUrl, authSessionManager);
+configureAuthSessionBridge({
+  getAccessToken: () => authSessionManager.getAccessToken(),
+  refresh: () => authSessionManager.refresh(),
+});
 
-export const requestJson = bffHttpClient.requestJson;
+export const requestJson = createRequestJson(publicEnv.apiBaseUrl);
+
+const fetchWithAuthRetry = createBffFetchWithAuthRetry(publicEnv.apiBaseUrl, {
+  getAccessToken: () => authSessionManager.getAccessToken(),
+  refresh: () => authSessionManager.refresh(),
+});
 
 export const bffApiConfiguration = new Configuration({
-  ...bffHttpClient.configuration,
+  basePath: publicEnv.apiBaseUrl,
+  credentials: "include",
+  fetchApi: fetchWithAuthRetry,
+  accessToken: async () => authSessionManager.getAccessToken() ?? "",
 });
