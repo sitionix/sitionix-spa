@@ -3,7 +3,7 @@ import type {
   LoginRequestDTO,
   LoginResponseDTO,
   RegisterUserDTORoleEnum,
-} from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 
 export type LoginFormValues = {
   email: string;

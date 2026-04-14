@@ -1,6 +1,6 @@
-import { AuthApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/apis";
-import type { ErrorDTO } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
-import { ResponseError } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable";
+import { AuthApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import type { ErrorDTO } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+import { ResponseError } from "@sitionix/app-afesox-bffssox-frontend-stable";
 import { bffApiConfiguration } from "../../../shared/http/httpClient";
 import type {
   LoginUserRequest,

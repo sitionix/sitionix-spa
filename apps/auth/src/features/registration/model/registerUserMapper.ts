@@ -1,4 +1,4 @@
-import type { RegisterUserDTO } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
+import type { RegisterUserDTO } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 
 import type { RegisterFormValues } from "../validation/registerFormSchema";
 import type { RegisterContext } from "./RegisterContext";
