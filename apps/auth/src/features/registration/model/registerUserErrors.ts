@@ -1,4 +1,4 @@
-import type { ErrorDTO } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
+import type { ErrorDTO } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 
 export function normalizeRegisterError(error: ErrorDTO | null | undefined): ErrorDTO {
   if (!error) {

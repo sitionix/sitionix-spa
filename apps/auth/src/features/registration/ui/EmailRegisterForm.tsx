@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { registerUserApi } from "../api/registerUserApi";
 import { mapFormToRegisterRequest } from "../model/registerUserMapper";
-import type { RegisterUserDTORoleEnum } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
+import type { RegisterUserDTORoleEnum } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 import { AuthButton, AuthInput } from "@sitionix/ui";
 
 type Props = {

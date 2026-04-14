@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { AutomationPage } from "../../../../../features/workspace/modules/automation/pages/AutomationPage";
 import { getAgents } from "../../../../../features/workspace/modules/automation/api/agentsApi";
 
@@ -52,6 +53,22 @@ vi.mock("../../../../../features/workspace/modules/automation/components/CreateA
 
 const getAgentsMock = vi.mocked(getAgents);
 
+function AgentDetailsRouteProbe() {
+  const { agentId } = useParams<{ agentId: string }>();
+  return <div>Agent details route: {agentId}</div>;
+}
+
+function renderAutomationPage() {
+  return render(
+    <MemoryRouter initialEntries={["/automation"]}>
+      <Routes>
+        <Route path="/automation" element={<AutomationPage />} />
+        <Route path="/automation/agents/:agentId" element={<AgentDetailsRouteProbe />} />
+      </Routes>
+    </MemoryRouter>
+  );
+}
+
 describe("AutomationPage", () => {
   beforeEach(() => {
     getAgentsMock.mockReset();
@@ -60,7 +77,7 @@ describe("AutomationPage", () => {
   it("renders empty state when no agents are returned", async () => {
     getAgentsMock.mockResolvedValue([]);
 
-    render(<AutomationPage />);
+    renderAutomationPage();
 
     expect(await screen.findByText("No agents yet")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Create Agent" })).toHaveLength(2);
@@ -81,7 +98,7 @@ describe("AutomationPage", () => {
         },
       ]);
 
-    render(<AutomationPage />);
+    renderAutomationPage();
 
     expect(await screen.findByText("Не вдалося завантажити Automation")).toBeInTheDocument();
     expect(screen.getByText("Network unavailable")).toBeInTheDocument();
@@ -105,7 +122,7 @@ describe("AutomationPage", () => {
     ]);
 
     const user = userEvent.setup();
-    render(<AutomationPage />);
+    renderAutomationPage();
 
     expect(await screen.findByText("Existing Agent")).toBeInTheDocument();
 
@@ -116,5 +133,27 @@ describe("AutomationPage", () => {
       const headings = screen.getAllByRole("heading", { level: 2 });
       expect(headings[0]).toHaveTextContent("Created Agent");
     });
+  });
+
+  it("navigates to agent overview route when agent card is clicked", async () => {
+    getAgentsMock.mockResolvedValue([
+      {
+        id: "agent-44",
+        name: "Routing Agent",
+        description: "Description",
+        status: "DRAFT",
+        createdAt: "2026-04-10T10:00:00.000Z",
+        updatedAt: "2026-04-10T10:00:00.000Z",
+      },
+    ]);
+
+    const user = userEvent.setup();
+    renderAutomationPage();
+
+    const card = await screen.findByRole("button", { name: /Routing Agent/i });
+    await user.click(card);
+
+    expect(await screen.findByText("Agent details route: agent-44")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Emit created" })).not.toBeInTheDocument();
   });
 });

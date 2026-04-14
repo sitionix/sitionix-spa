@@ -1,4 +1,4 @@
-import type { RegisterUserDTORoleEnum } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
+import type { RegisterUserDTORoleEnum } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 
 export type RegisterContext = {
     role: RegisterUserDTORoleEnum;

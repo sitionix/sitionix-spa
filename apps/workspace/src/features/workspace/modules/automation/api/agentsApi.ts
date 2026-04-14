@@ -1,7 +1,7 @@
-import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/apis";
+import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
 import type {
   CreateAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 import { bffApiConfiguration } from "../../../../../shared/http/httpClient";
 import type { AutomationAgent, CreateAgentRequest } from "../model/types";
 
@@ -10,6 +10,10 @@ const agentApi = new AgentApi(bffApiConfiguration);
 export async function getAgents(): Promise<AutomationAgent[]> {
   const response = await agentApi.getAgents();
   return Array.isArray(response.items) ? response.items : [];
+}
+
+export async function getAgentById(agentId: string): Promise<AutomationAgent> {
+  return agentApi.getAgent({ agentId });
 }
 
 export async function createAgent(payload: CreateAgentRequest): Promise<AutomationAgent> {
@@ -35,7 +39,33 @@ export async function createAgent(payload: CreateAgentRequest): Promise<Automati
   return response;
 }
 
+type ErrorWithStatus = {
+  status?: unknown;
+  response?: {
+    status?: unknown;
+  };
+};
+
+export function getErrorHttpStatus(error: unknown): number | null {
+  if (!error || typeof error !== "object") {
+    return null;
+  }
+
+  const errorWithStatus = error as ErrorWithStatus;
+  if (typeof errorWithStatus.status === "number") {
+    return errorWithStatus.status;
+  }
+
+  if (typeof errorWithStatus.response?.status === "number") {
+    return errorWithStatus.response.status;
+  }
+
+  return null;
+}
+
 export const agentsApi = {
   getAgents,
+  getAgentById,
   createAgent,
+  getErrorHttpStatus,
 };

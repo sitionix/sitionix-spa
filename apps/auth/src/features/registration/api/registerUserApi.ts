@@ -1,9 +1,9 @@
-import { UserApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/apis";
+import { UserApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
 import type {
   ErrorDTO,
   RegisterUserDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
-import { ResponseError } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable";
+} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+import { ResponseError } from "@sitionix/app-afesox-bffssox-frontend-stable";
 import type { RegisterUserResult } from "../model/registerUserTypes";
 import { bffApiConfiguration } from "../../../shared/http/httpClient";
 

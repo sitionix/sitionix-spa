@@ -2,7 +2,7 @@ import { http, HttpResponse } from "msw";
 import type {
   RegisterUserDTO,
   ResponseRegisterUserDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 import type { LoginUserRequest, LoginUserResponse } from "../../features/authorisation/model/loginUserTypes";
 
 export const handlers = [

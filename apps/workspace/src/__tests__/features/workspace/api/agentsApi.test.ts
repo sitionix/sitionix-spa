@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/apis";
-import { createAgent, getAgents } from "../../../../features/workspace/modules/automation/api/agentsApi";
+import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import {
+  createAgent,
+  getAgentById,
+  getAgents,
+  getErrorHttpStatus,
+} from "../../../../features/workspace/modules/automation/api/agentsApi";
 
 describe("agentsApi.getAgents", () => {
   beforeEach(() => {
@@ -93,5 +98,41 @@ describe("agentsApi.createAgent", () => {
     await expect(createAgent({ name: "agent", description: "  " })).rejects.toThrow(
       "Agent description is required"
     );
+  });
+});
+
+describe("agentsApi.getAgentById", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("calls getAgent with route parameter and returns response", async () => {
+    const getAgentSpy = vi.spyOn(AgentApi.prototype, "getAgent").mockResolvedValue({
+      id: "agent-5",
+      name: "Review Agent",
+      description: "Description",
+      status: "DRAFT",
+      createdAt: "2026-04-10T10:00:00.000Z",
+      updatedAt: "2026-04-10T10:00:00.000Z",
+    });
+
+    const result = await getAgentById("agent-5");
+
+    expect(getAgentSpy).toHaveBeenCalledWith({ agentId: "agent-5" });
+    expect(result.id).toBe("agent-5");
+  });
+});
+
+describe("agentsApi.getErrorHttpStatus", () => {
+  it("returns top-level numeric status", () => {
+    expect(getErrorHttpStatus({ status: 404 })).toBe(404);
+  });
+
+  it("returns nested response status", () => {
+    expect(getErrorHttpStatus({ response: { status: 400 } })).toBe(400);
+  });
+
+  it("returns null for unknown error shape", () => {
+    expect(getErrorHttpStatus("boom")).toBeNull();
   });
 });

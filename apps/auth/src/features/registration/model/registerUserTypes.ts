@@ -1,7 +1,7 @@
 import type {
   ErrorDTO,
   ResponseRegisterUserDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-sitionix-108-unstable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 
 
 export type RegisterUserResult =

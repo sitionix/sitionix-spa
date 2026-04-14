@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bot, Loader2, Plus, RefreshCw } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../../../ui/components/PageHeader";
 import { formatDate } from "../../../model/formatters";
 import { getAgents } from "../api";
@@ -9,6 +10,7 @@ import { toAutomationErrorMessage } from "../model/mappers";
 import type { AutomationAgent, AutomationPageStatus } from "../model/types";
 
 export function AutomationPage() {
+  const navigate = useNavigate();
   const [createSheetOpen, setCreateSheetOpen] = useState(false);
   const [agents, setAgents] = useState<AutomationAgent[]>([]);
   const [status, setStatus] = useState<AutomationPageStatus>("idle");
@@ -104,9 +106,11 @@ export function AutomationPage() {
       {status === "ready" && agents.length > 0 ? (
         <div className="grid gap-4">
           {agents.map((agent) => (
-            <article
+            <button
               key={agent.id}
-              className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm transition hover:border-zinc-300"
+              type="button"
+              className="rounded-3xl border border-zinc-200 bg-white p-6 text-left shadow-sm transition hover:border-zinc-300 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+              onClick={() => navigate(`/automation/agents/${agent.id}`)}
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
@@ -125,7 +129,7 @@ export function AutomationPage() {
                   <div className="mt-2">Updated {formatDate(agent.updatedAt)}</div>
                 </div>
               </div>
-            </article>
+            </button>
           ))}
         </div>
       ) : null}
