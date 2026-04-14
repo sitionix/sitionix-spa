@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Clock3, Loader2, Settings, Sparkles, Wand2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { ArrowLeft, Clock3, Loader2, Pencil, Settings, Sparkles, Wand2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../../../ui/components/PageHeader";
 import { formatDateTime } from "../../../model/formatters";
-import { getAgentById, getErrorHttpStatus } from "../api";
+import { getAgentById, getErrorHttpStatus, patchAgent } from "../api";
 import { toAutomationErrorMessage } from "../model/mappers";
 import type { AutomationAgent } from "../model/types";
 
 type AgentOverviewState = "idle" | "loading" | "ready" | "not_found" | "error";
+type EditableField = "name" | "description" | null;
 
 function SectionPlaceholder({
   title,
@@ -41,6 +42,16 @@ export function AgentOverviewPage() {
   const [agent, setAgent] = useState<AutomationAgent | null>(null);
   const [status, setStatus] = useState<AgentOverviewState>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<EditableField>(null);
+  const [nameDraft, setNameDraft] = useState("");
+  const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [savingField, setSavingField] = useState<EditableField>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const nameEditorRef = useRef<HTMLDivElement | null>(null);
+  const descriptionEditorRef = useRef<HTMLDivElement | null>(null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const descriptionInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const loadAgent = useCallback(async () => {
     if (!agentId) {
@@ -73,6 +84,116 @@ export function AgentOverviewPage() {
   useEffect(() => {
     void loadAgent();
   }, [loadAgent]);
+
+  const startEditing = useCallback((field: Exclude<EditableField, null>) => {
+    if (!agent) {
+      return;
+    }
+    if (savingField) {
+      return;
+    }
+    if (editingField && editingField !== field) {
+      return;
+    }
+
+    setSaveError(null);
+    if (field === "name") {
+      setNameDraft(agent.name);
+    } else {
+      setDescriptionDraft(agent.description);
+    }
+    setEditingField(field);
+  }, [agent, editingField, savingField]);
+
+  const cancelEditing = useCallback(() => {
+    setEditingField(null);
+    setSavingField(null);
+    setSaveError(null);
+  }, []);
+
+  const saveField = useCallback(async (field: Exclude<EditableField, null>) => {
+    if (!agent || savingField) {
+      return;
+    }
+
+    const isName = field === "name";
+    const draftValue = isName ? nameDraft : descriptionDraft;
+    const currentValue = isName ? agent.name : agent.description;
+    const normalizedDraft = draftValue.trim();
+
+    if (normalizedDraft === currentValue) {
+      setEditingField(null);
+      setSaveError(null);
+      return;
+    }
+
+    setSavingField(field);
+    setSaveError(null);
+
+    try {
+      const updatedAgent = await patchAgent(agent.id, isName
+        ? { name: normalizedDraft }
+        : { description: normalizedDraft });
+      setAgent(updatedAgent);
+      setEditingField(null);
+    } catch (saveFieldError) {
+      setSaveError(toAutomationErrorMessage(saveFieldError));
+    } finally {
+      setSavingField(null);
+    }
+  }, [agent, descriptionDraft, nameDraft, savingField]);
+
+  useEffect(() => {
+    if (editingField === "name") {
+      nameInputRef.current?.focus();
+      nameInputRef.current?.select();
+      return;
+    }
+    if (editingField === "description") {
+      descriptionInputRef.current?.focus();
+      descriptionInputRef.current?.select();
+    }
+  }, [editingField]);
+
+  useEffect(() => {
+    if (!editingField) {
+      return;
+    }
+
+    const handleOutsideMouseDown = (event: MouseEvent) => {
+      const targetNode = event.target as Node;
+      const editor = editingField === "name" ? nameEditorRef.current : descriptionEditorRef.current;
+      if (!editor || editor.contains(targetNode)) {
+        return;
+      }
+
+      void saveField(editingField);
+    };
+
+    document.addEventListener("mousedown", handleOutsideMouseDown);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideMouseDown);
+    };
+  }, [editingField, saveField]);
+
+  const handleNameKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void saveField("name");
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      cancelEditing();
+    }
+  }, [cancelEditing, saveField]);
+
+  const handleDescriptionKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      cancelEditing();
+    }
+  }, [cancelEditing]);
 
   if (status === "loading" || status === "idle") {
     return (
@@ -133,6 +254,9 @@ export function AgentOverviewPage() {
     return null;
   }
 
+  const isNameEditing = editingField === "name";
+  const isDescriptionEditing = editingField === "description";
+
   return (
     <div className="grid gap-6">
       <PageHeader
@@ -164,12 +288,111 @@ export function AgentOverviewPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="truncate text-3xl font-semibold text-zinc-900">{agent.name}</h1>
+              {isNameEditing ? (
+                <div ref={nameEditorRef} className="w-full max-w-2xl">
+                  <input
+                    ref={nameInputRef}
+                    value={nameDraft}
+                    onChange={(event) => setNameDraft(event.target.value)}
+                    onKeyDown={handleNameKeyDown}
+                    disabled={savingField === "name"}
+                    className="w-full rounded-xl border border-zinc-300 px-4 py-2 text-3xl font-semibold text-zinc-900 outline-none ring-blue-100 focus:ring"
+                  />
+                  <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
+                    <span>Enter to save</span>
+                    <span>•</span>
+                    <span>Escape to cancel</span>
+                    {savingField === "name" ? (
+                      <>
+                        <span>•</span>
+                        <span className="inline-flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Saving...
+                        </span>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <div className="group inline-flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="truncate text-left text-3xl font-semibold text-zinc-900"
+                    onClick={() => startEditing("name")}
+                    aria-label="Edit agent name"
+                  >
+                    {agent.name}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg p-1 text-zinc-400 opacity-0 transition hover:bg-zinc-100 hover:text-zinc-700 group-hover:opacity-100"
+                    onClick={() => startEditing("name")}
+                    aria-label="Edit agent name"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
               <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-amber-700">
                 {agent.status}
               </span>
             </div>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-600">{agent.description}</p>
+
+            {isDescriptionEditing ? (
+              <div ref={descriptionEditorRef} className="mt-3 max-w-3xl">
+                <textarea
+                  ref={descriptionInputRef}
+                  value={descriptionDraft}
+                  onChange={(event) => setDescriptionDraft(event.target.value)}
+                  onKeyDown={handleDescriptionKeyDown}
+                  disabled={savingField === "description"}
+                  rows={3}
+                  className="w-full resize-none rounded-xl border border-zinc-300 px-3 py-2 text-sm leading-6 text-zinc-800 outline-none ring-blue-100 focus:ring"
+                />
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={savingField === "description"}
+                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                    onClick={() => void saveField("description")}
+                  >
+                    {savingField === "description" ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={savingField === "description"}
+                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                    onClick={cancelEditing}
+                  >
+                    Cancel
+                  </button>
+                  <span className="text-xs text-zinc-500">Escape to cancel</span>
+                </div>
+              </div>
+            ) : (
+              <div className="group mt-3 inline-flex max-w-3xl items-start gap-2">
+                <button
+                  type="button"
+                  className="text-left text-sm leading-6 text-zinc-600"
+                  onClick={() => startEditing("description")}
+                  aria-label="Edit agent description"
+                >
+                  {agent.description}
+                </button>
+                <button
+                  type="button"
+                  className="mt-1 rounded-lg p-1 text-zinc-400 opacity-0 transition hover:bg-zinc-100 hover:text-zinc-700 group-hover:opacity-100"
+                  onClick={() => startEditing("description")}
+                  aria-label="Edit agent description"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
+            {saveError ? (
+              <p className="mt-3 text-sm text-red-700">{saveError}</p>
+            ) : null}
           </div>
           <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-xs text-zinc-600">
             <div>ID: {agent.id}</div>

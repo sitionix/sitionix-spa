@@ -5,6 +5,7 @@ import {
   getAgentById,
   getAgents,
   getErrorHttpStatus,
+  patchAgent,
 } from "../../../../features/workspace/modules/automation/api/agentsApi";
 
 describe("agentsApi.getAgents", () => {
@@ -120,6 +121,89 @@ describe("agentsApi.getAgentById", () => {
 
     expect(getAgentSpy).toHaveBeenCalledWith({ agentId: "agent-5" });
     expect(result.id).toBe("agent-5");
+  });
+});
+
+describe("agentsApi.patchAgent", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("patches name only with trimmed value", async () => {
+    const patchAgentSpy = vi.spyOn(AgentApi.prototype, "patchAgent").mockResolvedValue({
+      id: "agent-1",
+      name: "Updated Name",
+      description: "Description",
+      status: "DRAFT",
+      createdAt: "2026-04-10T10:00:00.000Z",
+      updatedAt: "2026-04-11T10:00:00.000Z",
+    });
+
+    const result = await patchAgent("agent-1", { name: "  Updated Name  " });
+
+    expect(patchAgentSpy).toHaveBeenCalledWith({
+      agentId: "agent-1",
+      patchAgentRequestDTO: { name: "Updated Name" },
+    });
+    expect(result.name).toBe("Updated Name");
+    expect(result.description).toBe("Description");
+  });
+
+  it("patches description only with trimmed value", async () => {
+    const patchAgentSpy = vi.spyOn(AgentApi.prototype, "patchAgent").mockResolvedValue({
+      id: "agent-1",
+      name: "Name",
+      description: "Updated description",
+      status: "DRAFT",
+      createdAt: "2026-04-10T10:00:00.000Z",
+      updatedAt: "2026-04-11T10:00:00.000Z",
+    });
+
+    const result = await patchAgent("agent-1", { description: "  Updated description  " });
+
+    expect(patchAgentSpy).toHaveBeenCalledWith({
+      agentId: "agent-1",
+      patchAgentRequestDTO: { description: "Updated description" },
+    });
+    expect(result.name).toBe("Name");
+    expect(result.description).toBe("Updated description");
+  });
+
+  it("patches both name and description when both provided", async () => {
+    const patchAgentSpy = vi.spyOn(AgentApi.prototype, "patchAgent").mockResolvedValue({
+      id: "agent-1",
+      name: "Updated Name",
+      description: "Updated description",
+      status: "DRAFT",
+      createdAt: "2026-04-10T10:00:00.000Z",
+      updatedAt: "2026-04-11T10:00:00.000Z",
+    });
+
+    await patchAgent("agent-1", { name: " Updated Name ", description: " Updated description " });
+
+    expect(patchAgentSpy).toHaveBeenCalledWith({
+      agentId: "agent-1",
+      patchAgentRequestDTO: {
+        name: "Updated Name",
+        description: "Updated description",
+      },
+    });
+  });
+
+  it("rejects empty payload", async () => {
+    await expect(patchAgent("agent-1", {})).rejects.toThrow(
+      "At least one field (name or description) must be provided"
+    );
+  });
+
+  it("rejects blank name", async () => {
+    await expect(patchAgent("agent-1", { name: "   " })).rejects.toThrow("Agent name is required");
+  });
+
+  it("rejects blank description", async () => {
+    await expect(patchAgent("agent-1", { description: "   " })).rejects.toThrow(
+      "Agent description is required"
+    );
   });
 });
 
