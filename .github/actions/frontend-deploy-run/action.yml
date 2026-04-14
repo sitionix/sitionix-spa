@@ -17,7 +17,7 @@ runs:
     - name: Validate deploy environment secrets
       shell: bash
       run: |
-        for secret_name in DEPLOY_VM_HOST DEPLOY_VM_USER DEPLOY_VM_SSH_PRIVATE_KEY PACKAGE_REGISTRY_TOKEN; do
+        for secret_name in DEPLOY_VM_HOST DEPLOY_VM_USER DEPLOY_VM_SSH_PRIVATE_KEY PACKAGE_REGISTRY_AUTH; do
           if [[ -z "${!secret_name:-}" ]]; then
             echo "Missing required environment secret: ${secret_name}" >&2
             exit 1
@@ -44,7 +44,7 @@ runs:
 
     - name: Install dependencies
       shell: bash
-      run: NODE_AUTH_TOKEN="${PACKAGE_REGISTRY_TOKEN}" pnpm install --frozen-lockfile
+      run: NODE_AUTH_TOKEN="${PACKAGE_REGISTRY_AUTH}" pnpm install --frozen-lockfile
 
     - name: Build selected frontend applications
       shell: bash
