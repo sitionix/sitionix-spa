@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-113-unstable/apis";
 import {
+  activateAgent,
+  archiveAgent,
   createAgent,
   getAgentById,
   getAgents,
@@ -218,5 +220,43 @@ describe("agentsApi.getErrorHttpStatus", () => {
 
   it("returns null for unknown error shape", () => {
     expect(getErrorHttpStatus("boom")).toBeNull();
+  });
+});
+
+describe("agentsApi.lifecycle", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("calls activateAgent endpoint with agent id", async () => {
+    const activateSpy = vi.spyOn(AgentApi.prototype, "activateAgent").mockResolvedValue({
+      id: "agent-7",
+      name: "Lifecycle Agent",
+      description: "Description",
+      status: "ACTIVE",
+      createdAt: "2026-04-10T10:00:00.000Z",
+      updatedAt: "2026-04-14T10:00:00.000Z",
+    });
+
+    const result = await activateAgent("agent-7");
+
+    expect(activateSpy).toHaveBeenCalledWith({ agentId: "agent-7" });
+    expect(result.status).toBe("ACTIVE");
+  });
+
+  it("calls archiveAgent endpoint with agent id", async () => {
+    const archiveSpy = vi.spyOn(AgentApi.prototype, "archiveAgent").mockResolvedValue({
+      id: "agent-7",
+      name: "Lifecycle Agent",
+      description: "Description",
+      status: "ARCHIVED",
+      createdAt: "2026-04-10T10:00:00.000Z",
+      updatedAt: "2026-04-15T10:00:00.000Z",
+    });
+
+    const result = await archiveAgent("agent-7");
+
+    expect(archiveSpy).toHaveBeenCalledWith({ agentId: "agent-7" });
+    expect(result.status).toBe("ARCHIVED");
   });
 });
