@@ -263,9 +263,9 @@ importers:
 
   apps/workspace:
     dependencies:
-      '@sitionix/app-afesox-bffssox-frontend-stable':
-        specifier: 0.0.22
-        version: 0.0.22
+      '@sitionix/app-afesox-bffssox-frontend-sitionix-113-unstable':
+        specifier: 0.0.23
+        version: 0.0.23
       '@sitionix/auth-session':
         specifier: workspace:*
         version: link:../../packages/auth-session
@@ -889,11 +889,11 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@sitionix/app-afesox-bffssox-frontend-stable@0.0.22':
-    resolution: {integrity: sha512-goWgdeUJcIzAr47vXSPmpANgg/hcS8KozDxavJz0F//ZUntrCplECw2RNEuFgh/81z5xphH5KVI/pBsG1pjkZQ==, tarball: https://npm.pkg.github.com/download/@sitionix/app-afesox-bffssox-frontend-stable/0.0.22/5cde9910e81caa6d06dba007b5d57325ba498064}
+  '@sitionix/app-afesox-bffssox-frontend-sitionix-113-unstable@0.0.23':
+    resolution: {integrity: sha512-uWCAavDxhvdmoMP51DOGe/j24Py6kllXMcsbcn5NNLEtMj8WmSQR5RucbgGw1yqA1KD347XklJG+4Kt7FwaBsQ==, tarball: https://npm.pkg.github.com/download/@sitionix/app-afesox-bffssox-frontend-sitionix-113-unstable/0.0.23/7cdb937789b940de897f3228c8a10f950ce02743}
 
   '@sitionix/app-afesox-bffssox-frontend-stable@0.0.21':
-    resolution: {integrity: sha1-9T89OMNEE+rn9QtKoUB5ctyprGI=, tarball: https://npm.pkg.github.com/download/@sitionix/app-afesox-bffssox-frontend-stable/0.0.21/f53f3d38c34413eae7f50b4aa1407972dca9ac62}
+    resolution: {integrity: sha512-qty7nf4PBDhMKS85L1qGnaTFFh3K5L8ewCsnE6UsAR+EJwY1eHe8ovaNsvTo2gcHfm9gaSnzh5LPLAnpn27i0Q==, tarball: https://npm.pkg.github.com/download/@sitionix/app-afesox-bffssox-frontend-stable/0.0.21/f53f3d38c34413eae7f50b4aa1407972dca9ac62}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -2374,7 +2374,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.54.0':
     optional: true
 
-  '@sitionix/app-afesox-bffssox-frontend-stable@0.0.22': {}
+  '@sitionix/app-afesox-bffssox-frontend-sitionix-113-unstable@0.0.23': {}
 
   '@sitionix/app-afesox-bffssox-frontend-stable@0.0.21': {}
 
