@@ -1,8 +1,8 @@
-import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-113-unstable/apis";
 import type {
   CreateAgentRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-113-unstable/models";
 import { bffApiConfiguration } from "../../../../../shared/http/httpClient";
 import type { AutomationAgent, CreateAgentRequest, PatchAgentRequest } from "../model/types";
 
@@ -72,6 +72,14 @@ export async function patchAgent(agentId: string, payload: PatchAgentRequest): P
   return response;
 }
 
+export async function activateAgent(agentId: string): Promise<AutomationAgent> {
+  return agentApi.activateAgent({ agentId });
+}
+
+export async function archiveAgent(agentId: string): Promise<AutomationAgent> {
+  return agentApi.archiveAgent({ agentId });
+}
+
 type ErrorWithStatus = {
   status?: unknown;
   response?: {
@@ -101,5 +109,7 @@ export const agentsApi = {
   getAgentById,
   createAgent,
   patchAgent,
+  activateAgent,
+  archiveAgent,
   getErrorHttpStatus,
 };

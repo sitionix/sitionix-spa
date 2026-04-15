@@ -1,14 +1,25 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { ArrowLeft, Clock3, Loader2, Pencil, Settings, Sparkles, Wand2 } from "lucide-react";
+import { ArrowLeft, Clock3, Loader2, Pencil, Settings, Sparkles } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../../../ui/components/PageHeader";
 import { formatDateTime } from "../../../model/formatters";
-import { getAgentById, getErrorHttpStatus, patchAgent } from "../api";
+import { activateAgent, archiveAgent, getAgentById, getErrorHttpStatus, patchAgent } from "../api";
 import { toAutomationErrorMessage } from "../model/mappers";
 import type { AutomationAgent } from "../model/types";
 
 type AgentOverviewState = "idle" | "loading" | "ready" | "not_found" | "error";
 type EditableField = "name" | "description" | null;
+type LifecycleAction = "activate" | "archive" | null;
+
+function getStatusBadgeClass(status: AutomationAgent["status"]): string {
+  if (status === "ACTIVE") {
+    return "bg-emerald-50 text-emerald-700";
+  }
+  if (status === "ARCHIVED") {
+    return "bg-zinc-100 text-zinc-600";
+  }
+  return "bg-amber-50 text-amber-700";
+}
 
 function SectionPlaceholder({
   title,
@@ -47,6 +58,8 @@ export function AgentOverviewPage() {
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const [savingField, setSavingField] = useState<EditableField>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [lifecycleAction, setLifecycleAction] = useState<LifecycleAction>(null);
+  const [lifecycleError, setLifecycleError] = useState<string | null>(null);
 
   const nameEditorRef = useRef<HTMLDivElement | null>(null);
   const descriptionEditorRef = useRef<HTMLDivElement | null>(null);
@@ -89,7 +102,7 @@ export function AgentOverviewPage() {
     if (!agent) {
       return;
     }
-    if (savingField) {
+    if (savingField || lifecycleAction) {
       return;
     }
     if (editingField && editingField !== field) {
@@ -103,7 +116,7 @@ export function AgentOverviewPage() {
       setDescriptionDraft(agent.description);
     }
     setEditingField(field);
-  }, [agent, editingField, savingField]);
+  }, [agent, editingField, lifecycleAction, savingField]);
 
   const cancelEditing = useCallback(() => {
     setEditingField(null);
@@ -136,12 +149,41 @@ export function AgentOverviewPage() {
         : { description: normalizedDraft });
       setAgent(updatedAgent);
       setEditingField(null);
+      setLifecycleError(null);
     } catch (saveFieldError) {
       setSaveError(toAutomationErrorMessage(saveFieldError));
     } finally {
       setSavingField(null);
     }
   }, [agent, descriptionDraft, nameDraft, savingField]);
+
+  const runLifecycleAction = useCallback(async (action: Exclude<LifecycleAction, null>) => {
+    if (!agent || lifecycleAction || savingField) {
+      return;
+    }
+
+    if (action === "archive") {
+      const confirmed = window.confirm("Archive agent? Archived agents remain stored but are no longer active.");
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    setLifecycleAction(action);
+    setLifecycleError(null);
+    setSaveError(null);
+
+    try {
+      const updatedAgent = action === "activate"
+        ? await activateAgent(agent.id)
+        : await archiveAgent(agent.id);
+      setAgent(updatedAgent);
+    } catch (lifecycleActionError) {
+      setLifecycleError(toAutomationErrorMessage(lifecycleActionError));
+    } finally {
+      setLifecycleAction(null);
+    }
+  }, [agent, lifecycleAction, savingField]);
 
   useEffect(() => {
     if (editingField === "name") {
@@ -256,6 +298,9 @@ export function AgentOverviewPage() {
 
   const isNameEditing = editingField === "name";
   const isDescriptionEditing = editingField === "description";
+  const statusBadgeClass = getStatusBadgeClass(agent.status);
+  const canActivate = agent.status === "DRAFT";
+  const canArchive = agent.status === "ACTIVE";
 
   return (
     <div className="grid gap-6">
@@ -333,7 +378,7 @@ export function AgentOverviewPage() {
                   </button>
                 </div>
               )}
-              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-amber-700">
+              <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${statusBadgeClass}`}>
                 {agent.status}
               </span>
             </div>
@@ -392,6 +437,9 @@ export function AgentOverviewPage() {
 
             {saveError ? (
               <p className="mt-3 text-sm text-red-700">{saveError}</p>
+            ) : null}
+            {lifecycleError ? (
+              <p className="mt-3 text-sm text-red-700">{lifecycleError}</p>
             ) : null}
           </div>
           <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-xs text-zinc-600">
@@ -462,14 +510,43 @@ export function AgentOverviewPage() {
 
           <section className="rounded-3xl border border-zinc-200 bg-white p-6">
             <h2 className="text-lg font-semibold text-zinc-900">Quick actions</h2>
-            <button
-              type="button"
-              disabled
-              className="mt-4 inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm font-medium text-zinc-500"
-            >
-              <Wand2 className="h-4 w-4" />
-              Edit agent (Soon)
-            </button>
+            {canActivate ? (
+              <button
+                type="button"
+                disabled={lifecycleAction !== null || savingField !== null}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                onClick={() => void runLifecycleAction("activate")}
+              >
+                {lifecycleAction === "activate" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Activating...
+                  </>
+                ) : "Activate"}
+              </button>
+            ) : null}
+
+            {canArchive ? (
+              <button
+                type="button"
+                disabled={lifecycleAction !== null || savingField !== null}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70"
+                onClick={() => void runLifecycleAction("archive")}
+              >
+                {lifecycleAction === "archive" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Archiving...
+                  </>
+                ) : "Archive"}
+              </button>
+            ) : null}
+
+            {!canActivate && !canArchive ? (
+              <p className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+                This agent is archived. No lifecycle action is available in this version.
+              </p>
+            ) : null}
           </section>
         </aside>
       </div>

@@ -9,6 +9,16 @@ import { LOAD_AUTOMATION_ERROR_TITLE } from "../model/constants";
 import { toAutomationErrorMessage } from "../model/mappers";
 import type { AutomationAgent, AutomationPageStatus } from "../model/types";
 
+function getStatusBadgeClass(status: AutomationAgent["status"]): string {
+  if (status === "ACTIVE") {
+    return "bg-emerald-50 text-emerald-700";
+  }
+  if (status === "ARCHIVED") {
+    return "bg-zinc-100 text-zinc-600";
+  }
+  return "bg-amber-50 text-amber-700";
+}
+
 export function AutomationPage() {
   const navigate = useNavigate();
   const [createSheetOpen, setCreateSheetOpen] = useState(false);
@@ -116,7 +126,7 @@ export function AutomationPage() {
                 <div>
                   <div className="flex items-center gap-3">
                     <h2 className="text-lg font-semibold text-zinc-900">{agent.name}</h2>
-                    <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-amber-700">
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${getStatusBadgeClass(agent.status)}`}>
                       {agent.status}
                     </span>
                   </div>

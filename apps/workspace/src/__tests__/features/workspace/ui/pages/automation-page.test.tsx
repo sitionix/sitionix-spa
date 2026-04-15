@@ -156,4 +156,40 @@ describe("AutomationPage", () => {
     expect(await screen.findByText("Agent details route: agent-44")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Emit created" })).not.toBeInTheDocument();
   });
+
+  it("renders lifecycle statuses in agent list cards", async () => {
+    getAgentsMock.mockResolvedValue([
+      {
+        id: "agent-draft",
+        name: "Draft Agent",
+        description: "Description",
+        status: "DRAFT",
+        createdAt: "2026-04-10T10:00:00.000Z",
+        updatedAt: "2026-04-10T10:00:00.000Z",
+      },
+      {
+        id: "agent-active",
+        name: "Active Agent",
+        description: "Description",
+        status: "ACTIVE",
+        createdAt: "2026-04-10T10:00:00.000Z",
+        updatedAt: "2026-04-10T10:00:00.000Z",
+      },
+      {
+        id: "agent-archived",
+        name: "Archived Agent",
+        description: "Description",
+        status: "ARCHIVED",
+        createdAt: "2026-04-10T10:00:00.000Z",
+        updatedAt: "2026-04-10T10:00:00.000Z",
+      },
+    ]);
+
+    renderAutomationPage();
+
+    expect(await screen.findByText("Draft Agent")).toBeInTheDocument();
+    expect(screen.getByText("DRAFT")).toBeInTheDocument();
+    expect(screen.getByText("ACTIVE")).toBeInTheDocument();
+    expect(screen.getByText("ARCHIVED")).toBeInTheDocument();
+  });
 });
