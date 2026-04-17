@@ -30,6 +30,7 @@ const agent = {
   id: "agent-1",
   name: "Overview Agent",
   description: "Agent overview description",
+  instruction: undefined,
   status: "DRAFT" as const,
   createdAt: "2026-04-11T10:00:00.000Z",
   updatedAt: "2026-04-12T15:30:00.000Z",
@@ -57,7 +58,7 @@ describe("AgentOverviewPage", () => {
     getErrorHttpStatusMock.mockReturnValue(null);
   });
 
-  it("renders loading and then successful overview with future-ready sections", async () => {
+  it("renders loading and then successful overview with agent definition section", async () => {
     getAgentByIdMock.mockResolvedValue(agent);
 
     renderOverview();
@@ -71,13 +72,28 @@ describe("AgentOverviewPage", () => {
     expect(screen.getByText(formatDateTime(agent.createdAt))).toBeInTheDocument();
     expect(screen.getByText(formatDateTime(agent.updatedAt))).toBeInTheDocument();
 
-    expect(screen.getByRole("heading", { name: "Configuration" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Agent Definition" })).toBeInTheDocument();
+    expect(screen.getByText("No instruction defined yet.")).toBeInTheDocument();
+    expect(screen.getByText("Add instruction to define how this agent should behave.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Suggested Rules" })).toBeInTheDocument();
     expect(
       screen.getByText("System-suggested candidate rules will appear here once rule suggestions are available.")
     ).toBeInTheDocument();
     expect(screen.queryByText(/guidance support/i)).not.toBeInTheDocument();
+  });
+
+  it("renders saved instruction when agent has definition text", async () => {
+    getAgentByIdMock.mockResolvedValue({
+      ...agent,
+      instruction: "Focus on explicit boundaries.",
+    });
+
+    renderOverview();
+
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+    expect(screen.getByText("Focus on explicit boundaries.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit agent instruction" })).toBeInTheDocument();
   });
 
   it("renders not-found state for 404 and supports back navigation", async () => {
@@ -253,6 +269,46 @@ describe("AgentOverviewPage", () => {
     expect(patchAgentMock).toHaveBeenCalledTimes(2);
     expect(await screen.findByText("Recovered description")).toBeInTheDocument();
     expect(screen.queryByText("Patch failed")).not.toBeInTheDocument();
+  });
+
+  it("saves edited instruction and sends only instruction in patch payload", async () => {
+    getAgentByIdMock.mockResolvedValue(agent);
+    patchAgentMock.mockResolvedValue({
+      ...agent,
+      instruction: "Updated instruction text",
+      updatedAt: "2026-04-13T12:00:00.000Z",
+    });
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Add agent instruction" }));
+    await user.type(screen.getByRole("textbox"), "  Updated instruction text  ");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(patchAgentMock).toHaveBeenCalledWith("agent-1", { instruction: "Updated instruction text" });
+    expect(await screen.findByText("Updated instruction text")).toBeInTheDocument();
+  });
+
+  it("cancels instruction edit without sending patch request", async () => {
+    getAgentByIdMock.mockResolvedValue({
+      ...agent,
+      instruction: "Current instruction",
+    });
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Edit agent instruction" }));
+    const instructionTextarea = screen.getByRole("textbox");
+    await user.clear(instructionTextarea);
+    await user.type(instructionTextarea, "Changed instruction");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(patchAgentMock).not.toHaveBeenCalled();
+    expect(screen.getByText("Current instruction")).toBeInTheDocument();
   });
 
   it("shows Activate for DRAFT and updates to ACTIVE after successful activation", async () => {

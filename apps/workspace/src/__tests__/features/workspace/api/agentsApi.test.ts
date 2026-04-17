@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-113-unstable/apis";
+import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-114-unstable/apis";
 import {
   activateAgent,
   archiveAgent,
@@ -97,10 +97,23 @@ describe("agentsApi.createAgent", () => {
     );
   });
 
-  it("throws when description is blank", async () => {
-    await expect(createAgent({ name: "agent", description: "  " })).rejects.toThrow(
-      "Agent description is required"
-    );
+  it("creates agent when only name is provided", async () => {
+    const createAgentSpy = vi.spyOn(AgentApi.prototype, "createAgent").mockResolvedValue({
+      id: "agent-3",
+      name: "Name only",
+      description: undefined,
+      status: "DRAFT",
+      createdAt: "2026-04-10T10:00:00.000Z",
+      updatedAt: "2026-04-10T10:00:00.000Z",
+    });
+
+    await createAgent({ name: "  Name only  " });
+
+    expect(createAgentSpy).toHaveBeenCalledWith({
+      createAgentRequestDTO: {
+        name: "Name only",
+      },
+    });
   });
 });
 
@@ -194,7 +207,7 @@ describe("agentsApi.patchAgent", () => {
 
   it("rejects empty payload", async () => {
     await expect(patchAgent("agent-1", {})).rejects.toThrow(
-      "At least one field (name or description) must be provided"
+      "At least one field (name, description or instruction) must be provided"
     );
   });
 
@@ -205,6 +218,32 @@ describe("agentsApi.patchAgent", () => {
   it("rejects blank description", async () => {
     await expect(patchAgent("agent-1", { description: "   " })).rejects.toThrow(
       "Agent description is required"
+    );
+  });
+
+  it("patches instruction only with trimmed value", async () => {
+    const patchAgentSpy = vi.spyOn(AgentApi.prototype, "patchAgent").mockResolvedValue({
+      id: "agent-1",
+      name: "Name",
+      description: "Description",
+      instruction: "Updated instruction",
+      status: "DRAFT",
+      createdAt: "2026-04-10T10:00:00.000Z",
+      updatedAt: "2026-04-11T10:00:00.000Z",
+    });
+
+    const result = await patchAgent("agent-1", { instruction: "  Updated instruction  " });
+
+    expect(patchAgentSpy).toHaveBeenCalledWith({
+      agentId: "agent-1",
+      patchAgentRequestDTO: { instruction: "Updated instruction" },
+    });
+    expect(result.instruction).toBe("Updated instruction");
+  });
+
+  it("rejects blank instruction", async () => {
+    await expect(patchAgent("agent-1", { instruction: "   " })).rejects.toThrow(
+      "Agent instruction is required"
     );
   });
 });

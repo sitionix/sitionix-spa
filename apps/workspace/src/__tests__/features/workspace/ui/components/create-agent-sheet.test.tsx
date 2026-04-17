@@ -21,7 +21,7 @@ describe("CreateAgentSheet", () => {
     expect(screen.queryByRole("heading", { name: "Create Agent" })).not.toBeInTheDocument();
   });
 
-  it("validates required fields and submits trimmed payload", async () => {
+  it("validates required name and submits payload without description", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     const onCreated = vi.fn();
@@ -29,7 +29,7 @@ describe("CreateAgentSheet", () => {
     createAgentMock.mockResolvedValue({
       id: "agent-1",
       name: "Agent",
-      description: "Description",
+      description: undefined,
       status: "DRAFT",
       createdAt: "2026-04-10T10:00:00.000Z",
       updatedAt: "2026-04-10T10:00:00.000Z",
@@ -40,16 +40,13 @@ describe("CreateAgentSheet", () => {
     await user.click(screen.getByRole("button", { name: "Create Agent" }));
 
     expect(await screen.findByText("Назва агента обов'язкова.")).toBeInTheDocument();
-    expect(screen.getByText("Опис агента обов'язковий.")).toBeInTheDocument();
     expect(createAgentMock).not.toHaveBeenCalled();
 
     await user.type(screen.getByLabelText("Name"), "  Agent  ");
-    await user.type(screen.getByLabelText("Description"), "  Description  ");
     await user.click(screen.getByRole("button", { name: "Create Agent" }));
 
     expect(createAgentMock).toHaveBeenCalledWith({
       name: "Agent",
-      description: "Description",
     });
 
     await waitFor(() => {
@@ -57,7 +54,7 @@ describe("CreateAgentSheet", () => {
       expect(onCreated).toHaveBeenCalledWith({
         id: "agent-1",
         name: "Agent",
-        description: "Description",
+        description: undefined,
         status: "DRAFT",
         createdAt: "2026-04-10T10:00:00.000Z",
         updatedAt: "2026-04-10T10:00:00.000Z",

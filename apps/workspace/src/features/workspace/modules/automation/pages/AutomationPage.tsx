@@ -131,7 +131,7 @@ export function AutomationPage() {
                     </span>
                   </div>
                   <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-600">
-                    {agent.description}
+                    {agent.description ?? "No description yet."}
                   </p>
                 </div>
                 <div className="min-w-[160px] text-right text-xs text-zinc-500">

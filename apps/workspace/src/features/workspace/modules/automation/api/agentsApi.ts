@@ -1,8 +1,8 @@
-import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-113-unstable/apis";
+import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-114-unstable/apis";
 import type {
   CreateAgentRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-sitionix-113-unstable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-114-unstable/models";
 import { bffApiConfiguration } from "../../../../../shared/http/httpClient";
 import type { AutomationAgent, CreateAgentRequest, PatchAgentRequest } from "../model/types";
 
@@ -19,19 +19,18 @@ export async function getAgentById(agentId: string): Promise<AutomationAgent> {
 
 export async function createAgent(payload: CreateAgentRequest): Promise<AutomationAgent> {
   const name = payload.name.trim();
-  const description = payload.description.trim();
+  const description = payload.description?.trim();
 
   if (!name) {
     throw new Error("Agent name is required");
   }
-  if (!description) {
-    throw new Error("Agent description is required");
-  }
 
   const requestBody: CreateAgentRequestDTO = {
     name,
-    description,
   };
+  if (description) {
+    requestBody.description = description;
+  }
 
   const response = await agentApi.createAgent({
     createAgentRequestDTO: requestBody,
@@ -59,9 +58,18 @@ export async function patchAgent(agentId: string, payload: PatchAgentRequest): P
     requestBody.description = description;
   }
 
+  if (Object.prototype.hasOwnProperty.call(payload, "instruction")) {
+    const instruction = payload.instruction?.trim() ?? "";
+    if (!instruction) {
+      throw new Error("Agent instruction is required");
+    }
+    requestBody.instruction = instruction;
+  }
+
   if (!Object.prototype.hasOwnProperty.call(requestBody, "name")
-    && !Object.prototype.hasOwnProperty.call(requestBody, "description")) {
-    throw new Error("At least one field (name or description) must be provided");
+    && !Object.prototype.hasOwnProperty.call(requestBody, "description")
+    && !Object.prototype.hasOwnProperty.call(requestBody, "instruction")) {
+    throw new Error("At least one field (name, description or instruction) must be provided");
   }
 
   const response = await agentApi.patchAgent({
