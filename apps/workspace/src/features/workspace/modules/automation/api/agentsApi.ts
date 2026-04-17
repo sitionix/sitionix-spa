@@ -51,11 +51,13 @@ export async function patchAgent(agentId: string, payload: PatchAgentRequest): P
   }
 
   if (Object.prototype.hasOwnProperty.call(payload, "description")) {
-    const description = payload.description?.trim() ?? "";
-    if (!description) {
-      throw new Error("Agent description is required");
+    const rawDescription = payload.description;
+    if (rawDescription === null) {
+      requestBody.description = null;
+    } else {
+      const description = rawDescription?.trim() ?? "";
+      requestBody.description = description || null;
     }
-    requestBody.description = description;
   }
 
   if (Object.prototype.hasOwnProperty.call(payload, "instruction")) {

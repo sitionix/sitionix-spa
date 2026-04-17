@@ -83,6 +83,18 @@ describe("AgentOverviewPage", () => {
     expect(screen.queryByText(/guidance support/i)).not.toBeInTheDocument();
   });
 
+  it("renders empty description state when description is absent", async () => {
+    getAgentByIdMock.mockResolvedValue({
+      ...agent,
+      description: null,
+    });
+
+    renderOverview();
+
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+    expect(screen.getByText("No description yet.")).toBeInTheDocument();
+  });
+
   it("renders saved instruction when agent has definition text", async () => {
     getAgentByIdMock.mockResolvedValue({
       ...agent,
@@ -203,6 +215,44 @@ describe("AgentOverviewPage", () => {
 
     expect(patchAgentMock).toHaveBeenCalledWith("agent-1", { description: "Updated description" });
     expect(await screen.findByText("Updated description")).toBeInTheDocument();
+  });
+
+  it("allows clearing description and sends null in patch payload", async () => {
+    getAgentByIdMock.mockResolvedValue(agent);
+    patchAgentMock.mockResolvedValue({
+      ...agent,
+      description: null,
+      updatedAt: "2026-04-13T12:00:00.000Z",
+    });
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: "Edit agent description" })[0]);
+    const descriptionInput = screen.getByDisplayValue("Agent overview description");
+    await user.clear(descriptionInput);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(patchAgentMock).toHaveBeenCalledWith("agent-1", { description: null });
+    expect(await screen.findByText("No description yet.")).toBeInTheDocument();
+  });
+
+  it("skips patch when description stays empty after edit", async () => {
+    getAgentByIdMock.mockResolvedValue({
+      ...agent,
+      description: null,
+    });
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: "Edit agent description" })[0]);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(patchAgentMock).not.toHaveBeenCalled();
+    expect(screen.getByText("No description yet.")).toBeInTheDocument();
   });
 
   it("prevents duplicate submits while description save is in progress", async () => {

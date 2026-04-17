@@ -150,7 +150,7 @@ export function AgentOverviewPage() {
     try {
       const updatedAgent = await patchAgent(agent.id, isName
         ? { name: normalizedDraft }
-        : { description: normalizedDraft });
+        : { description: normalizedDraft || null });
       setAgent(updatedAgent);
       setEditingField(null);
       setLifecycleError(null);
