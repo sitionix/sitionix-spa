@@ -4,6 +4,7 @@ import type {
   PatchAgentRequestDTO,
 } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 import { bffApiConfiguration } from "../../../../../shared/http/httpClient";
+import { requestJson } from "../../../../../shared/http/httpClient";
 import type { AutomationAgent, CreateAgentRequest, PatchAgentRequest } from "../model/types";
 
 const agentApi = new AgentApi(bffApiConfiguration);
@@ -90,6 +91,32 @@ export async function archiveAgent(agentId: string): Promise<AutomationAgent> {
   return agentApi.archiveAgent({ agentId });
 }
 
+export async function restoreAgent(agentId: string): Promise<AutomationAgent> {
+  const result = await requestJson<AutomationAgent, unknown, undefined>({
+    method: "POST",
+    path: `/api/v1/agents/${agentId}/restore`,
+  });
+
+  if (result.ok) {
+    return result.data;
+  }
+
+  throw result.error ?? new Error("Failed to restore agent");
+}
+
+export async function deleteAgent(agentId: string): Promise<AutomationAgent> {
+  const result = await requestJson<AutomationAgent, unknown, undefined>({
+    method: "POST",
+    path: `/api/v1/agents/${agentId}/delete`,
+  });
+
+  if (result.ok) {
+    return result.data;
+  }
+
+  throw result.error ?? new Error("Failed to delete agent");
+}
+
 type ErrorWithStatus = {
   status?: unknown;
   response?: {
@@ -121,5 +148,7 @@ export const agentsApi = {
   patchAgent,
   activateAgent,
   archiveAgent,
+  restoreAgent,
+  deleteAgent,
   getErrorHttpStatus,
 };

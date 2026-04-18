@@ -2,14 +2,15 @@ import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "re
 import { ArrowLeft, Clock3, Loader2, Pencil, Sparkles } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../../../ui/components/PageHeader";
+import { ConfirmationDialog } from "../../../ui/components/ConfirmationDialog";
 import { formatDateTime } from "../../../model/formatters";
-import { activateAgent, archiveAgent, getAgentById, getErrorHttpStatus, patchAgent } from "../api";
+import { activateAgent, archiveAgent, deleteAgent, getAgentById, getErrorHttpStatus, patchAgent, restoreAgent } from "../api";
 import { toAutomationErrorMessage } from "../model/mappers";
 import type { AutomationAgent } from "../model/types";
 
 type AgentOverviewState = "idle" | "loading" | "ready" | "not_found" | "error";
 type EditableField = "name" | "description" | null;
-type LifecycleAction = "activate" | "archive" | null;
+type LifecycleAction = "activate" | "archive" | "restore" | "delete" | null;
 
 function getStatusBadgeClass(status: AutomationAgent["status"]): string {
   if (status === "ACTIVE") {
@@ -17,6 +18,9 @@ function getStatusBadgeClass(status: AutomationAgent["status"]): string {
   }
   if (status === "ARCHIVED") {
     return "bg-zinc-100 text-zinc-600";
+  }
+  if (status === "DELETED") {
+    return "bg-red-50 text-red-700";
   }
   return "bg-amber-50 text-amber-700";
 }
@@ -64,6 +68,7 @@ export function AgentOverviewPage() {
   const [instructionSaveError, setInstructionSaveError] = useState<string | null>(null);
   const [lifecycleAction, setLifecycleAction] = useState<LifecycleAction>(null);
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const nameEditorRef = useRef<HTMLDivElement | null>(null);
   const descriptionEditorRef = useRef<HTMLDivElement | null>(null);
@@ -161,16 +166,9 @@ export function AgentOverviewPage() {
     }
   }, [agent, descriptionDraft, nameDraft, savingField]);
 
-  const runLifecycleAction = useCallback(async (action: Exclude<LifecycleAction, null>) => {
+  const executeLifecycleAction = useCallback(async (action: Exclude<LifecycleAction, null>) => {
     if (!agent || lifecycleAction || savingField) {
       return;
-    }
-
-    if (action === "archive") {
-      const confirmed = window.confirm("Archive agent? Archived agents remain stored but are no longer active.");
-      if (!confirmed) {
-        return;
-      }
     }
 
     setLifecycleAction(action);
@@ -180,14 +178,37 @@ export function AgentOverviewPage() {
     try {
       const updatedAgent = action === "activate"
         ? await activateAgent(agent.id)
-        : await archiveAgent(agent.id);
+        : action === "archive"
+          ? await archiveAgent(agent.id)
+          : action === "restore"
+            ? await restoreAgent(agent.id)
+            : await deleteAgent(agent.id);
+
+      if (action === "delete") {
+        navigate("/automation");
+        return;
+      }
+
       setAgent(updatedAgent);
     } catch (lifecycleActionError) {
       setLifecycleError(toAutomationErrorMessage(lifecycleActionError));
     } finally {
       setLifecycleAction(null);
     }
-  }, [agent, lifecycleAction, savingField]);
+  }, [agent, lifecycleAction, navigate, savingField]);
+
+  const runLifecycleAction = useCallback((action: Exclude<LifecycleAction, null>) => {
+    if (action === "delete") {
+      setDeleteConfirmOpen(true);
+      return;
+    }
+    void executeLifecycleAction(action);
+  }, [executeLifecycleAction]);
+
+  const confirmDeleteAction = useCallback(() => {
+    setDeleteConfirmOpen(false);
+    void executeLifecycleAction("delete");
+  }, [executeLifecycleAction]);
 
   const startInstructionEditing = useCallback(() => {
     if (!agent || savingField || lifecycleAction || isInstructionSaving) {
@@ -350,7 +371,9 @@ export function AgentOverviewPage() {
   const isDescriptionEditing = editingField === "description";
   const statusBadgeClass = getStatusBadgeClass(agent.status);
   const canActivate = agent.status === "DRAFT";
-  const canArchive = agent.status === "ACTIVE";
+  const canArchive = agent.status === "DRAFT" || agent.status === "ACTIVE";
+  const canRestore = agent.status === "ARCHIVED";
+  const canDelete = agent.status !== "DELETED";
 
   return (
     <div className="grid gap-6">
@@ -644,14 +667,55 @@ export function AgentOverviewPage() {
               </button>
             ) : null}
 
-            {!canActivate && !canArchive ? (
+            {canRestore ? (
+              <button
+                type="button"
+                disabled={lifecycleAction !== null || savingField !== null}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm font-medium text-zinc-800 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-70"
+                onClick={() => void runLifecycleAction("restore")}
+              >
+                {lifecycleAction === "restore" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Restoring...
+                  </>
+                ) : "Restore"}
+              </button>
+            ) : null}
+
+            {canDelete ? (
+              <button
+                type="button"
+                disabled={lifecycleAction !== null || savingField !== null}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+                onClick={() => runLifecycleAction("delete")}
+              >
+                {lifecycleAction === "delete" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : "Delete"}
+              </button>
+            ) : null}
+
+            {!canActivate && !canArchive && !canRestore && !canDelete ? (
               <p className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-                This agent is archived. No lifecycle action is available in this version.
+                This agent has no available lifecycle actions in this version.
               </p>
             ) : null}
           </section>
         </aside>
       </div>
+      <ConfirmationDialog
+        open={deleteConfirmOpen}
+        title="Delete agent?"
+        description="The agent will be removed from normal automation views."
+        confirmLabel="Delete"
+        tone="danger"
+        onCancel={() => setDeleteConfirmOpen(false)}
+        onConfirm={confirmDeleteAction}
+      />
     </div>
   );
 }
