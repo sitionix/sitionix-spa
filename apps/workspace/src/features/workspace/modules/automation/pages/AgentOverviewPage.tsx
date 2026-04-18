@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { ArrowLeft, Clock3, Loader2, Pencil, Settings, Sparkles } from "lucide-react";
+import { ArrowLeft, Clock3, Loader2, Pencil, Sparkles } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../../../ui/components/PageHeader";
 import { formatDateTime } from "../../../model/formatters";
@@ -58,6 +58,10 @@ export function AgentOverviewPage() {
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const [savingField, setSavingField] = useState<EditableField>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [instructionDraft, setInstructionDraft] = useState("");
+  const [isInstructionEditing, setIsInstructionEditing] = useState(false);
+  const [isInstructionSaving, setIsInstructionSaving] = useState(false);
+  const [instructionSaveError, setInstructionSaveError] = useState<string | null>(null);
   const [lifecycleAction, setLifecycleAction] = useState<LifecycleAction>(null);
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
 
@@ -113,7 +117,7 @@ export function AgentOverviewPage() {
     if (field === "name") {
       setNameDraft(agent.name);
     } else {
-      setDescriptionDraft(agent.description);
+      setDescriptionDraft(agent.description ?? "");
     }
     setEditingField(field);
   }, [agent, editingField, lifecycleAction, savingField]);
@@ -131,7 +135,7 @@ export function AgentOverviewPage() {
 
     const isName = field === "name";
     const draftValue = isName ? nameDraft : descriptionDraft;
-    const currentValue = isName ? agent.name : agent.description;
+    const currentValue = isName ? agent.name : (agent.description ?? "");
     const normalizedDraft = draftValue.trim();
 
     if (normalizedDraft === currentValue) {
@@ -146,7 +150,7 @@ export function AgentOverviewPage() {
     try {
       const updatedAgent = await patchAgent(agent.id, isName
         ? { name: normalizedDraft }
-        : { description: normalizedDraft });
+        : { description: normalizedDraft || null });
       setAgent(updatedAgent);
       setEditingField(null);
       setLifecycleError(null);
@@ -184,6 +188,52 @@ export function AgentOverviewPage() {
       setLifecycleAction(null);
     }
   }, [agent, lifecycleAction, savingField]);
+
+  const startInstructionEditing = useCallback(() => {
+    if (!agent || savingField || lifecycleAction || isInstructionSaving) {
+      return;
+    }
+    setInstructionSaveError(null);
+    setInstructionDraft(agent.instruction ?? "");
+    setIsInstructionEditing(true);
+  }, [agent, isInstructionSaving, lifecycleAction, savingField]);
+
+  const cancelInstructionEditing = useCallback(() => {
+    setIsInstructionEditing(false);
+    setIsInstructionSaving(false);
+    setInstructionSaveError(null);
+    setInstructionDraft(agent?.instruction ?? "");
+  }, [agent]);
+
+  const saveInstruction = useCallback(async () => {
+    if (!agent || isInstructionSaving) {
+      return;
+    }
+
+    const normalizedDraft = instructionDraft.trim();
+    const currentValue = (agent.instruction ?? "").trim();
+
+    if (normalizedDraft === currentValue) {
+      setIsInstructionEditing(false);
+      setInstructionSaveError(null);
+      return;
+    }
+
+    setIsInstructionSaving(true);
+    setInstructionSaveError(null);
+    setSaveError(null);
+
+    try {
+      const updatedAgent = await patchAgent(agent.id, { instruction: normalizedDraft });
+      setAgent(updatedAgent);
+      setIsInstructionEditing(false);
+      setLifecycleError(null);
+    } catch (instructionError) {
+      setInstructionSaveError(toAutomationErrorMessage(instructionError));
+    } finally {
+      setIsInstructionSaving(false);
+    }
+  }, [agent, instructionDraft, isInstructionSaving]);
 
   useEffect(() => {
     if (editingField === "name") {
@@ -311,14 +361,6 @@ export function AgentOverviewPage() {
           <>
             <button
               type="button"
-              disabled
-              className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm font-medium text-zinc-500"
-            >
-              <Settings className="h-4 w-4" />
-              Configure (Soon)
-            </button>
-            <button
-              type="button"
               className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
               onClick={() => navigate("/automation")}
             >
@@ -422,7 +464,7 @@ export function AgentOverviewPage() {
                   onClick={() => startEditing("description")}
                   aria-label="Edit agent description"
                 >
-                  {agent.description}
+                  {agent.description ?? "No description yet."}
                 </button>
                 <button
                   type="button"
@@ -437,6 +479,9 @@ export function AgentOverviewPage() {
 
             {saveError ? (
               <p className="mt-3 text-sm text-red-700">{saveError}</p>
+            ) : null}
+            {instructionSaveError ? (
+              <p className="mt-3 text-sm text-red-700">{instructionSaveError}</p>
             ) : null}
             {lifecycleError ? (
               <p className="mt-3 text-sm text-red-700">{lifecycleError}</p>
@@ -468,11 +513,68 @@ export function AgentOverviewPage() {
             </dl>
           </section>
 
-          <SectionPlaceholder
-            title="Configuration"
-            description="Define this agent's role, instruction, and operating guidance here."
-            actionLabel="Configure agent (Soon)"
-          />
+          <section className="rounded-3xl border border-zinc-200 bg-white p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-zinc-900">Agent Definition</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-600">
+                  Define behavioral instruction used as the primary execution context for this agent.
+                </p>
+              </div>
+              {!isInstructionEditing ? (
+                <button
+                  type="button"
+                  onClick={startInstructionEditing}
+                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+                  aria-label={agent.instruction ? "Edit agent instruction" : "Add agent instruction"}
+                >
+                  <Pencil className="h-4 w-4" />
+                  {agent.instruction ? "Edit" : "Add instruction"}
+                </button>
+              ) : null}
+            </div>
+
+            {isInstructionEditing ? (
+              <div className="mt-4">
+                <textarea
+                  value={instructionDraft}
+                  onChange={(event) => setInstructionDraft(event.target.value)}
+                  disabled={isInstructionSaving}
+                  rows={6}
+                  className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm leading-6 text-zinc-800 outline-none ring-blue-100 focus:ring"
+                />
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={isInstructionSaving}
+                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                    onClick={() => void saveInstruction()}
+                  >
+                    {isInstructionSaving ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isInstructionSaving}
+                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                    onClick={cancelInstructionEditing}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                {agent.instruction ? (
+                  <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-700">{agent.instruction}</p>
+                ) : (
+                  <div className="text-sm text-zinc-600">
+                    <p>No instruction defined yet.</p>
+                    <p className="mt-2">Add instruction to define how this agent should behave.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
 
           <SectionPlaceholder
             title="Rules"

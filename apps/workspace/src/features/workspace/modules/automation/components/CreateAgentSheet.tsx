@@ -155,7 +155,6 @@ export function CreateAgentSheet({ open, onClose, onCreated }: Readonly<CreateAg
   const trimmedName = useMemo(() => name.trim(), [name]);
   const trimmedDescription = useMemo(() => description.trim(), [description]);
   const isNameValid = trimmedName.length > 0;
-  const isDescriptionValid = trimmedDescription.length > 0;
 
   const resetForm = useCallback(() => {
     setName("");
@@ -192,7 +191,7 @@ export function CreateAgentSheet({ open, onClose, onCreated }: Readonly<CreateAg
       }
 
       setHasSubmitted(true);
-      if (!isNameValid || !isDescriptionValid) {
+      if (!isNameValid) {
         return;
       }
 
@@ -202,7 +201,7 @@ export function CreateAgentSheet({ open, onClose, onCreated }: Readonly<CreateAg
       try {
         const createdAgent = await createAgent({
           name: trimmedName,
-          description: trimmedDescription,
+          ...(trimmedDescription ? { description: trimmedDescription } : {}),
         });
         resetForm();
         onClose();
@@ -214,14 +213,13 @@ export function CreateAgentSheet({ open, onClose, onCreated }: Readonly<CreateAg
       }
     },
     [
-      isDescriptionValid,
       isNameValid,
       isSubmitting,
       onClose,
       onCreated,
       resetForm,
-      trimmedDescription,
       trimmedName,
+      trimmedDescription,
     ]
   );
 
@@ -282,8 +280,8 @@ export function CreateAgentSheet({ open, onClose, onCreated }: Readonly<CreateAg
             label="Description"
             value={description}
             maxLength={AGENT_DESCRIPTION_MAX_LENGTH}
-            isInvalid={hasSubmitted && !isDescriptionValid}
-            errorMessage="Опис агента обов'язковий."
+            isInvalid={false}
+            errorMessage=""
             placeholder="Minimal internal agent foundation entry"
             onChange={setDescription}
             multiline

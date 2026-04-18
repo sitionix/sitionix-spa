@@ -2,7 +2,7 @@ import type {
   AgentDTO,
   CreateAgentRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-sitionix-113-unstable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 
 export type AutomationAgent = AgentDTO;
 export type CreateAgentRequest = CreateAgentRequestDTO;
