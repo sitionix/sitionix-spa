@@ -639,7 +639,7 @@ export function AgentOverviewPage() {
               <button
                 type="button"
                 disabled={lifecycleAction !== null || savingField !== null}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 py-3 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-zinc-400 disabled:opacity-100"
                 onClick={() => void runLifecycleAction("activate")}
               >
                 {lifecycleAction === "activate" ? (
@@ -655,7 +655,7 @@ export function AgentOverviewPage() {
               <button
                 type="button"
                 disabled={lifecycleAction !== null || savingField !== null}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm font-medium text-zinc-800 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-zinc-400 disabled:opacity-100"
                 onClick={() => void runLifecycleAction("archive")}
               >
                 {lifecycleAction === "archive" ? (
@@ -671,7 +671,7 @@ export function AgentOverviewPage() {
               <button
                 type="button"
                 disabled={lifecycleAction !== null || savingField !== null}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm font-medium text-zinc-800 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-70"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-blue-300 bg-white px-4 py-3 text-sm font-medium text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-zinc-400 disabled:opacity-100"
                 onClick={() => void runLifecycleAction("restore")}
               >
                 {lifecycleAction === "restore" ? (
@@ -687,7 +687,7 @@ export function AgentOverviewPage() {
               <button
                 type="button"
                 disabled={lifecycleAction !== null || savingField !== null}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-300 bg-white px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-zinc-400 disabled:opacity-100"
                 onClick={() => runLifecycleAction("delete")}
               >
                 {lifecycleAction === "delete" ? (
