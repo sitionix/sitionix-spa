@@ -106,8 +106,8 @@ export async function restoreAgent(agentId: string): Promise<AutomationAgent> {
 
 export async function deleteAgent(agentId: string): Promise<AutomationAgent> {
   const result = await requestJson<AutomationAgent, unknown, undefined>({
-    method: "POST",
-    path: `/api/v1/agents/${agentId}/delete`,
+    method: "DELETE",
+    path: `/api/v1/agents/${agentId}`,
   });
 
   if (result.ok) {
