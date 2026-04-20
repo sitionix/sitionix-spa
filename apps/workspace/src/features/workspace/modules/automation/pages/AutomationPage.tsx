@@ -120,11 +120,7 @@ export function AutomationPage() {
               key={agent.id}
               type="button"
               className="rounded-3xl border border-zinc-200 bg-white p-6 text-left shadow-sm transition hover:border-zinc-300 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
-              onClick={() => navigate(
-                agent.status === "ACTIVE"
-                  ? `/automation/agents/${agent.id}/chat`
-                  : `/automation/agents/${agent.id}`
-              )}
+              onClick={() => navigate(`/automation/agents/${agent.id}`)}
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
