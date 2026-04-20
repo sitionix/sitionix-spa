@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { SiteApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { SiteApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-116-unstable/apis";
 import { createSite, getSiteOverview, getSites } from "../../../../features/workspace/api/sitesApi";
 
 describe("sitesApi.createSite", () => {

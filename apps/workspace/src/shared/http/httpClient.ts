@@ -1,5 +1,5 @@
 import { authSessionManager, createBffFetchWithAuthRetry } from "@sitionix/auth-session";
-import { Configuration } from "@sitionix/app-afesox-bffssox-frontend-stable";
+import { Configuration } from "@sitionix/app-afesox-bffssox-frontend-sitionix-116-unstable";
 import { configureAuthSessionBridge, createRequestJson } from "@sitionix/http-client";
 import { publicEnv } from "../env/publicEnv";
 
