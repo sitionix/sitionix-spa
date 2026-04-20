@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-116-unstable/apis";
+import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
 
 vi.mock("../../../../shared/http/httpClient", async () => {
   const actual = await vi.importActual<typeof import("../../../../shared/http/httpClient")>(
