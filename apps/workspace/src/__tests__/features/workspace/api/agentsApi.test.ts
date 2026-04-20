@@ -15,6 +15,7 @@ vi.mock("../../../../shared/http/httpClient", async () => {
 import {
   activateAgent,
   archiveAgent,
+  chatAgent,
   createAgent,
   deleteAgent,
   getAgentById,
@@ -423,5 +424,46 @@ describe("agentsApi.lifecycle", () => {
     });
 
     await expect(deleteAgent("agent-7")).rejects.toThrow("Forbidden for workspace scope");
+  });
+});
+
+describe("agentsApi.chat", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    requestJsonMock.mockReset();
+  });
+
+  it("trims message and calls chat endpoint", async () => {
+    requestJsonMock.mockResolvedValue({
+      ok: true,
+      data: {
+        reply: "Assistant reply",
+      },
+    });
+
+    const result = await chatAgent("agent-11", "  Explain clean architecture  ");
+
+    expect(requestJsonMock).toHaveBeenCalledWith({
+      method: "POST",
+      path: "/api/v1/agents/agent-11/chat",
+      body: {
+        message: "Explain clean architecture",
+      },
+    });
+    expect(result.reply).toBe("Assistant reply");
+  });
+
+  it("throws when message is blank", async () => {
+    await expect(chatAgent("agent-11", "   ")).rejects.toThrow("Message is required");
+    expect(requestJsonMock).not.toHaveBeenCalled();
+  });
+
+  it("throws request error when chat request fails", async () => {
+    requestJsonMock.mockResolvedValue({
+      ok: false,
+      error: new Error("Gateway timeout"),
+    });
+
+    await expect(chatAgent("agent-11", "hello")).rejects.toThrow("Gateway timeout");
   });
 });
