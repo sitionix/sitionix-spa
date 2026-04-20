@@ -3,8 +3,7 @@ import type {
   CreateAgentRequestDTO,
   PatchAgentRequestDTO,
 } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
-import { bffApiConfiguration } from "../../../../../shared/http/httpClient";
-import { requestJson } from "../../../../../shared/http/httpClient";
+import { bffApiConfiguration, requestJson } from "../../../../../shared/http/httpClient";
 import type { AutomationAgent, CreateAgentRequest, PatchAgentRequest } from "../model/types";
 
 const agentApi = new AgentApi(bffApiConfiguration);

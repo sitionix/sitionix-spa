@@ -176,13 +176,23 @@ export function AgentOverviewPage() {
     setSaveError(null);
 
     try {
-      const updatedAgent = action === "activate"
-        ? await activateAgent(agent.id)
-        : action === "archive"
-          ? await archiveAgent(agent.id)
-          : action === "restore"
-            ? await restoreAgent(agent.id)
-            : await deleteAgent(agent.id);
+      let updatedAgent: AutomationAgent;
+      switch (action) {
+      case "activate":
+        updatedAgent = await activateAgent(agent.id);
+        break;
+      case "archive":
+        updatedAgent = await archiveAgent(agent.id);
+        break;
+      case "restore":
+        updatedAgent = await restoreAgent(agent.id);
+        break;
+      case "delete":
+        updatedAgent = await deleteAgent(agent.id);
+        break;
+      default:
+        return;
+      }
 
       if (action === "delete") {
         navigate("/automation");
@@ -202,12 +212,12 @@ export function AgentOverviewPage() {
       setDeleteConfirmOpen(true);
       return;
     }
-    void executeLifecycleAction(action);
+    executeLifecycleAction(action).catch(() => undefined);
   }, [executeLifecycleAction]);
 
   const confirmDeleteAction = useCallback(() => {
     setDeleteConfirmOpen(false);
-    void executeLifecycleAction("delete");
+    executeLifecycleAction("delete").catch(() => undefined);
   }, [executeLifecycleAction]);
 
   const startInstructionEditing = useCallback(() => {
@@ -640,7 +650,7 @@ export function AgentOverviewPage() {
                 type="button"
                 disabled={lifecycleAction !== null || savingField !== null}
                 className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 py-3 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-zinc-400 disabled:opacity-100"
-                onClick={() => void runLifecycleAction("activate")}
+                onClick={() => runLifecycleAction("activate")}
               >
                 {lifecycleAction === "activate" ? (
                   <>
@@ -656,7 +666,7 @@ export function AgentOverviewPage() {
                 type="button"
                 disabled={lifecycleAction !== null || savingField !== null}
                 className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm font-medium text-zinc-800 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-zinc-400 disabled:opacity-100"
-                onClick={() => void runLifecycleAction("archive")}
+                onClick={() => runLifecycleAction("archive")}
               >
                 {lifecycleAction === "archive" ? (
                   <>
@@ -672,7 +682,7 @@ export function AgentOverviewPage() {
                 type="button"
                 disabled={lifecycleAction !== null || savingField !== null}
                 className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-blue-300 bg-white px-4 py-3 text-sm font-medium text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-zinc-400 disabled:opacity-100"
-                onClick={() => void runLifecycleAction("restore")}
+                onClick={() => runLifecycleAction("restore")}
               >
                 {lifecycleAction === "restore" ? (
                   <>
