@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { formatDateTime } from "../../../../../features/workspace/model/formatters";
@@ -7,24 +7,30 @@ import { AgentOverviewPage } from "../../../../../features/workspace/modules/aut
 import {
   activateAgent,
   archiveAgent,
+  deleteAgent,
   getAgentById,
   getErrorHttpStatus,
   patchAgent,
+  restoreAgent,
 } from "../../../../../features/workspace/modules/automation/api";
 
 vi.mock("../../../../../features/workspace/modules/automation/api", () => ({
   activateAgent: vi.fn(),
   archiveAgent: vi.fn(),
+  deleteAgent: vi.fn(),
   getAgentById: vi.fn(),
   getErrorHttpStatus: vi.fn(),
   patchAgent: vi.fn(),
+  restoreAgent: vi.fn(),
 }));
 
 const activateAgentMock = vi.mocked(activateAgent);
 const archiveAgentMock = vi.mocked(archiveAgent);
+const deleteAgentMock = vi.mocked(deleteAgent);
 const getAgentByIdMock = vi.mocked(getAgentById);
 const getErrorHttpStatusMock = vi.mocked(getErrorHttpStatus);
 const patchAgentMock = vi.mocked(patchAgent);
+const restoreAgentMock = vi.mocked(restoreAgent);
 
 const agent = {
   id: "agent-1",
@@ -52,9 +58,11 @@ describe("AgentOverviewPage", () => {
   beforeEach(() => {
     activateAgentMock.mockReset();
     archiveAgentMock.mockReset();
+    deleteAgentMock.mockReset();
     getAgentByIdMock.mockReset();
     getErrorHttpStatusMock.mockReset();
     patchAgentMock.mockReset();
+    restoreAgentMock.mockReset();
     getErrorHttpStatusMock.mockReturnValue(null);
   });
 
@@ -374,7 +382,8 @@ describe("AgentOverviewPage", () => {
     expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
 
     expect(screen.getByRole("button", { name: "Activate" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Archive" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archive" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Activate" }));
 
@@ -382,27 +391,10 @@ describe("AgentOverviewPage", () => {
     expect(await screen.findAllByText("ACTIVE")).toHaveLength(2);
     expect(screen.queryByRole("button", { name: "Activate" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Archive" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
   });
 
-  it("requires confirmation for Archive and does not call api when user cancels", async () => {
-    getAgentByIdMock.mockResolvedValue({
-      ...agent,
-      status: "ACTIVE",
-    });
-    const user = userEvent.setup();
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
-
-    renderOverview();
-    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Archive" }));
-
-    expect(confirmSpy).toHaveBeenCalledTimes(1);
-    expect(archiveAgentMock).not.toHaveBeenCalled();
-    confirmSpy.mockRestore();
-  });
-
-  it("archives ACTIVE agent after confirmation and removes lifecycle action for ARCHIVED", async () => {
+  it("archives ACTIVE agent without confirmation", async () => {
     getAgentByIdMock.mockResolvedValue({
       ...agent,
       status: "ACTIVE",
@@ -413,7 +405,6 @@ describe("AgentOverviewPage", () => {
       updatedAt: "2026-04-14T12:00:00.000Z",
     });
     const user = userEvent.setup();
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
 
     renderOverview();
     expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
@@ -421,10 +412,30 @@ describe("AgentOverviewPage", () => {
     await user.click(screen.getByRole("button", { name: "Archive" }));
 
     expect(archiveAgentMock).toHaveBeenCalledWith("agent-1");
-    expect(await screen.findByText("This agent is archived. No lifecycle action is available in this version.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Activate" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Archive" })).not.toBeInTheDocument();
-    confirmSpy.mockRestore();
+    expect(await screen.findAllByText("ARCHIVED")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Restore" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+  });
+
+  it("restores ARCHIVED agent to DRAFT without confirmation", async () => {
+    getAgentByIdMock.mockResolvedValue({ ...agent, status: "ARCHIVED" });
+    restoreAgentMock.mockResolvedValue({
+      ...agent,
+      status: "DRAFT",
+      updatedAt: "2026-04-14T12:00:00.000Z",
+    });
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Restore" }));
+
+    expect(restoreAgentMock).toHaveBeenCalledWith("agent-1");
+    expect(await screen.findAllByText("DRAFT")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Activate" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archive" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
   });
 
   it("prevents duplicate lifecycle submit while activation is in progress", async () => {
@@ -495,7 +506,6 @@ describe("AgentOverviewPage", () => {
           resolveArchive = resolve;
         })
     );
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup();
 
     renderOverview();
@@ -516,8 +526,8 @@ describe("AgentOverviewPage", () => {
       });
     });
 
-    expect(await screen.findByText("This agent is archived. No lifecycle action is available in this version.")).toBeInTheDocument();
-    confirmSpy.mockRestore();
+    expect(await screen.findAllByText("ARCHIVED")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Restore" })).toBeInTheDocument();
   });
 
   it("shows archive error and allows retry to succeed", async () => {
@@ -532,7 +542,6 @@ describe("AgentOverviewPage", () => {
         status: "ARCHIVED",
         updatedAt: "2026-04-14T12:00:00.000Z",
       });
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup();
 
     renderOverview();
@@ -545,12 +554,12 @@ describe("AgentOverviewPage", () => {
     await user.click(screen.getByRole("button", { name: "Archive" }));
 
     expect(archiveAgentMock).toHaveBeenCalledTimes(2);
-    expect(await screen.findByText("This agent is archived. No lifecycle action is available in this version.")).toBeInTheDocument();
+    expect(await screen.findAllByText("ARCHIVED")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Restore" })).toBeInTheDocument();
     expect(screen.queryByText("Forbidden for workspace scope")).not.toBeInTheDocument();
-    confirmSpy.mockRestore();
   });
 
-  it("shows no primary lifecycle action for archived status", async () => {
+  it("shows Restore and Delete lifecycle actions for archived status", async () => {
     getAgentByIdMock.mockResolvedValue({
       ...agent,
       status: "ARCHIVED",
@@ -559,8 +568,57 @@ describe("AgentOverviewPage", () => {
     renderOverview();
     expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
 
+    expect(screen.getByRole("button", { name: "Restore" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Activate" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Archive" })).not.toBeInTheDocument();
-    expect(screen.getByText("This agent is archived. No lifecycle action is available in this version.")).toBeInTheDocument();
+  });
+
+  it("requires confirmation for Delete and does not call api when user cancels", async () => {
+    getAgentByIdMock.mockResolvedValue(agent);
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    const deleteDialogHeading = screen.getByRole("heading", { name: "Delete agent?" });
+    expect(deleteDialogHeading).toBeInTheDocument();
+    expect(deleteAgentMock).not.toHaveBeenCalled();
+
+    const deleteDialog = deleteDialogHeading.closest("div");
+    if (!deleteDialog) {
+      throw new Error("Delete confirmation dialog not found");
+    }
+    await user.click(within(deleteDialog).getByRole("button", { name: "Скасувати" }));
+    expect(screen.queryByRole("heading", { name: "Delete agent?" })).not.toBeInTheDocument();
+    expect(deleteAgentMock).not.toHaveBeenCalled();
+  });
+
+  it("deletes agent after confirmation and navigates to automation list", async () => {
+    getAgentByIdMock.mockResolvedValue({
+      ...agent,
+      status: "ACTIVE",
+    });
+    deleteAgentMock.mockResolvedValue({
+      ...agent,
+      status: "DELETED",
+      updatedAt: "2026-04-14T12:00:00.000Z",
+    });
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    const deleteDialogHeading = screen.getByRole("heading", { name: "Delete agent?" });
+    const deleteDialog = deleteDialogHeading.closest("div");
+    if (!deleteDialog) {
+      throw new Error("Delete confirmation dialog not found");
+    }
+    await user.click(within(deleteDialog).getByRole("button", { name: "Delete" }));
+
+    expect(deleteAgentMock).toHaveBeenCalledWith("agent-1");
+    expect(await screen.findByText("Automation Home")).toBeInTheDocument();
   });
 });
