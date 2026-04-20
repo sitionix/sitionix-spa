@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { Bot, Loader2, Plus, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../../../ui/components/PageHeader";
 import { formatDate } from "../../../model/formatters";
-import { getAgents } from "../api";
+import { activateAgent, getAgents, restoreAgent } from "../api";
 import { CreateAgentSheet } from "../components";
 import { LOAD_AUTOMATION_ERROR_TITLE } from "../model/constants";
 import { toAutomationErrorMessage } from "../model/mappers";
@@ -25,6 +25,8 @@ export function AutomationPage() {
   const [agents, setAgents] = useState<AutomationAgent[]>([]);
   const [status, setStatus] = useState<AutomationPageStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [cardActionLoadingById, setCardActionLoadingById] = useState<Record<string, boolean>>({});
+  const [cardActionErrorById, setCardActionErrorById] = useState<Record<string, string>>({});
 
   const loadAgents = useCallback(async () => {
     setStatus("loading");
@@ -50,6 +52,46 @@ export function AutomationPage() {
     setStatus("ready");
     setError(null);
   }, []);
+
+  const handleCardClick = useCallback((agentId: string) => {
+    navigate(`/automation/agents/${agentId}`);
+  }, [navigate]);
+
+  const handleCardKeyDown = useCallback((event: KeyboardEvent<HTMLElement>, agentId: string) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    event.preventDefault();
+    handleCardClick(agentId);
+  }, [handleCardClick]);
+
+  const handleCardCtaClick = useCallback(async (event: MouseEvent<HTMLButtonElement>, agent: AutomationAgent) => {
+    event.stopPropagation();
+    setCardActionErrorById((current) => ({ ...current, [agent.id]: "" }));
+
+    if (agent.status === "ACTIVE") {
+      navigate(`/automation/agents/${agent.id}/chat`);
+      return;
+    }
+
+    if (agent.status !== "DRAFT" && agent.status !== "ARCHIVED") {
+      return;
+    }
+
+    setCardActionLoadingById((current) => ({ ...current, [agent.id]: true }));
+    try {
+      const updatedAgent = agent.status === "DRAFT"
+        ? await activateAgent(agent.id)
+        : await restoreAgent(agent.id);
+      setAgents((currentAgents) => currentAgents.map((currentAgent) => (
+        currentAgent.id === updatedAgent.id ? updatedAgent : currentAgent
+      )));
+    } catch (actionError) {
+      setCardActionErrorById((current) => ({ ...current, [agent.id]: toAutomationErrorMessage(actionError) }));
+    } finally {
+      setCardActionLoadingById((current) => ({ ...current, [agent.id]: false }));
+    }
+  }, [navigate]);
 
   return (
     <>
@@ -116,15 +158,13 @@ export function AutomationPage() {
       {status === "ready" && agents.length > 0 ? (
         <div className="grid gap-4">
           {agents.map((agent) => (
-            <button
+            <article
               key={agent.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               className="rounded-3xl border border-zinc-200 bg-white p-6 text-left shadow-sm transition hover:border-zinc-300 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
-              onClick={() => navigate(
-                agent.status === "ACTIVE"
-                  ? `/automation/agents/${agent.id}/chat`
-                  : `/automation/agents/${agent.id}`
-              )}
+              onClick={() => handleCardClick(agent.id)}
+              onKeyDown={(event) => handleCardKeyDown(event, agent.id)}
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
@@ -139,11 +179,26 @@ export function AutomationPage() {
                   </p>
                 </div>
                 <div className="min-w-[160px] text-right text-xs text-zinc-500">
+                  {agent.status === "ACTIVE" || agent.status === "DRAFT" || agent.status === "ARCHIVED" ? (
+                    <button
+                      type="button"
+                      className="mb-4 inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                      disabled={Boolean(cardActionLoadingById[agent.id])}
+                      onClick={(event) => void handleCardCtaClick(event, agent)}
+                    >
+                      {cardActionLoadingById[agent.id]
+                        ? (agent.status === "DRAFT" ? "Activating..." : "Restoring...")
+                        : (agent.status === "ACTIVE" ? "Chat" : (agent.status === "DRAFT" ? "Activate" : "Restore"))}
+                    </button>
+                  ) : null}
                   <div>Created {formatDate(agent.createdAt)}</div>
                   <div className="mt-2">Updated {formatDate(agent.updatedAt)}</div>
                 </div>
               </div>
-            </button>
+              {cardActionErrorById[agent.id] ? (
+                <p className="mt-3 text-sm text-red-700">{cardActionErrorById[agent.id]}</p>
+              ) : null}
+            </article>
           ))}
         </div>
       ) : null}

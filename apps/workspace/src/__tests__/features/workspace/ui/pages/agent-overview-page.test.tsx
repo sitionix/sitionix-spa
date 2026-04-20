@@ -390,13 +390,16 @@ describe("AgentOverviewPage", () => {
 
     expect(activateAgentMock).toHaveBeenCalledWith("agent-1");
     expect(await screen.findAllByText("ACTIVE")).toHaveLength(2);
-    expect(screen.getAllByRole("button", { name: "Open chat" })).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Chat" })).toBeInTheDocument();
+    const lifecycleSection = screen.getByRole("heading", { name: "Lifecycle actions" }).closest("section");
+    expect(lifecycleSection).not.toBeNull();
+    expect(within(lifecycleSection as HTMLElement).queryByRole("button", { name: "Chat" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Activate" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Archive" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
   });
 
-  it("givenActiveAgent_whenOpenChatClicked_thenNavigatesToChatPage", async () => {
+  it("givenActiveAgent_whenChatClicked_thenNavigatesToChatPage", async () => {
     getAgentByIdMock.mockResolvedValue({
       ...agent,
       status: "ACTIVE",
@@ -406,7 +409,7 @@ describe("AgentOverviewPage", () => {
     renderOverview();
     expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
 
-    await user.click(screen.getAllByRole("button", { name: "Open chat" })[0]);
+    await user.click(screen.getByRole("button", { name: "Chat" }));
 
     expect(await screen.findByText("Agent Chat Page")).toBeInTheDocument();
   });

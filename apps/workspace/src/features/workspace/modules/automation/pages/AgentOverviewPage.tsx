@@ -400,7 +400,7 @@ export function AgentOverviewPage() {
                 onClick={() => navigate(`/automation/agents/${agent.id}/chat`)}
               >
                 <MessageSquareText className="h-4 w-4" />
-                Open chat
+                Chat
               </button>
             ) : null}
             <button
@@ -655,18 +655,7 @@ export function AgentOverviewPage() {
           </section>
 
           <section className="rounded-3xl border border-zinc-200 bg-white p-6">
-            <h2 className="text-lg font-semibold text-zinc-900">Quick actions</h2>
-            {canOpenChat ? (
-              <button
-                type="button"
-                disabled={lifecycleAction !== null || savingField !== null}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                onClick={() => navigate(`/automation/agents/${agent.id}/chat`)}
-              >
-                <MessageSquareText className="h-4 w-4" />
-                Open chat
-              </button>
-            ) : null}
+            <h2 className="text-lg font-semibold text-zinc-900">Lifecycle actions</h2>
             {canActivate ? (
               <button
                 type="button"
