@@ -4,7 +4,13 @@ import type {
   PatchAgentRequestDTO,
 } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 import { bffApiConfiguration, requestJson } from "../../../../../shared/http/httpClient";
-import type { AutomationAgent, CreateAgentRequest, PatchAgentRequest } from "../model/types";
+import type {
+  AutomationAgent,
+  ChatAgentRequest,
+  ChatAgentResponse,
+  CreateAgentRequest,
+  PatchAgentRequest,
+} from "../model/types";
 
 const agentApi = new AgentApi(bffApiConfiguration);
 
@@ -116,6 +122,28 @@ export async function deleteAgent(agentId: string): Promise<AutomationAgent> {
   throw result.error ?? new Error("Failed to delete agent");
 }
 
+export async function chatAgent(agentId: string, message: string): Promise<ChatAgentResponse> {
+  const normalizedMessage = message.trim();
+  if (!normalizedMessage) {
+    throw new Error("Message is required");
+  }
+
+  const requestBody: ChatAgentRequest = {
+    message: normalizedMessage,
+  };
+
+  const result = await requestJson<ChatAgentResponse, ChatAgentRequest, undefined>({
+    method: "POST",
+    path: `/api/v1/agents/${agentId}/chat`,
+    body: requestBody,
+  });
+  if (result.ok) {
+    return result.data;
+  }
+
+  throw result.error ?? new Error("Failed to chat with agent");
+}
+
 type ErrorWithStatus = {
   status?: unknown;
   response?: {
@@ -149,5 +177,6 @@ export const agentsApi = {
   archiveAgent,
   restoreAgent,
   deleteAgent,
+  chatAgent,
   getErrorHttpStatus,
 };

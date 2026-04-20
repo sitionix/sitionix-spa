@@ -58,12 +58,18 @@ function AgentDetailsRouteProbe() {
   return <div>Agent details route: {agentId}</div>;
 }
 
+function AgentChatRouteProbe() {
+  const { agentId } = useParams<{ agentId: string }>();
+  return <div>Agent chat route: {agentId}</div>;
+}
+
 function renderAutomationPage() {
   return render(
     <MemoryRouter initialEntries={["/automation"]}>
       <Routes>
         <Route path="/automation" element={<AutomationPage />} />
         <Route path="/automation/agents/:agentId" element={<AgentDetailsRouteProbe />} />
+        <Route path="/automation/agents/:agentId/chat" element={<AgentChatRouteProbe />} />
       </Routes>
     </MemoryRouter>
   );
@@ -135,7 +141,7 @@ describe("AutomationPage", () => {
     });
   });
 
-  it("navigates to agent overview route when agent card is clicked", async () => {
+  it("givenDraftAgent_whenCardClicked_thenNavigatesToAgentOverviewRoute", async () => {
     getAgentsMock.mockResolvedValue([
       {
         id: "agent-44",
@@ -155,6 +161,48 @@ describe("AutomationPage", () => {
 
     expect(await screen.findByText("Agent details route: agent-44")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Emit created" })).not.toBeInTheDocument();
+  });
+
+  it("givenArchivedAgent_whenCardClicked_thenNavigatesToAgentOverviewRoute", async () => {
+    getAgentsMock.mockResolvedValue([
+      {
+        id: "agent-52",
+        name: "Archived Routing Agent",
+        description: "Description",
+        status: "ARCHIVED",
+        createdAt: "2026-04-10T10:00:00.000Z",
+        updatedAt: "2026-04-10T10:00:00.000Z",
+      },
+    ]);
+
+    const user = userEvent.setup();
+    renderAutomationPage();
+
+    const card = await screen.findByRole("button", { name: /Archived Routing Agent/i });
+    await user.click(card);
+
+    expect(await screen.findByText("Agent details route: agent-52")).toBeInTheDocument();
+  });
+
+  it("givenActiveAgent_whenCardClicked_thenNavigatesToAgentChatRoute", async () => {
+    getAgentsMock.mockResolvedValue([
+      {
+        id: "agent-90",
+        name: "Active Routing Agent",
+        description: "Description",
+        status: "ACTIVE",
+        createdAt: "2026-04-10T10:00:00.000Z",
+        updatedAt: "2026-04-10T10:00:00.000Z",
+      },
+    ]);
+
+    const user = userEvent.setup();
+    renderAutomationPage();
+
+    const card = await screen.findByRole("button", { name: /Active Routing Agent/i });
+    await user.click(card);
+
+    expect(await screen.findByText("Agent chat route: agent-90")).toBeInTheDocument();
   });
 
   it("renders lifecycle statuses in agent list cards", async () => {
