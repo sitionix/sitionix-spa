@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { ArrowLeft, Clock3, Loader2, Pencil, Sparkles } from "lucide-react";
+import { ArrowLeft, Clock3, Loader2, MessageSquareText, Pencil, Sparkles } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../../../ui/components/PageHeader";
 import { ConfirmationDialog } from "../../../ui/components/ConfirmationDialog";
@@ -384,6 +384,7 @@ export function AgentOverviewPage() {
   const canArchive = agent.status === "DRAFT" || agent.status === "ACTIVE";
   const canRestore = agent.status === "ARCHIVED";
   const canDelete = agent.status !== "DELETED";
+  const canOpenChat = agent.status === "ACTIVE";
 
   return (
     <div className="grid gap-6">
@@ -392,6 +393,16 @@ export function AgentOverviewPage() {
         subtitle="Main workspace home for this automation agent."
         actions={
           <>
+            {canOpenChat ? (
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
+                onClick={() => navigate(`/automation/agents/${agent.id}/chat`)}
+              >
+                <MessageSquareText className="h-4 w-4" />
+                Open chat
+              </button>
+            ) : null}
             <button
               type="button"
               className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
@@ -645,6 +656,17 @@ export function AgentOverviewPage() {
 
           <section className="rounded-3xl border border-zinc-200 bg-white p-6">
             <h2 className="text-lg font-semibold text-zinc-900">Quick actions</h2>
+            {canOpenChat ? (
+              <button
+                type="button"
+                disabled={lifecycleAction !== null || savingField !== null}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                onClick={() => navigate(`/automation/agents/${agent.id}/chat`)}
+              >
+                <MessageSquareText className="h-4 w-4" />
+                Open chat
+              </button>
+            ) : null}
             {canActivate ? (
               <button
                 type="button"

@@ -48,6 +48,7 @@ function renderOverview(initialPath = "/automation/agents/agent-1") {
       <Routes>
         <Route path="/automation" element={<div>Automation Home</div>} />
         <Route path="/automation/agents/:agentId" element={<AgentOverviewPage />} />
+        <Route path="/automation/agents/:agentId/chat" element={<div>Agent Chat Page</div>} />
         <Route path="/automation/agents" element={<AgentOverviewPage />} />
       </Routes>
     </MemoryRouter>
@@ -389,9 +390,25 @@ describe("AgentOverviewPage", () => {
 
     expect(activateAgentMock).toHaveBeenCalledWith("agent-1");
     expect(await screen.findAllByText("ACTIVE")).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Open chat" })).toHaveLength(2);
     expect(screen.queryByRole("button", { name: "Activate" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Archive" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+  });
+
+  it("givenActiveAgent_whenOpenChatClicked_thenNavigatesToChatPage", async () => {
+    getAgentByIdMock.mockResolvedValue({
+      ...agent,
+      status: "ACTIVE",
+    });
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: "Open chat" })[0]);
+
+    expect(await screen.findByText("Agent Chat Page")).toBeInTheDocument();
   });
 
   it("archives ACTIVE agent without confirmation", async () => {
