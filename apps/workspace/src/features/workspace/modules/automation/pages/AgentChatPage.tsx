@@ -251,7 +251,7 @@ export function AgentChatPage() {
             </div>
           </div>
         ))}
-        {publicEnv.ffAgentChatTypingIndicator ? (
+        {publicEnv.ffAgentChatTypingIndicator && isSending ? (
           <div className="mt-auto flex justify-start pt-3" aria-live="polite" aria-label={`${agent.name} typing indicator`}>
             <div className="inline-flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-2 text-[13px] font-medium leading-5 text-blue-800 shadow-sm">
               <PencilLine className="h-3.5 w-3.5 animate-pulse text-blue-600" />

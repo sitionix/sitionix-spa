@@ -137,6 +137,7 @@ describe("AgentChatPage", () => {
     renderChatPage();
 
     await screen.findByRole("heading", { name: "Active Agent" });
+    expect(screen.queryByLabelText("Active Agent typing indicator")).not.toBeInTheDocument();
     await user.type(screen.getByLabelText("Message"), "What is SOLID?");
 
     const sendButton = screen.getByRole("button", { name: "Send" });
@@ -151,7 +152,7 @@ describe("AgentChatPage", () => {
       resolveChat?.({ reply: "SOLID are five principles." });
     });
 
-    expect(screen.getByLabelText("Active Agent typing indicator")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Active Agent typing indicator")).not.toBeInTheDocument();
     expect(await screen.findByText("SOLID are five principles.")).toBeInTheDocument();
   });
 
