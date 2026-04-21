@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { chatAgent, getAgentById, getErrorHttpStatus } from "../api";
 import { toAutomationErrorMessage } from "../model/mappers";
 import type { AutomationAgent } from "../model/types";
+import { publicEnv } from "../../../../../shared/env/publicEnv";
 
 type AgentChatState = "loading" | "ready" | "not_found" | "error";
 type ChatRole = "user" | "assistant";
@@ -250,17 +251,19 @@ export function AgentChatPage() {
             </div>
           </div>
         ))}
-        <div className="mt-auto flex justify-start pt-3" aria-live="polite" aria-label={`${agent.name} typing indicator`}>
-          <div className="inline-flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-2 text-[13px] font-medium leading-5 text-blue-800 shadow-sm">
-            <PencilLine className="h-3.5 w-3.5 animate-pulse text-blue-600" />
-            <span>{agent.name} is typing</span>
-            <span className="inline-flex items-center gap-1" aria-hidden="true">
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-600 [animation-delay:-0.3s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-600 [animation-delay:-0.15s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-600" />
-            </span>
+        {publicEnv.ffAgentChatTypingIndicator ? (
+          <div className="mt-auto flex justify-start pt-3" aria-live="polite" aria-label={`${agent.name} typing indicator`}>
+            <div className="inline-flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-2 text-[13px] font-medium leading-5 text-blue-800 shadow-sm">
+              <PencilLine className="h-3.5 w-3.5 animate-pulse text-blue-600" />
+              <span>{agent.name} is typing</span>
+              <span className="inline-flex items-center gap-1" aria-hidden="true">
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-600 [animation-delay:-0.3s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-600 [animation-delay:-0.15s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-600" />
+              </span>
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
 
       <div className={`rounded-3xl bg-white p-6 ${sendError ? "border border-red-200" : "border border-zinc-200"}`}>
