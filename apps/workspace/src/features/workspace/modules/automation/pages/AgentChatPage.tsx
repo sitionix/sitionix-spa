@@ -250,19 +250,17 @@ export function AgentChatPage() {
             </div>
           </div>
         ))}
-        {isSending ? (
-          <div className="flex justify-start" aria-live="polite" aria-label={`${agent.name} is typing`}>
-            <div className="inline-flex items-center gap-2 rounded-2xl bg-zinc-100 px-3 py-2 text-[13px] leading-5 text-zinc-700">
-              <PencilLine className="h-3.5 w-3.5 animate-pulse text-zinc-500" />
-              <span>{agent.name} is typing</span>
-              <span className="inline-flex items-center gap-1" aria-hidden="true">
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-500 [animation-delay:-0.3s]" />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-500 [animation-delay:-0.15s]" />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-500" />
-              </span>
-            </div>
+        <div className="flex justify-start" aria-live="polite" aria-label={`${agent.name} typing indicator`}>
+          <div className="inline-flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-2 text-[13px] font-medium leading-5 text-blue-800 shadow-sm">
+            <PencilLine className="h-3.5 w-3.5 animate-pulse text-blue-600" />
+            <span>{agent.name} is typing</span>
+            <span className="inline-flex items-center gap-1" aria-hidden="true">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-600 [animation-delay:-0.3s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-600 [animation-delay:-0.15s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-600" />
+            </span>
           </div>
-        ) : null}
+        </div>
       </div>
 
       <div className={`rounded-3xl bg-white p-6 ${sendError ? "border border-red-200" : "border border-zinc-200"}`}>
