@@ -90,6 +90,26 @@ describe("AgentChatPage", () => {
     expect(await screen.findByText("Restore the agent first.")).toBeInTheDocument();
   });
 
+  it("givenAgentLoadReturns404_whenPageLoaded_thenRendersNotFoundState", async () => {
+    getAgentByIdMock.mockRejectedValue(new Error("Not found"));
+    getErrorHttpStatusMock.mockReturnValue(404);
+
+    renderChatPage();
+
+    expect(await screen.findByText("Agent not found")).toBeInTheDocument();
+    expect(screen.getByText("Back to Automation")).toBeInTheDocument();
+  });
+
+  it("givenAgentLoadFailsWithNon404_whenPageLoaded_thenRendersLoadErrorState", async () => {
+    getAgentByIdMock.mockRejectedValue(new Error("Gateway timeout"));
+    getErrorHttpStatusMock.mockReturnValue(502);
+
+    renderChatPage();
+
+    expect(await screen.findByText("Unable to load Agent Chat")).toBeInTheDocument();
+    expect(screen.getByText("Gateway timeout")).toBeInTheDocument();
+  });
+
   it("givenActiveAgent_whenSendMessage_thenCallsApiAndRendersReply", async () => {
     getAgentByIdMock.mockResolvedValue({
       id: "agent-1",
