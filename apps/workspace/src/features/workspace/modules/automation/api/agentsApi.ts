@@ -5,6 +5,8 @@ import type {
 } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 import { bffApiConfiguration, requestJson } from "../../../../../shared/http/httpClient";
 import type {
+  AgentConversationDetails,
+  AgentConversationsResponse,
   AutomationAgent,
   ChatAgentRequest,
   ChatAgentResponse,
@@ -122,8 +124,39 @@ export async function deleteAgent(agentId: string): Promise<AutomationAgent> {
   throw result.error ?? new Error("Failed to delete agent");
 }
 
-export async function chatAgent(agentId: string, message: string): Promise<ChatAgentResponse> {
-  const normalizedMessage = message.trim();
+export async function getAgentConversations(agentId: string): Promise<AgentConversationsResponse> {
+  const result = await requestJson<AgentConversationsResponse, undefined, undefined>({
+    method: "GET",
+    path: `/api/v1/agents/${agentId}/conversations`,
+  });
+
+  if (result.ok) {
+    return {
+      items: Array.isArray(result.data.items) ? result.data.items : [],
+    };
+  }
+
+  throw result.error ?? new Error("Failed to load agent conversations");
+}
+
+export async function getAgentConversation(agentId: string, conversationId: string): Promise<AgentConversationDetails> {
+  const result = await requestJson<AgentConversationDetails, undefined, undefined>({
+    method: "GET",
+    path: `/api/v1/agents/${agentId}/conversations/${conversationId}`,
+  });
+
+  if (result.ok) {
+    return {
+      ...result.data,
+      messages: Array.isArray(result.data.messages) ? result.data.messages : [],
+    };
+  }
+
+  throw result.error ?? new Error("Failed to load agent conversation");
+}
+
+export async function chatAgent(agentId: string, payload: ChatAgentRequest): Promise<ChatAgentResponse> {
+  const normalizedMessage = payload.message.trim();
   if (!normalizedMessage) {
     throw new Error("Message is required");
   }
@@ -131,6 +164,10 @@ export async function chatAgent(agentId: string, message: string): Promise<ChatA
   const requestBody: ChatAgentRequest = {
     message: normalizedMessage,
   };
+
+  if (payload.conversationId) {
+    requestBody.conversationId = payload.conversationId;
+  }
 
   const result = await requestJson<ChatAgentResponse, ChatAgentRequest, undefined>({
     method: "POST",
@@ -177,6 +214,8 @@ export const agentsApi = {
   archiveAgent,
   restoreAgent,
   deleteAgent,
+  getAgentConversations,
+  getAgentConversation,
   chatAgent,
   getErrorHttpStatus,
 };
