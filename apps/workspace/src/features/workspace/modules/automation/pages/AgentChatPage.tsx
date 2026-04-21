@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Send } from "lucide-react";
+import { ArrowLeft, Loader2, RefreshCw, Send } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { chatAgent, getAgentById, getErrorHttpStatus } from "../api";
 import { toAutomationErrorMessage } from "../model/mappers";
@@ -11,6 +11,8 @@ type ChatMessage = {
   id: string;
   role: ChatRole;
   text: string;
+  failed?: boolean;
+  error?: string | null;
 };
 
 function getStatusBadgeClass(status: AutomationAgent["status"]): string {
@@ -61,6 +63,31 @@ export function AgentChatPage() {
     void load();
   }, [agentId]);
 
+  const deliverMessage = useCallback(async (messageText: string, messageId: string) => {
+    if (!agentId) {
+      return;
+    }
+
+    try {
+      const response = await chatAgent(agentId, messageText);
+      setMessages((current) => current.map((message) => (
+        message.id === messageId
+          ? { ...message, failed: false, error: null }
+          : message
+      )));
+      setMessages((current) => [
+        ...current,
+        { id: `${Date.now()}-assistant`, role: "assistant", text: response.reply },
+      ]);
+    } catch (error) {
+      setMessages((current) => current.map((message) => (
+        message.id === messageId
+          ? { ...message, failed: true, error: toAutomationErrorMessage(error) }
+          : message
+      )));
+    }
+  }, [agentId]);
+
   const sendMessage = useCallback(async () => {
     if (!agent || !agentId || isSending) {
       return;
@@ -73,24 +100,37 @@ export function AgentChatPage() {
     setSendError(null);
     setIsSending(true);
     setDraftMessage("");
+    const messageId = `${Date.now()}-user`;
     setMessages((current) => [
       ...current,
-      { id: `${Date.now()}-user`, role: "user", text: message },
+      { id: messageId, role: "user", text: message, failed: false, error: null },
     ]);
 
-    try {
-      const response = await chatAgent(agentId, message);
-      setMessages((current) => [
-        ...current,
-        { id: `${Date.now()}-assistant`, role: "assistant", text: response.reply },
-      ]);
-    } catch (error) {
-      setSendError(toAutomationErrorMessage(error));
-      setDraftMessage(message);
-    } finally {
-      setIsSending(false);
+    await deliverMessage(message, messageId);
+    setIsSending(false);
+  }, [agent, agentId, deliverMessage, draftMessage, isSending]);
+
+  const retryMessage = useCallback(async (messageId: string) => {
+    if (isSending) {
+      return;
     }
-  }, [agent, agentId, draftMessage, isSending]);
+
+    const messageToRetry = messages.find((message) => message.id === messageId);
+    if (!messageToRetry || messageToRetry.role !== "user") {
+      setSendError("Unexpected error while retrying message.");
+      return;
+    }
+
+    setSendError(null);
+    setIsSending(true);
+    setMessages((current) => current.map((message) => (
+      message.id === messageId
+        ? { ...message, failed: false, error: null }
+        : message
+    )));
+    await deliverMessage(messageToRetry.text, messageId);
+    setIsSending(false);
+  }, [deliverMessage, isSending, messages]);
 
   if (status === "loading") {
     return (
@@ -186,17 +226,33 @@ export function AgentChatPage() {
             <div
               className={`max-w-[72%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-[13px] leading-5 ${
                 message.role === "user"
-                  ? "bg-blue-600 text-white"
+                  ? (message.failed ? "border border-red-300 bg-red-50 text-red-700" : "bg-blue-600 text-white")
                   : "bg-zinc-100 text-zinc-800"
               }`}
             >
               {message.text}
+              {message.role === "user" && message.failed ? (
+                <div className="mt-2 flex items-center justify-end gap-2">
+                  <span className="text-[11px] text-red-600">
+                    {message.error ?? "Message was not sent."}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Retry message"
+                    disabled={isSending}
+                    onClick={() => void retryMessage(message.id)}
+                    className="inline-flex items-center rounded-lg border border-red-300 bg-white p-1 text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${isSending ? "animate-spin" : ""}`} />
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         ))}
       </div>
 
-      <div className="rounded-3xl border border-zinc-200 bg-white p-6">
+      <div className={`rounded-3xl bg-white p-6 ${sendError ? "border border-red-200" : "border border-zinc-200"}`}>
         <label className="mb-2 block text-sm font-medium text-zinc-700" htmlFor="agent-chat-input">
           Message
         </label>

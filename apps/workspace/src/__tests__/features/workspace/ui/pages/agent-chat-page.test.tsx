@@ -110,6 +110,7 @@ describe("AgentChatPage", () => {
     await user.click(screen.getByRole("button", { name: "Send" }));
 
     expect(chatAgentMock).toHaveBeenCalledWith("agent-1", "Explain clean architecture");
+    expect(screen.getByLabelText("Message")).toHaveValue("");
     expect(await screen.findByText("Explain clean architecture")).toBeInTheDocument();
     expect(await screen.findByText("Clean architecture keeps business rules independent.")).toBeInTheDocument();
   });
@@ -152,7 +153,7 @@ describe("AgentChatPage", () => {
     expect(await screen.findByText("SOLID are five principles.")).toBeInTheDocument();
   });
 
-  it("givenChatRequestFailure_whenSendMessage_thenShowsRecoverableErrorAndAllowsRetry", async () => {
+  it("givenChatRequestFailure_whenSendMessage_thenShowsRetryOnFailedMessageAndKeepsInputCleared", async () => {
     getAgentByIdMock.mockResolvedValue({
       id: "agent-1",
       name: "Active Agent",
@@ -174,11 +175,13 @@ describe("AgentChatPage", () => {
     await user.click(screen.getByRole("button", { name: "Send" }));
 
     expect(await screen.findByText("Provider unavailable")).toBeInTheDocument();
-    expect(screen.getByLabelText("Message")).toHaveValue("Retry message");
+    expect(screen.getByLabelText("Message")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Retry message" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Send" }));
+    await user.click(screen.getByRole("button", { name: "Retry message" }));
 
     expect(chatAgentMock).toHaveBeenCalledTimes(2);
+    expect(chatAgentMock).toHaveBeenNthCalledWith(2, "agent-1", "Retry message");
     expect(await screen.findByText("Recovered response")).toBeInTheDocument();
   });
 });
