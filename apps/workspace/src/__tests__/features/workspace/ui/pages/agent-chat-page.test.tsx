@@ -111,7 +111,7 @@ describe("AgentChatPage", () => {
     expect(await screen.findByRole("heading", { level: 2, name: "Most recent" })).toBeInTheDocument();
     expect(await screen.findByText("first")).toBeInTheDocument();
     expect(await screen.findByText("reply")).toBeInTheDocument();
-    expect(getAgentConversationMock).toHaveBeenCalledWith("agent-1", "conv-2");
+    expect(getAgentConversationMock).toHaveBeenCalledWith("conv-2");
   });
 
   it("givenNoConversations_whenPageLoaded_thenShowsEmptyDraftState", async () => {
@@ -334,7 +334,7 @@ describe("AgentChatPage", () => {
     expect(screen.getByText("invalid-date")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Second/ }));
 
-    expect(getAgentConversationMock).toHaveBeenLastCalledWith("agent-1", "conv-2");
+    expect(getAgentConversationMock).toHaveBeenLastCalledWith("conv-2");
     expect(await screen.findByText("second history")).toBeInTheDocument();
   });
 
