@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AgentChatPage } from "../../../../../features/workspace/modules/automation/pages/AgentChatPage";
 import { chatAgent, getAgentById, getErrorHttpStatus } from "../../../../../features/workspace/modules/automation/api";
-import { publicEnv } from "../../../../../shared/env/publicEnv";
 
 vi.mock("../../../../../features/workspace/modules/automation/api", () => ({
   chatAgent: vi.fn(),
@@ -34,7 +33,6 @@ describe("AgentChatPage", () => {
     getAgentByIdMock.mockReset();
     getErrorHttpStatusMock.mockReset();
     getErrorHttpStatusMock.mockReturnValue(null);
-    publicEnv.ffAgentChatTypingIndicator = true;
   });
 
   it("givenActiveAgent_whenPageLoaded_thenRendersChatUi", async () => {
@@ -210,39 +208,4 @@ describe("AgentChatPage", () => {
     expect(await screen.findByText("Recovered response")).toBeInTheDocument();
   });
 
-  it("givenTypingIndicatorFeatureFlagDisabled_whenRequestInFlight_thenDoesNotRenderTypingIndicator", async () => {
-    publicEnv.ffAgentChatTypingIndicator = false;
-    getAgentByIdMock.mockResolvedValue({
-      id: "agent-1",
-      name: "Active Agent",
-      description: "Description",
-      instruction: "Instruction",
-      status: "ACTIVE",
-      createdAt: "2026-04-10T10:00:00.000Z",
-      updatedAt: "2026-04-10T10:00:00.000Z",
-    });
-    let resolveChat: ((value: { reply: string }) => void) | null = null;
-    chatAgentMock.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveChat = resolve;
-        })
-    );
-    const user = userEvent.setup();
-
-    renderChatPage();
-
-    await screen.findByRole("heading", { name: "Active Agent" });
-    await user.type(screen.getByLabelText("Message"), "Will the typing indicator show?");
-    await user.click(screen.getByRole("button", { name: "Send" }));
-
-    expect(screen.queryByLabelText("Active Agent typing indicator")).not.toBeInTheDocument();
-
-    await act(async () => {
-      resolveChat?.({ reply: "No typing indicator while FF is disabled." });
-    });
-
-    expect(await screen.findByText("No typing indicator while FF is disabled.")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Active Agent typing indicator")).not.toBeInTheDocument();
-  });
 });
