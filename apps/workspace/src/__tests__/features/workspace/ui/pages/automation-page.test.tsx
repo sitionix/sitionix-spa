@@ -3,10 +3,12 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { AutomationPage } from "../../../../../features/workspace/modules/automation/pages/AutomationPage";
-import { getAgents } from "../../../../../features/workspace/modules/automation/api/agentsApi";
+import { activateAgent, getAgents, restoreAgent } from "../../../../../features/workspace/modules/automation/api/agentsApi";
 
 vi.mock("../../../../../features/workspace/modules/automation/api/agentsApi", () => ({
+  activateAgent: vi.fn(),
   getAgents: vi.fn(),
+  restoreAgent: vi.fn(),
 }));
 
 vi.mock("../../../../../features/workspace/modules/automation/components/CreateAgentSheet", () => ({
@@ -51,11 +53,18 @@ vi.mock("../../../../../features/workspace/modules/automation/components/CreateA
   ),
 }));
 
+const activateAgentMock = vi.mocked(activateAgent);
 const getAgentsMock = vi.mocked(getAgents);
+const restoreAgentMock = vi.mocked(restoreAgent);
 
 function AgentDetailsRouteProbe() {
   const { agentId } = useParams<{ agentId: string }>();
   return <div>Agent details route: {agentId}</div>;
+}
+
+function AgentChatRouteProbe() {
+  const { agentId } = useParams<{ agentId: string }>();
+  return <div>Agent chat route: {agentId}</div>;
 }
 
 function renderAutomationPage() {
@@ -64,6 +73,7 @@ function renderAutomationPage() {
       <Routes>
         <Route path="/automation" element={<AutomationPage />} />
         <Route path="/automation/agents/:agentId" element={<AgentDetailsRouteProbe />} />
+        <Route path="/automation/agents/:agentId/chat" element={<AgentChatRouteProbe />} />
       </Routes>
     </MemoryRouter>
   );
@@ -71,7 +81,9 @@ function renderAutomationPage() {
 
 describe("AutomationPage", () => {
   beforeEach(() => {
+    activateAgentMock.mockReset();
     getAgentsMock.mockReset();
+    restoreAgentMock.mockReset();
   });
 
   it("renders empty state when no agents are returned", async () => {
@@ -135,7 +147,30 @@ describe("AutomationPage", () => {
     });
   });
 
-  it("navigates to agent overview route when agent card is clicked", async () => {
+  it("opens and closes create sheet", async () => {
+    getAgentsMock.mockResolvedValue([
+      {
+        id: "agent-1",
+        name: "Existing Agent",
+        description: "Description",
+        status: "DRAFT",
+        createdAt: "2026-04-10T10:00:00.000Z",
+        updatedAt: "2026-04-10T10:00:00.000Z",
+      },
+    ]);
+
+    const user = userEvent.setup();
+    renderAutomationPage();
+
+    expect(await screen.findByText("Existing Agent")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Create Agent" }));
+    expect(screen.getByRole("button", { name: "Close mocked sheet" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Close mocked sheet" }));
+    expect(screen.queryByRole("button", { name: "Close mocked sheet" })).not.toBeInTheDocument();
+  });
+
+  it("givenDraftAgent_whenCardClicked_thenNavigatesToAgentOverviewRoute", async () => {
     getAgentsMock.mockResolvedValue([
       {
         id: "agent-44",
@@ -155,6 +190,188 @@ describe("AutomationPage", () => {
 
     expect(await screen.findByText("Agent details route: agent-44")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Emit created" })).not.toBeInTheDocument();
+  });
+
+  it("givenDraftAgent_whenCardEnterPressed_thenNavigatesToAgentOverviewRoute", async () => {
+    getAgentsMock.mockResolvedValue([
+      {
+        id: "agent-44",
+        name: "Routing Agent",
+        description: "Description",
+        status: "DRAFT",
+        createdAt: "2026-04-10T10:00:00.000Z",
+        updatedAt: "2026-04-10T10:00:00.000Z",
+      },
+    ]);
+
+    const user = userEvent.setup();
+    renderAutomationPage();
+
+    const card = await screen.findByRole("button", { name: /Routing Agent/i });
+    card.focus();
+    await user.keyboard("{Enter}");
+
+    expect(await screen.findByText("Agent details route: agent-44")).toBeInTheDocument();
+  });
+
+  it("givenArchivedAgent_whenCardClicked_thenNavigatesToAgentOverviewRoute", async () => {
+    getAgentsMock.mockResolvedValue([
+      {
+        id: "agent-52",
+        name: "Archived Routing Agent",
+        description: "Description",
+        status: "ARCHIVED",
+        createdAt: "2026-04-10T10:00:00.000Z",
+        updatedAt: "2026-04-10T10:00:00.000Z",
+      },
+    ]);
+
+    const user = userEvent.setup();
+    renderAutomationPage();
+
+    const card = await screen.findByRole("button", { name: /Archived Routing Agent/i });
+    await user.click(card);
+
+    expect(await screen.findByText("Agent details route: agent-52")).toBeInTheDocument();
+  });
+
+  it("givenActiveAgent_whenCardClicked_thenNavigatesToAgentOverviewRoute", async () => {
+    getAgentsMock.mockResolvedValue([
+      {
+        id: "agent-90",
+        name: "Active Routing Agent",
+        description: "Description",
+        status: "ACTIVE",
+        createdAt: "2026-04-10T10:00:00.000Z",
+        updatedAt: "2026-04-10T10:00:00.000Z",
+      },
+    ]);
+
+    const user = userEvent.setup();
+    renderAutomationPage();
+
+    const card = await screen.findByRole("button", { name: /Active Routing Agent/i });
+    await user.click(card);
+
+    expect(await screen.findByText("Agent details route: agent-90")).toBeInTheDocument();
+  });
+
+  it("givenActiveAgent_whenChatCtaClicked_thenNavigatesToAgentChatRoute", async () => {
+    getAgentsMock.mockResolvedValue([
+      {
+        id: "agent-90",
+        name: "Active Routing Agent",
+        description: "Description",
+        status: "ACTIVE",
+        createdAt: "2026-04-10T10:00:00.000Z",
+        updatedAt: "2026-04-10T10:00:00.000Z",
+      },
+    ]);
+
+    const user = userEvent.setup();
+    renderAutomationPage();
+
+    await screen.findByRole("button", { name: /Active Routing Agent/i });
+    await user.click(screen.getByRole("button", { name: "Chat" }));
+
+    expect(await screen.findByText("Agent chat route: agent-90")).toBeInTheDocument();
+  });
+
+  it("givenDraftAgent_whenActivateCtaClicked_thenActivatesAgentAndShowsChatCta", async () => {
+    getAgentsMock.mockResolvedValue([
+      {
+        id: "agent-44",
+        name: "Draft Agent",
+        description: "Description",
+        status: "DRAFT",
+        createdAt: "2026-04-10T10:00:00.000Z",
+        updatedAt: "2026-04-10T10:00:00.000Z",
+      },
+    ]);
+    activateAgentMock.mockResolvedValue({
+      id: "agent-44",
+      name: "Draft Agent",
+      description: "Description",
+      status: "ACTIVE",
+      createdAt: "2026-04-10T10:00:00.000Z",
+      updatedAt: "2026-04-12T10:00:00.000Z",
+    });
+
+    const user = userEvent.setup();
+    renderAutomationPage();
+
+    expect(await screen.findByRole("button", { name: "Activate" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Activate" }));
+
+    expect(activateAgentMock).toHaveBeenCalledWith("agent-44");
+    expect(await screen.findByText("ACTIVE")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Chat" })).toBeInTheDocument();
+  });
+
+  it("givenDraftAgent_whenActivateFails_thenShowsRecoverableError", async () => {
+    getAgentsMock.mockResolvedValue([
+      {
+        id: "agent-44",
+        name: "Draft Agent",
+        description: "Description",
+        status: "DRAFT",
+        createdAt: "2026-04-10T10:00:00.000Z",
+        updatedAt: "2026-04-10T10:00:00.000Z",
+      },
+    ]);
+    activateAgentMock
+      .mockRejectedValueOnce(new Error("Activate failed"))
+      .mockResolvedValueOnce({
+        id: "agent-44",
+        name: "Draft Agent",
+        description: "Description",
+        status: "ACTIVE",
+        createdAt: "2026-04-10T10:00:00.000Z",
+        updatedAt: "2026-04-12T10:00:00.000Z",
+      });
+
+    const user = userEvent.setup();
+    renderAutomationPage();
+
+    const activateButton = await screen.findByRole("button", { name: "Activate" });
+    await user.click(activateButton);
+
+    expect(await screen.findByText("Activate failed")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Activate" }));
+    expect(activateAgentMock).toHaveBeenCalledTimes(2);
+    expect(await screen.findByRole("button", { name: "Chat" })).toBeInTheDocument();
+  });
+
+  it("givenArchivedAgent_whenRestoreCtaClicked_thenRestoresAgentAndShowsActivateCta", async () => {
+    getAgentsMock.mockResolvedValue([
+      {
+        id: "agent-52",
+        name: "Archived Agent",
+        description: "Description",
+        status: "ARCHIVED",
+        createdAt: "2026-04-10T10:00:00.000Z",
+        updatedAt: "2026-04-10T10:00:00.000Z",
+      },
+    ]);
+    restoreAgentMock.mockResolvedValue({
+      id: "agent-52",
+      name: "Archived Agent",
+      description: "Description",
+      status: "DRAFT",
+      createdAt: "2026-04-10T10:00:00.000Z",
+      updatedAt: "2026-04-12T10:00:00.000Z",
+    });
+
+    const user = userEvent.setup();
+    renderAutomationPage();
+
+    expect(await screen.findByRole("button", { name: "Restore" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Restore" }));
+
+    expect(restoreAgentMock).toHaveBeenCalledWith("agent-52");
+    expect(await screen.findByText("DRAFT")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Activate" })).toBeInTheDocument();
   });
 
   it("renders lifecycle statuses in agent list cards", async () => {
