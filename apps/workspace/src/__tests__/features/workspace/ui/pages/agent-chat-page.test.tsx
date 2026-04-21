@@ -145,11 +145,13 @@ describe("AgentChatPage", () => {
 
     expect(chatAgentMock).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    expect(screen.getByLabelText("Active Agent is typing")).toBeInTheDocument();
 
     await act(async () => {
       resolveChat?.({ reply: "SOLID are five principles." });
     });
 
+    expect(screen.queryByLabelText("Active Agent is typing")).not.toBeInTheDocument();
     expect(await screen.findByText("SOLID are five principles.")).toBeInTheDocument();
   });
 
