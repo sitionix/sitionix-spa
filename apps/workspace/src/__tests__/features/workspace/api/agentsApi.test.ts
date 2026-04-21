@@ -19,6 +19,8 @@ import {
   createAgent,
   deleteAgent,
   getAgentById,
+  getAgentConversation,
+  getAgentConversations,
   getAgents,
   getErrorHttpStatus,
   patchAgent,
@@ -433,15 +435,59 @@ describe("agentsApi.chat", () => {
     requestJsonMock.mockReset();
   });
 
-  it("trims message and calls chat endpoint", async () => {
-    requestJsonMock.mockResolvedValue({
+  it("returns normalized conversation list and defaults to empty array when items missing", async () => {
+    requestJsonMock.mockResolvedValueOnce({
+      ok: true,
+      data: {},
+    });
+
+    const result = await getAgentConversations("agent-11");
+
+    expect(requestJsonMock).toHaveBeenCalledWith({
+      method: "GET",
+      path: "/api/v1/agents/agent-11/conversations",
+    });
+    expect(result).toEqual({ items: [] });
+  });
+
+  it("returns normalized conversation details and defaults messages to empty array when missing", async () => {
+    requestJsonMock.mockResolvedValueOnce({
       ok: true,
       data: {
-        reply: "Assistant reply",
+        id: "conv-1",
+        title: "Title",
+        type: "DIRECT",
+        createdAt: "2026-04-21T10:00:00.000Z",
+        updatedAt: "2026-04-21T10:01:00.000Z",
+        lastMessageAt: "2026-04-21T10:01:00.000Z",
       },
     });
 
-    const result = await chatAgent("agent-11", "  Explain clean architecture  ");
+    const result = await getAgentConversation("agent-11", "conv-1");
+
+    expect(requestJsonMock).toHaveBeenCalledWith({
+      method: "GET",
+      path: "/api/v1/agents/agent-11/conversations/conv-1",
+    });
+    expect(result.messages).toEqual([]);
+  });
+
+  it("trims message and calls chat endpoint without conversationId for first send", async () => {
+    requestJsonMock.mockResolvedValue({
+      ok: true,
+      data: {
+        conversationId: "conv-1",
+        reply: {
+          id: "msg-1",
+          authorType: "AGENT",
+          authorId: "agent-11",
+          content: "Assistant reply",
+          createdAt: "2026-04-21T10:01:00.000Z",
+        },
+      },
+    });
+
+    const result = await chatAgent("agent-11", { message: "  Explain clean architecture  " });
 
     expect(requestJsonMock).toHaveBeenCalledWith({
       method: "POST",
@@ -450,11 +496,42 @@ describe("agentsApi.chat", () => {
         message: "Explain clean architecture",
       },
     });
-    expect(result.reply).toBe("Assistant reply");
+    expect(result.reply.content).toBe("Assistant reply");
+    expect(result.conversationId).toBe("conv-1");
+  });
+
+  it("includes conversationId when continuing existing chat", async () => {
+    requestJsonMock.mockResolvedValue({
+      ok: true,
+      data: {
+        conversationId: "conv-1",
+        reply: {
+          id: "msg-2",
+          authorType: "AGENT",
+          authorId: "agent-11",
+          content: "Next reply",
+          createdAt: "2026-04-21T10:02:00.000Z",
+        },
+      },
+    });
+
+    await chatAgent("agent-11", {
+      conversationId: "conv-1",
+      message: "next",
+    });
+
+    expect(requestJsonMock).toHaveBeenCalledWith({
+      method: "POST",
+      path: "/api/v1/agents/agent-11/chat",
+      body: {
+        conversationId: "conv-1",
+        message: "next",
+      },
+    });
   });
 
   it("throws when message is blank", async () => {
-    await expect(chatAgent("agent-11", "   ")).rejects.toThrow("Message is required");
+    await expect(chatAgent("agent-11", { message: "   " })).rejects.toThrow("Message is required");
     expect(requestJsonMock).not.toHaveBeenCalled();
   });
 
@@ -464,6 +541,6 @@ describe("agentsApi.chat", () => {
       error: new Error("Gateway timeout"),
     });
 
-    await expect(chatAgent("agent-11", "hello")).rejects.toThrow("Gateway timeout");
+    await expect(chatAgent("agent-11", { message: "hello" })).rejects.toThrow("Gateway timeout");
   });
 });
