@@ -217,7 +217,7 @@ export function AgentChatPage() {
         </div>
       </header>
 
-      <div className="min-h-[320px] space-y-3 rounded-3xl border border-zinc-200 bg-white p-6">
+      <div className="flex min-h-[320px] flex-col rounded-3xl border border-zinc-200 bg-white p-6">
         {messages.length === 0 ? (
           <p className="text-sm text-zinc-500">Send a message to start the chat.</p>
         ) : null}
@@ -250,7 +250,7 @@ export function AgentChatPage() {
             </div>
           </div>
         ))}
-        <div className="flex justify-start" aria-live="polite" aria-label={`${agent.name} typing indicator`}>
+        <div className="mt-auto flex justify-start pt-3" aria-live="polite" aria-label={`${agent.name} typing indicator`}>
           <div className="inline-flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-2 text-[13px] font-medium leading-5 text-blue-800 shadow-sm">
             <PencilLine className="h-3.5 w-3.5 animate-pulse text-blue-600" />
             <span>{agent.name} is typing</span>
