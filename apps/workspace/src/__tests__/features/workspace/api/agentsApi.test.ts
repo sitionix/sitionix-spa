@@ -463,11 +463,11 @@ describe("agentsApi.chat", () => {
       },
     });
 
-    const result = await getAgentConversation("agent-11", "conv-1");
+    const result = await getAgentConversation("conv-1");
 
     expect(requestJsonMock).toHaveBeenCalledWith({
       method: "GET",
-      path: "/api/v1/agents/agent-11/conversations/conv-1",
+      path: "/api/v1/conversations/conv-1",
     });
     expect(result.messages).toEqual([]);
   });

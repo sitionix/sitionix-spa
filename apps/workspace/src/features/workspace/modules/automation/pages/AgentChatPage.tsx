@@ -55,11 +55,11 @@ export function AgentChatPage() {
 
   const isConversationPanelBusy = isLoadingConversations || isLoadingConversationDetails;
 
-  const loadConversationDetails = useCallback(async (agentIdValue: string, conversationId: string) => {
+  const loadConversationDetails = useCallback(async (conversationId: string) => {
     setIsLoadingConversationDetails(true);
     setSendError(null);
     try {
-      const details = await getAgentConversation(agentIdValue, conversationId);
+      const details = await getAgentConversation(conversationId);
       setMessages(details.messages);
       setActiveConversationId(details.id);
       setIsDraftChat(false);
@@ -82,7 +82,7 @@ export function AgentChatPage() {
 
       if (openMostRecent) {
         if (items.length > 0) {
-          await loadConversationDetails(agentIdValue, items[0].id);
+          await loadConversationDetails(items[0].id);
         } else {
           setActiveConversationId(null);
           setMessages([]);
@@ -141,7 +141,7 @@ export function AgentChatPage() {
     if (!agentId || isSending) {
       return;
     }
-    await loadConversationDetails(agentId, conversationId);
+    await loadConversationDetails(conversationId);
   }, [agentId, isSending, loadConversationDetails]);
 
   const sendMessage = useCallback(async () => {

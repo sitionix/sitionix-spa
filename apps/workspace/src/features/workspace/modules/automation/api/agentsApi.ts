@@ -139,10 +139,10 @@ export async function getAgentConversations(agentId: string): Promise<AgentConve
   throw result.error ?? new Error("Failed to load agent conversations");
 }
 
-export async function getAgentConversation(agentId: string, conversationId: string): Promise<AgentConversationDetails> {
+export async function getAgentConversation(conversationId: string): Promise<AgentConversationDetails> {
   const result = await requestJson<AgentConversationDetails, undefined, undefined>({
     method: "GET",
-    path: `/api/v1/agents/${agentId}/conversations/${conversationId}`,
+    path: `/api/v1/conversations/${conversationId}`,
   });
 
   if (result.ok) {
