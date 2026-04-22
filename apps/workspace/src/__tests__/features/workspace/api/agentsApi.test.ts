@@ -321,7 +321,7 @@ describe("agentsApi.lifecycle", () => {
   });
 
   it("calls restore endpoint via POST and returns updated agent", async () => {
-    const restoreSpy = vi.spyOn(AgentApi.prototype as any, "restoreAgent").mockResolvedValue({
+    const restoreSpy = vi.fn().mockResolvedValue({
       id: "agent-7",
       name: "Lifecycle Agent",
       description: "Description",
@@ -329,6 +329,7 @@ describe("agentsApi.lifecycle", () => {
       createdAt: "2026-04-10T10:00:00.000Z",
       updatedAt: "2026-04-16T10:00:00.000Z",
     });
+    (AgentApi.prototype as any).restoreAgent = restoreSpy;
 
     const result = await restoreAgent("agent-7");
 
@@ -337,7 +338,7 @@ describe("agentsApi.lifecycle", () => {
   });
 
   it("calls delete endpoint via DELETE and returns deleted agent payload", async () => {
-    const deleteSpy = vi.spyOn(AgentApi.prototype as any, "deleteAgent").mockResolvedValue({
+    const deleteSpy = vi.fn().mockResolvedValue({
       id: "agent-7",
       name: "Lifecycle Agent",
       description: "Description",
@@ -345,6 +346,7 @@ describe("agentsApi.lifecycle", () => {
       createdAt: "2026-04-10T10:00:00.000Z",
       updatedAt: "2026-04-17T10:00:00.000Z",
     });
+    (AgentApi.prototype as any).deleteAgent = deleteSpy;
 
     const result = await deleteAgent("agent-7");
 
@@ -353,7 +355,8 @@ describe("agentsApi.lifecycle", () => {
   });
 
   it("keeps repeated delete calls successful when backend returns success each time", async () => {
-    const deleteSpy = vi.spyOn(AgentApi.prototype as any, "deleteAgent");
+    const deleteSpy = vi.fn();
+    (AgentApi.prototype as any).deleteAgent = deleteSpy;
     deleteSpy
       .mockResolvedValueOnce({
         id: "agent-7",
@@ -382,9 +385,9 @@ describe("agentsApi.lifecycle", () => {
   });
 
   it("throws request error when delete request fails", async () => {
-    vi.spyOn(AgentApi.prototype as any, "deleteAgent").mockRejectedValue(
-      new Error("Forbidden for workspace scope")
-    );
+    (AgentApi.prototype as any).deleteAgent = vi
+      .fn()
+      .mockRejectedValue(new Error("Forbidden for workspace scope"));
 
     await expect(deleteAgent("agent-7")).rejects.toThrow("Forbidden for workspace scope");
   });
@@ -396,10 +399,8 @@ describe("agentsApi.chat", () => {
   });
 
   it("returns normalized conversation list and defaults to empty array when items missing", async () => {
-    const getAgentConversationsSpy = vi.spyOn(
-      AgentApi.prototype as any,
-      "getAgentConversations"
-    ).mockResolvedValue({});
+    const getAgentConversationsSpy = vi.fn().mockResolvedValue({});
+    (AgentApi.prototype as any).getAgentConversations = getAgentConversationsSpy;
 
     const result = await getAgentConversations("agent-11");
 
@@ -408,10 +409,7 @@ describe("agentsApi.chat", () => {
   });
 
   it("returns normalized conversation details and defaults messages to empty array when missing", async () => {
-    const getAgentConversationSpy = vi.spyOn(
-      AgentApi.prototype as any,
-      "getAgentConversation"
-    ).mockResolvedValue({
+    const getAgentConversationSpy = vi.fn().mockResolvedValue({
       id: "conv-1",
       title: "Title",
       type: "DIRECT",
@@ -419,6 +417,7 @@ describe("agentsApi.chat", () => {
       updatedAt: "2026-04-21T10:01:00.000Z",
       lastMessageAt: "2026-04-21T10:01:00.000Z",
     });
+    (AgentApi.prototype as any).getAgentConversation = getAgentConversationSpy;
 
     const result = await getAgentConversation("conv-1");
 
@@ -427,7 +426,7 @@ describe("agentsApi.chat", () => {
   });
 
   it("trims message and calls chat endpoint without conversationId for first send", async () => {
-    const chatAgentSpy = vi.spyOn(AgentApi.prototype as any, "chatAgent").mockResolvedValue({
+    const chatAgentSpy = vi.fn().mockResolvedValue({
       conversationId: "conv-1",
       reply: {
         id: "msg-1",
@@ -437,6 +436,7 @@ describe("agentsApi.chat", () => {
         createdAt: "2026-04-21T10:01:00.000Z",
       },
     });
+    (AgentApi.prototype as any).chatAgent = chatAgentSpy;
 
     const result = await chatAgent("agent-11", { message: "  Explain clean architecture  " });
 
@@ -451,7 +451,7 @@ describe("agentsApi.chat", () => {
   });
 
   it("includes conversationId when continuing existing chat", async () => {
-    const chatAgentSpy = vi.spyOn(AgentApi.prototype as any, "chatAgent").mockResolvedValue({
+    const chatAgentSpy = vi.fn().mockResolvedValue({
       conversationId: "conv-1",
       reply: {
         id: "msg-2",
@@ -461,6 +461,7 @@ describe("agentsApi.chat", () => {
         createdAt: "2026-04-21T10:02:00.000Z",
       },
     });
+    (AgentApi.prototype as any).chatAgent = chatAgentSpy;
 
     await chatAgent("agent-11", {
       conversationId: "conv-1",
@@ -477,13 +478,14 @@ describe("agentsApi.chat", () => {
   });
 
   it("throws when message is blank", async () => {
-    const chatAgentSpy = vi.spyOn(AgentApi.prototype as any, "chatAgent");
+    const chatAgentSpy = vi.fn();
+    (AgentApi.prototype as any).chatAgent = chatAgentSpy;
     await expect(chatAgent("agent-11", { message: "   " })).rejects.toThrow("Message is required");
     expect(chatAgentSpy).not.toHaveBeenCalled();
   });
 
   it("throws request error when chat request fails", async () => {
-    vi.spyOn(AgentApi.prototype as any, "chatAgent").mockRejectedValue(new Error("Gateway timeout"));
+    (AgentApi.prototype as any).chatAgent = vi.fn().mockRejectedValue(new Error("Gateway timeout"));
 
     await expect(chatAgent("agent-11", { message: "hello" })).rejects.toThrow("Gateway timeout");
   });
