@@ -3,8 +3,10 @@ import type {
   CreateAgentRequestDTO,
   PatchAgentRequestDTO,
 } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
-import { bffApiConfiguration, requestJson } from "../../../../../shared/http/httpClient";
+import { bffApiConfiguration } from "../../../../../shared/http/httpClient";
 import type {
+  AgentConversationDetails,
+  AgentConversationsResponse,
   AutomationAgent,
   ChatAgentRequest,
   ChatAgentResponse,
@@ -13,6 +15,15 @@ import type {
 } from "../model/types";
 
 const agentApi = new AgentApi(bffApiConfiguration);
+type ExtendedAgentApi = {
+  restoreAgent(request: { agentId: string }): Promise<AutomationAgent>;
+  deleteAgent(request: { agentId: string }): Promise<AutomationAgent>;
+  getAgentConversations(request: { agentId: string }): Promise<AgentConversationsResponse>;
+  getAgentConversation(request: { conversationId: string }): Promise<AgentConversationDetails>;
+  chatAgent(request: { agentId: string; chatAgentRequestDTO: ChatAgentRequest }): Promise<ChatAgentResponse>;
+};
+
+const agentApiExtended = agentApi as unknown as ExtendedAgentApi;
 
 export async function getAgents(): Promise<AutomationAgent[]> {
   const response = await agentApi.getAgents();
@@ -97,33 +108,30 @@ export async function archiveAgent(agentId: string): Promise<AutomationAgent> {
 }
 
 export async function restoreAgent(agentId: string): Promise<AutomationAgent> {
-  const result = await requestJson<AutomationAgent, unknown, undefined>({
-    method: "POST",
-    path: `/api/v1/agents/${agentId}/restore`,
-  });
-
-  if (result.ok) {
-    return result.data;
-  }
-
-  throw result.error ?? new Error("Failed to restore agent");
+  return agentApiExtended.restoreAgent({ agentId });
 }
 
 export async function deleteAgent(agentId: string): Promise<AutomationAgent> {
-  const result = await requestJson<AutomationAgent, unknown, undefined>({
-    method: "DELETE",
-    path: `/api/v1/agents/${agentId}`,
-  });
-
-  if (result.ok) {
-    return result.data;
-  }
-
-  throw result.error ?? new Error("Failed to delete agent");
+  return agentApiExtended.deleteAgent({ agentId });
 }
 
-export async function chatAgent(agentId: string, message: string): Promise<ChatAgentResponse> {
-  const normalizedMessage = message.trim();
+export async function getAgentConversations(agentId: string): Promise<AgentConversationsResponse> {
+  const response = await agentApiExtended.getAgentConversations({ agentId });
+  return {
+    items: Array.isArray(response.items) ? response.items : [],
+  };
+}
+
+export async function getAgentConversation(conversationId: string): Promise<AgentConversationDetails> {
+  const response = await agentApiExtended.getAgentConversation({ conversationId });
+  return {
+    ...response,
+    messages: Array.isArray(response.messages) ? response.messages : [],
+  };
+}
+
+export async function chatAgent(agentId: string, payload: ChatAgentRequest): Promise<ChatAgentResponse> {
+  const normalizedMessage = payload.message.trim();
   if (!normalizedMessage) {
     throw new Error("Message is required");
   }
@@ -132,16 +140,14 @@ export async function chatAgent(agentId: string, message: string): Promise<ChatA
     message: normalizedMessage,
   };
 
-  const result = await requestJson<ChatAgentResponse, ChatAgentRequest, undefined>({
-    method: "POST",
-    path: `/api/v1/agents/${agentId}/chat`,
-    body: requestBody,
-  });
-  if (result.ok) {
-    return result.data;
+  if (payload.conversationId) {
+    requestBody.conversationId = payload.conversationId;
   }
 
-  throw result.error ?? new Error("Failed to chat with agent");
+  return agentApiExtended.chatAgent({
+    agentId,
+    chatAgentRequestDTO: requestBody,
+  });
 }
 
 type ErrorWithStatus = {
@@ -177,6 +183,8 @@ export const agentsApi = {
   archiveAgent,
   restoreAgent,
   deleteAgent,
+  getAgentConversations,
+  getAgentConversation,
   chatAgent,
   getErrorHttpStatus,
 };

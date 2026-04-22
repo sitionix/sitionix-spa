@@ -7,11 +7,46 @@ import type {
 export type AutomationAgent = AgentDTO;
 export type CreateAgentRequest = CreateAgentRequestDTO;
 export type PatchAgentRequest = PatchAgentRequestDTO;
+
 export type ChatAgentRequest = {
+  conversationId?: string;
   message: string;
 };
+
+export type ChatAgentMessage = {
+  id: string;
+  authorType: "USER" | "AGENT";
+  authorId: string;
+  content: string;
+  createdAt: string;
+};
+
 export type ChatAgentResponse = {
-  reply: string;
+  conversationId: string;
+  reply: ChatAgentMessage;
+};
+
+export type AgentConversation = {
+  id: string;
+  title: string;
+  type: "DIRECT";
+  createdAt: string;
+  updatedAt: string;
+  lastMessageAt: string;
+};
+
+export type AgentConversationsResponse = {
+  items: AgentConversation[];
+};
+
+export type AgentConversationDetails = {
+  id: string;
+  title: string;
+  type: "DIRECT";
+  createdAt: string;
+  updatedAt: string;
+  lastMessageAt: string;
+  messages: ChatAgentMessage[];
 };
 
 export type AutomationPageStatus = "idle" | "loading" | "ready" | "error";

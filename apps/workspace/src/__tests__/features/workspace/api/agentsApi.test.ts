@@ -1,17 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
 
-vi.mock("../../../../shared/http/httpClient", async () => {
-  const actual = await vi.importActual<typeof import("../../../../shared/http/httpClient")>(
-    "../../../../shared/http/httpClient"
-  );
-
-  return {
-    ...actual,
-    requestJson: vi.fn(),
-  };
-});
-
 import {
   activateAgent,
   archiveAgent,
@@ -19,14 +8,13 @@ import {
   createAgent,
   deleteAgent,
   getAgentById,
+  getAgentConversation,
+  getAgentConversations,
   getAgents,
   getErrorHttpStatus,
   patchAgent,
   restoreAgent,
 } from "../../../../features/workspace/modules/automation/api/agentsApi";
-import { requestJson } from "../../../../shared/http/httpClient";
-
-const requestJsonMock = vi.mocked(requestJson);
 
 describe("agentsApi.getAgents", () => {
   beforeEach(() => {
@@ -298,7 +286,6 @@ describe("agentsApi.getErrorHttpStatus", () => {
 describe("agentsApi.lifecycle", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    requestJsonMock.mockReset();
   });
 
   it("calls activateAgent endpoint with agent id", async () => {
@@ -334,72 +321,58 @@ describe("agentsApi.lifecycle", () => {
   });
 
   it("calls restore endpoint via POST and returns updated agent", async () => {
-    requestJsonMock.mockResolvedValue({
-      ok: true,
-      data: {
-        id: "agent-7",
-        name: "Lifecycle Agent",
-        description: "Description",
-        status: "ARCHIVED",
-        createdAt: "2026-04-10T10:00:00.000Z",
-        updatedAt: "2026-04-16T10:00:00.000Z",
-      },
+    const restoreSpy = vi.fn().mockResolvedValue({
+      id: "agent-7",
+      name: "Lifecycle Agent",
+      description: "Description",
+      status: "ARCHIVED",
+      createdAt: "2026-04-10T10:00:00.000Z",
+      updatedAt: "2026-04-16T10:00:00.000Z",
     });
+    (AgentApi.prototype as any).restoreAgent = restoreSpy;
 
     const result = await restoreAgent("agent-7");
 
-    expect(requestJsonMock).toHaveBeenCalledWith({
-      method: "POST",
-      path: "/api/v1/agents/agent-7/restore",
-    });
+    expect(restoreSpy).toHaveBeenCalledWith({ agentId: "agent-7" });
     expect(result.id).toBe("agent-7");
   });
 
   it("calls delete endpoint via DELETE and returns deleted agent payload", async () => {
-    requestJsonMock.mockResolvedValue({
-      ok: true,
-      data: {
+    const deleteSpy = vi.fn().mockResolvedValue({
+      id: "agent-7",
+      name: "Lifecycle Agent",
+      description: "Description",
+      status: "DELETED",
+      createdAt: "2026-04-10T10:00:00.000Z",
+      updatedAt: "2026-04-17T10:00:00.000Z",
+    });
+    (AgentApi.prototype as any).deleteAgent = deleteSpy;
+
+    const result = await deleteAgent("agent-7");
+
+    expect(deleteSpy).toHaveBeenCalledWith({ agentId: "agent-7" });
+    expect(result.status).toBe("DELETED");
+  });
+
+  it("keeps repeated delete calls successful when backend returns success each time", async () => {
+    const deleteSpy = vi.fn();
+    (AgentApi.prototype as any).deleteAgent = deleteSpy;
+    deleteSpy
+      .mockResolvedValueOnce({
         id: "agent-7",
         name: "Lifecycle Agent",
         description: "Description",
         status: "DELETED",
         createdAt: "2026-04-10T10:00:00.000Z",
         updatedAt: "2026-04-17T10:00:00.000Z",
-      },
-    });
-
-    const result = await deleteAgent("agent-7");
-
-    expect(requestJsonMock).toHaveBeenCalledWith({
-      method: "DELETE",
-      path: "/api/v1/agents/agent-7",
-    });
-    expect(result.status).toBe("DELETED");
-  });
-
-  it("keeps repeated delete calls successful when backend returns ok each time", async () => {
-    requestJsonMock
-      .mockResolvedValueOnce({
-        ok: true,
-        data: {
-          id: "agent-7",
-          name: "Lifecycle Agent",
-          description: "Description",
-          status: "DELETED",
-          createdAt: "2026-04-10T10:00:00.000Z",
-          updatedAt: "2026-04-17T10:00:00.000Z",
-        },
       })
       .mockResolvedValueOnce({
-        ok: true,
-        data: {
-          id: "agent-7",
-          name: "Lifecycle Agent",
-          description: "Description",
-          status: "DELETED",
-          createdAt: "2026-04-10T10:00:00.000Z",
-          updatedAt: "2026-04-18T10:00:00.000Z",
-        },
+        id: "agent-7",
+        name: "Lifecycle Agent",
+        description: "Description",
+        status: "DELETED",
+        createdAt: "2026-04-10T10:00:00.000Z",
+        updatedAt: "2026-04-18T10:00:00.000Z",
       });
 
     const first = await deleteAgent("agent-7");
@@ -407,21 +380,14 @@ describe("agentsApi.lifecycle", () => {
 
     expect(first.status).toBe("DELETED");
     expect(second.status).toBe("DELETED");
-    expect(requestJsonMock).toHaveBeenNthCalledWith(1, {
-      method: "DELETE",
-      path: "/api/v1/agents/agent-7",
-    });
-    expect(requestJsonMock).toHaveBeenNthCalledWith(2, {
-      method: "DELETE",
-      path: "/api/v1/agents/agent-7",
-    });
+    expect(deleteSpy).toHaveBeenNthCalledWith(1, { agentId: "agent-7" });
+    expect(deleteSpy).toHaveBeenNthCalledWith(2, { agentId: "agent-7" });
   });
 
   it("throws request error when delete request fails", async () => {
-    requestJsonMock.mockResolvedValue({
-      ok: false,
-      error: new Error("Forbidden for workspace scope"),
-    });
+    (AgentApi.prototype as any).deleteAgent = vi
+      .fn()
+      .mockRejectedValue(new Error("Forbidden for workspace scope"));
 
     await expect(deleteAgent("agent-7")).rejects.toThrow("Forbidden for workspace scope");
   });
@@ -430,40 +396,97 @@ describe("agentsApi.lifecycle", () => {
 describe("agentsApi.chat", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    requestJsonMock.mockReset();
   });
 
-  it("trims message and calls chat endpoint", async () => {
-    requestJsonMock.mockResolvedValue({
-      ok: true,
-      data: {
-        reply: "Assistant reply",
+  it("returns normalized conversation list and defaults to empty array when items missing", async () => {
+    const getAgentConversationsSpy = vi.fn().mockResolvedValue({});
+    (AgentApi.prototype as any).getAgentConversations = getAgentConversationsSpy;
+
+    const result = await getAgentConversations("agent-11");
+
+    expect(getAgentConversationsSpy).toHaveBeenCalledWith({ agentId: "agent-11" });
+    expect(result).toEqual({ items: [] });
+  });
+
+  it("returns normalized conversation details and defaults messages to empty array when missing", async () => {
+    const getAgentConversationSpy = vi.fn().mockResolvedValue({
+      id: "conv-1",
+      title: "Title",
+      type: "DIRECT",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:01:00.000Z",
+      lastMessageAt: "2026-04-21T10:01:00.000Z",
+    });
+    (AgentApi.prototype as any).getAgentConversation = getAgentConversationSpy;
+
+    const result = await getAgentConversation("conv-1");
+
+    expect(getAgentConversationSpy).toHaveBeenCalledWith({ conversationId: "conv-1" });
+    expect(result.messages).toEqual([]);
+  });
+
+  it("trims message and calls chat endpoint without conversationId for first send", async () => {
+    const chatAgentSpy = vi.fn().mockResolvedValue({
+      conversationId: "conv-1",
+      reply: {
+        id: "msg-1",
+        authorType: "AGENT",
+        authorId: "agent-11",
+        content: "Assistant reply",
+        createdAt: "2026-04-21T10:01:00.000Z",
       },
     });
+    (AgentApi.prototype as any).chatAgent = chatAgentSpy;
 
-    const result = await chatAgent("agent-11", "  Explain clean architecture  ");
+    const result = await chatAgent("agent-11", { message: "  Explain clean architecture  " });
 
-    expect(requestJsonMock).toHaveBeenCalledWith({
-      method: "POST",
-      path: "/api/v1/agents/agent-11/chat",
-      body: {
+    expect(chatAgentSpy).toHaveBeenCalledWith({
+      agentId: "agent-11",
+      chatAgentRequestDTO: {
         message: "Explain clean architecture",
       },
     });
-    expect(result.reply).toBe("Assistant reply");
+    expect(result.reply.content).toBe("Assistant reply");
+    expect(result.conversationId).toBe("conv-1");
+  });
+
+  it("includes conversationId when continuing existing chat", async () => {
+    const chatAgentSpy = vi.fn().mockResolvedValue({
+      conversationId: "conv-1",
+      reply: {
+        id: "msg-2",
+        authorType: "AGENT",
+        authorId: "agent-11",
+        content: "Next reply",
+        createdAt: "2026-04-21T10:02:00.000Z",
+      },
+    });
+    (AgentApi.prototype as any).chatAgent = chatAgentSpy;
+
+    await chatAgent("agent-11", {
+      conversationId: "conv-1",
+      message: "next",
+    });
+
+    expect(chatAgentSpy).toHaveBeenCalledWith({
+      agentId: "agent-11",
+      chatAgentRequestDTO: {
+        conversationId: "conv-1",
+        message: "next",
+      },
+    });
   });
 
   it("throws when message is blank", async () => {
-    await expect(chatAgent("agent-11", "   ")).rejects.toThrow("Message is required");
-    expect(requestJsonMock).not.toHaveBeenCalled();
+    const chatAgentSpy = vi.fn();
+    (AgentApi.prototype as any).chatAgent = chatAgentSpy;
+    await expect(chatAgent("agent-11", { message: "   " })).rejects.toThrow("Message is required");
+    expect(chatAgentSpy).not.toHaveBeenCalled();
   });
 
   it("throws request error when chat request fails", async () => {
-    requestJsonMock.mockResolvedValue({
-      ok: false,
-      error: new Error("Gateway timeout"),
-    });
+    (AgentApi.prototype as any).chatAgent = vi.fn().mockRejectedValue(new Error("Gateway timeout"));
 
-    await expect(chatAgent("agent-11", "hello")).rejects.toThrow("Gateway timeout");
+    await expect(chatAgent("agent-11", { message: "hello" })).rejects.toThrow("Gateway timeout");
   });
 });
