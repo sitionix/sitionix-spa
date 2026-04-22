@@ -3,7 +3,7 @@ import type {
   CreateAgentRequestDTO,
   PatchAgentRequestDTO,
 } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
-import { bffApiConfiguration, requestJson } from "../../../../../shared/http/httpClient";
+import { bffApiConfiguration } from "../../../../../shared/http/httpClient";
 import type {
   AgentConversationDetails,
   AgentConversationsResponse,
@@ -15,6 +15,15 @@ import type {
 } from "../model/types";
 
 const agentApi = new AgentApi(bffApiConfiguration);
+type ExtendedAgentApi = {
+  restoreAgent(request: { agentId: string }): Promise<AutomationAgent>;
+  deleteAgent(request: { agentId: string }): Promise<AutomationAgent>;
+  getAgentConversations(request: { agentId: string }): Promise<AgentConversationsResponse>;
+  getAgentConversation(request: { conversationId: string }): Promise<AgentConversationDetails>;
+  chatAgent(request: { agentId: string; chatAgentRequestDTO: ChatAgentRequest }): Promise<ChatAgentResponse>;
+};
+
+const agentApiExtended = agentApi as unknown as ExtendedAgentApi;
 
 export async function getAgents(): Promise<AutomationAgent[]> {
   const response = await agentApi.getAgents();
@@ -99,60 +108,26 @@ export async function archiveAgent(agentId: string): Promise<AutomationAgent> {
 }
 
 export async function restoreAgent(agentId: string): Promise<AutomationAgent> {
-  const result = await requestJson<AutomationAgent, unknown, undefined>({
-    method: "POST",
-    path: `/api/v1/agents/${agentId}/restore`,
-  });
-
-  if (result.ok) {
-    return result.data;
-  }
-
-  throw result.error ?? new Error("Failed to restore agent");
+  return agentApiExtended.restoreAgent({ agentId });
 }
 
 export async function deleteAgent(agentId: string): Promise<AutomationAgent> {
-  const result = await requestJson<AutomationAgent, unknown, undefined>({
-    method: "DELETE",
-    path: `/api/v1/agents/${agentId}`,
-  });
-
-  if (result.ok) {
-    return result.data;
-  }
-
-  throw result.error ?? new Error("Failed to delete agent");
+  return agentApiExtended.deleteAgent({ agentId });
 }
 
 export async function getAgentConversations(agentId: string): Promise<AgentConversationsResponse> {
-  const result = await requestJson<AgentConversationsResponse, undefined, undefined>({
-    method: "GET",
-    path: `/api/v1/agents/${agentId}/conversations`,
-  });
-
-  if (result.ok) {
-    return {
-      items: Array.isArray(result.data.items) ? result.data.items : [],
-    };
-  }
-
-  throw result.error ?? new Error("Failed to load agent conversations");
+  const response = await agentApiExtended.getAgentConversations({ agentId });
+  return {
+    items: Array.isArray(response.items) ? response.items : [],
+  };
 }
 
 export async function getAgentConversation(conversationId: string): Promise<AgentConversationDetails> {
-  const result = await requestJson<AgentConversationDetails, undefined, undefined>({
-    method: "GET",
-    path: `/api/v1/conversations/${conversationId}`,
-  });
-
-  if (result.ok) {
-    return {
-      ...result.data,
-      messages: Array.isArray(result.data.messages) ? result.data.messages : [],
-    };
-  }
-
-  throw result.error ?? new Error("Failed to load agent conversation");
+  const response = await agentApiExtended.getAgentConversation({ conversationId });
+  return {
+    ...response,
+    messages: Array.isArray(response.messages) ? response.messages : [],
+  };
 }
 
 export async function chatAgent(agentId: string, payload: ChatAgentRequest): Promise<ChatAgentResponse> {
@@ -169,16 +144,10 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
     requestBody.conversationId = payload.conversationId;
   }
 
-  const result = await requestJson<ChatAgentResponse, ChatAgentRequest, undefined>({
-    method: "POST",
-    path: `/api/v1/agents/${agentId}/chat`,
-    body: requestBody,
+  return agentApiExtended.chatAgent({
+    agentId,
+    chatAgentRequestDTO: requestBody,
   });
-  if (result.ok) {
-    return result.data;
-  }
-
-  throw result.error ?? new Error("Failed to chat with agent");
 }
 
 type ErrorWithStatus = {
