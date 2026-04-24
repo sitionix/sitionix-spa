@@ -24,6 +24,7 @@ import type {
 } from "../model/types";
 
 const agentApi = new AgentApi(bffApiConfiguration);
+type RuleTextPayload = { title?: string; content?: string };
 type ExtendedAgentApi = {
   restoreAgent(request: { agentId: string }): Promise<AutomationAgent>;
   deleteAgent(request: { agentId: string }): Promise<AutomationAgent>;
@@ -39,6 +40,29 @@ type ExtendedAgentApi = {
 };
 
 const agentApiExtended = agentApi as unknown as ExtendedAgentApi;
+
+function hasOwn(source: object, key: PropertyKey): boolean {
+  return Object.prototype.hasOwnProperty.call(source, key);
+}
+
+function getRequiredTrimmed(value: string | undefined, errorMessage: string): string {
+  const normalized = value?.trim() ?? "";
+  if (!normalized) {
+    throw new Error(errorMessage);
+  }
+  return normalized;
+}
+
+function getOptionalTrimmedField(
+  payload: RuleTextPayload,
+  field: keyof RuleTextPayload,
+  errorMessage: string,
+): string | undefined {
+  if (!hasOwn(payload, field)) {
+    return undefined;
+  }
+  return getRequiredTrimmed(payload[field], errorMessage);
+}
 
 export async function getAgents(): Promise<AutomationAgent[]> {
   const response = await agentApi.getAgents();
@@ -74,7 +98,7 @@ export async function createAgent(payload: CreateAgentRequest): Promise<Automati
 export async function patchAgent(agentId: string, payload: PatchAgentRequest): Promise<AutomationAgent> {
   const requestBody: PatchAgentRequestDTO = {};
 
-  if (Object.prototype.hasOwnProperty.call(payload, "name")) {
+  if (hasOwn(payload, "name")) {
     const name = payload.name?.trim() ?? "";
     if (!name) {
       throw new Error("Agent name is required");
@@ -82,7 +106,7 @@ export async function patchAgent(agentId: string, payload: PatchAgentRequest): P
     requestBody.name = name;
   }
 
-  if (Object.prototype.hasOwnProperty.call(payload, "description")) {
+  if (hasOwn(payload, "description")) {
     const rawDescription = payload.description;
     if (rawDescription === null) {
       requestBody.description = null;
@@ -92,7 +116,7 @@ export async function patchAgent(agentId: string, payload: PatchAgentRequest): P
     }
   }
 
-  if (Object.prototype.hasOwnProperty.call(payload, "instruction")) {
+  if (hasOwn(payload, "instruction")) {
     const instruction = payload.instruction?.trim() ?? "";
     if (!instruction) {
       throw new Error("Agent instruction is required");
@@ -100,9 +124,9 @@ export async function patchAgent(agentId: string, payload: PatchAgentRequest): P
     requestBody.instruction = instruction;
   }
 
-  if (!Object.prototype.hasOwnProperty.call(requestBody, "name")
-    && !Object.prototype.hasOwnProperty.call(requestBody, "description")
-    && !Object.prototype.hasOwnProperty.call(requestBody, "instruction")) {
+  if (!hasOwn(requestBody, "name")
+    && !hasOwn(requestBody, "description")
+    && !hasOwn(requestBody, "instruction")) {
     throw new Error("At least one field (name, description or instruction) must be provided");
   }
 
@@ -178,14 +202,8 @@ export async function getAgentRules(
 }
 
 export async function createAgentRule(agentId: string, payload: CreateAgentRuleRequest): Promise<AgentRule> {
-  const title = payload.title?.trim() ?? "";
-  const content = payload.content?.trim() ?? "";
-  if (!title) {
-    throw new Error("Rule title is required");
-  }
-  if (!content) {
-    throw new Error("Rule content is required");
-  }
+  const title = getRequiredTrimmed(payload.title, "Rule title is required");
+  const content = getRequiredTrimmed(payload.content, "Rule content is required");
   return agentApiExtended.createAgentRule({
     agentId,
     createAgentRuleRequestDTO: { title, content },
@@ -194,22 +212,16 @@ export async function createAgentRule(agentId: string, payload: CreateAgentRuleR
 
 export async function patchAgentRule(agentId: string, ruleId: string, payload: PatchAgentRuleRequest): Promise<AgentRule> {
   const requestBody: PatchAgentRuleRequestDTO = {};
-  if (Object.prototype.hasOwnProperty.call(payload, "title")) {
-    const title = payload.title?.trim() ?? "";
-    if (!title) {
-      throw new Error("Rule title is required");
-    }
+  const title = getOptionalTrimmedField(payload, "title", "Rule title is required");
+  if (title !== undefined) {
     requestBody.title = title;
   }
-  if (Object.prototype.hasOwnProperty.call(payload, "content")) {
-    const content = payload.content?.trim() ?? "";
-    if (!content) {
-      throw new Error("Rule content is required");
-    }
+  const content = getOptionalTrimmedField(payload, "content", "Rule content is required");
+  if (content !== undefined) {
     requestBody.content = content;
   }
-  if (!Object.prototype.hasOwnProperty.call(requestBody, "title")
-    && !Object.prototype.hasOwnProperty.call(requestBody, "content")) {
+  if (!hasOwn(requestBody, "title")
+    && !hasOwn(requestBody, "content")) {
     throw new Error("At least one field (title or content) must be provided");
   }
   return agentApiExtended.patchAgentRule({
@@ -225,21 +237,15 @@ export async function acceptAgentRule(
   payload?: { title?: string; content?: string },
 ): Promise<AgentRule> {
   let requestBody: AcceptAgentRuleRequestDTO | undefined;
-  if (payload && (Object.prototype.hasOwnProperty.call(payload, "title")
-      || Object.prototype.hasOwnProperty.call(payload, "content"))) {
+  if (payload && (hasOwn(payload, "title")
+      || hasOwn(payload, "content"))) {
     requestBody = {};
-    if (Object.prototype.hasOwnProperty.call(payload, "title")) {
-      const title = payload.title?.trim() ?? "";
-      if (!title) {
-        throw new Error("Rule title is required");
-      }
+    const title = getOptionalTrimmedField(payload, "title", "Rule title is required");
+    if (title !== undefined) {
       requestBody.title = title;
     }
-    if (Object.prototype.hasOwnProperty.call(payload, "content")) {
-      const content = payload.content?.trim() ?? "";
-      if (!content) {
-        throw new Error("Rule content is required");
-      }
+    const content = getOptionalTrimmedField(payload, "content", "Rule content is required");
+    if (content !== undefined) {
       requestBody.content = content;
     }
   }

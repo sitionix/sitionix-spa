@@ -2,17 +2,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-119-unstable/apis";
 
 import {
+  acceptAgentRule,
   activateAgent,
   archiveAgent,
   chatAgent,
+  createAgentRule,
   createAgent,
+  deleteAgentRule,
   deleteAgent,
   getAgentById,
   getAgentConversation,
   getAgentConversations,
   getAgents,
   getErrorHttpStatus,
+  getAgentRules,
   patchAgent,
+  patchAgentRule,
+  rejectAgentRule,
   restoreAgent,
 } from "../../../../features/workspace/modules/automation/api/agentsApi";
 
@@ -488,5 +494,131 @@ describe("agentsApi.chat", () => {
     (AgentApi.prototype as any).chatAgent = vi.fn().mockRejectedValue(new Error("Gateway timeout"));
 
     await expect(chatAgent("agent-11", { message: "hello" })).rejects.toThrow("Gateway timeout");
+  });
+});
+
+describe("agentsApi.rules", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns rules list and forwards optional filters", async () => {
+    const getRulesSpy = vi.fn().mockResolvedValue({ items: [{ id: "rule-1" }] });
+    (AgentApi.prototype as any).getAgentRules = getRulesSpy;
+
+    const result = await getAgentRules("agent-1", { status: "PENDING", authorType: "AI" });
+
+    expect(getRulesSpy).toHaveBeenCalledWith({
+      agentId: "agent-1",
+      status: "PENDING",
+      authorType: "AI",
+    });
+    expect(result).toEqual([{ id: "rule-1" }]);
+  });
+
+  it("returns empty list when get rules response has no items", async () => {
+    (AgentApi.prototype as any).getAgentRules = vi.fn().mockResolvedValue({});
+    await expect(getAgentRules("agent-1")).resolves.toEqual([]);
+  });
+
+  it("creates rule with trimmed title and content", async () => {
+    const createRuleSpy = vi.fn().mockResolvedValue({ id: "rule-1" });
+    (AgentApi.prototype as any).createAgentRule = createRuleSpy;
+
+    const result = await createAgentRule("agent-1", {
+      title: "  Validation  ",
+      content: "  Always validate input  ",
+    });
+
+    expect(createRuleSpy).toHaveBeenCalledWith({
+      agentId: "agent-1",
+      createAgentRuleRequestDTO: {
+        title: "Validation",
+        content: "Always validate input",
+      },
+    });
+    expect(result).toEqual({ id: "rule-1" });
+  });
+
+  it("rejects create rule when title is blank", async () => {
+    await expect(createAgentRule("agent-1", { title: " ", content: "content" })).rejects.toThrow(
+      "Rule title is required"
+    );
+  });
+
+  it("patches rule title and content", async () => {
+    const patchRuleSpy = vi.fn().mockResolvedValue({ id: "rule-1" });
+    (AgentApi.prototype as any).patchAgentRule = patchRuleSpy;
+
+    await patchAgentRule("agent-1", "rule-1", {
+      title: "  Updated title  ",
+      content: "  Updated content  ",
+    });
+
+    expect(patchRuleSpy).toHaveBeenCalledWith({
+      agentId: "agent-1",
+      ruleId: "rule-1",
+      patchAgentRuleRequestDTO: {
+        title: "Updated title",
+        content: "Updated content",
+      },
+    });
+  });
+
+  it("rejects patch rule with empty payload", async () => {
+    await expect(patchAgentRule("agent-1", "rule-1", {})).rejects.toThrow(
+      "At least one field (title or content) must be provided"
+    );
+  });
+
+  it("accepts rule without body by default", async () => {
+    const acceptRuleSpy = vi.fn().mockResolvedValue({ id: "rule-1" });
+    (AgentApi.prototype as any).acceptAgentRule = acceptRuleSpy;
+
+    await acceptAgentRule("agent-1", "rule-1");
+
+    expect(acceptRuleSpy).toHaveBeenCalledWith({
+      agentId: "agent-1",
+      ruleId: "rule-1",
+      acceptAgentRuleRequestDTO: undefined,
+    });
+  });
+
+  it("accepts rule with trimmed update payload", async () => {
+    const acceptRuleSpy = vi.fn().mockResolvedValue({ id: "rule-1" });
+    (AgentApi.prototype as any).acceptAgentRule = acceptRuleSpy;
+
+    await acceptAgentRule("agent-1", "rule-1", {
+      title: "  Updated title  ",
+      content: "  Updated content  ",
+    });
+
+    expect(acceptRuleSpy).toHaveBeenCalledWith({
+      agentId: "agent-1",
+      ruleId: "rule-1",
+      acceptAgentRuleRequestDTO: {
+        title: "Updated title",
+        content: "Updated content",
+      },
+    });
+  });
+
+  it("rejects rule and forwards ids", async () => {
+    const rejectRuleSpy = vi.fn().mockResolvedValue({ id: "rule-1" });
+    (AgentApi.prototype as any).rejectAgentRule = rejectRuleSpy;
+
+    await rejectAgentRule("agent-1", "rule-1");
+
+    expect(rejectRuleSpy).toHaveBeenCalledWith({ agentId: "agent-1", ruleId: "rule-1" });
+  });
+
+  it("deletes rule and forwards ids", async () => {
+    const deleteRuleSpy = vi.fn().mockResolvedValue({ status: "DELETED" });
+    (AgentApi.prototype as any).deleteAgentRule = deleteRuleSpy;
+
+    const result = await deleteAgentRule("agent-1", "rule-1");
+
+    expect(deleteRuleSpy).toHaveBeenCalledWith({ agentId: "agent-1", ruleId: "rule-1" });
+    expect(result).toEqual({ status: "DELETED" });
   });
 });
