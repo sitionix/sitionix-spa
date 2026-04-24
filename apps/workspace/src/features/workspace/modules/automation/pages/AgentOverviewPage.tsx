@@ -1,16 +1,29 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { ArrowLeft, Clock3, Loader2, MessageSquareText, Pencil, Sparkles } from "lucide-react";
+import { ArrowLeft, Clock3, Loader2, MessageSquareText, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../../../ui/components/PageHeader";
 import { ConfirmationDialog } from "../../../ui/components/ConfirmationDialog";
 import { formatDateTime } from "../../../model/formatters";
-import { activateAgent, archiveAgent, deleteAgent, getAgentById, getErrorHttpStatus, patchAgent, restoreAgent } from "../api";
+import {
+  activateAgent,
+  archiveAgent,
+  createAgentRule,
+  deleteAgent,
+  deleteAgentRule,
+  getAgentById,
+  getAgentRules,
+  getErrorHttpStatus,
+  patchAgent,
+  patchAgentRule,
+  restoreAgent,
+} from "../api";
 import { toAutomationErrorMessage } from "../model/mappers";
-import type { AutomationAgent } from "../model/types";
+import type { AgentRule, AutomationAgent } from "../model/types";
 
 type AgentOverviewState = "idle" | "loading" | "ready" | "not_found" | "error";
 type EditableField = "name" | "description" | null;
 type LifecycleAction = "activate" | "archive" | "restore" | "delete" | null;
+type RulesState = "idle" | "loading" | "ready" | "error";
 
 function getStatusBadgeClass(status: AutomationAgent["status"]): string {
   if (status === "ACTIVE") {
@@ -23,32 +36,6 @@ function getStatusBadgeClass(status: AutomationAgent["status"]): string {
     return "bg-red-50 text-red-700";
   }
   return "bg-amber-50 text-amber-700";
-}
-
-function SectionPlaceholder({
-  title,
-  description,
-  actionLabel,
-}: Readonly<{
-  title: string;
-  description: string;
-  actionLabel?: string;
-}>) {
-  return (
-    <section className="rounded-3xl border border-zinc-200 bg-white p-6">
-      <h2 className="text-lg font-semibold text-zinc-900">{title}</h2>
-      <p className="mt-2 text-sm leading-6 text-zinc-600">{description}</p>
-      {actionLabel ? (
-        <button
-          type="button"
-          disabled
-          className="mt-5 inline-flex cursor-not-allowed items-center rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2 text-sm font-medium text-zinc-500"
-        >
-          {actionLabel}
-        </button>
-      ) : null}
-    </section>
-  );
 }
 
 export function AgentOverviewPage() {
@@ -69,6 +56,17 @@ export function AgentOverviewPage() {
   const [lifecycleAction, setLifecycleAction] = useState<LifecycleAction>(null);
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [rules, setRules] = useState<AgentRule[]>([]);
+  const [rulesState, setRulesState] = useState<RulesState>("idle");
+  const [rulesError, setRulesError] = useState<string | null>(null);
+  const [isAddingRule, setIsAddingRule] = useState(false);
+  const [ruleDraft, setRuleDraft] = useState("");
+  const [isRuleSaving, setIsRuleSaving] = useState(false);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+  const [editRuleDraft, setEditRuleDraft] = useState("");
+  const [deletingRuleId, setDeletingRuleId] = useState<string | null>(null);
+  const [deleteRuleConfirmOpen, setDeleteRuleConfirmOpen] = useState(false);
+  const [pendingDeleteRuleId, setPendingDeleteRuleId] = useState<string | null>(null);
 
   const nameEditorRef = useRef<HTMLDivElement | null>(null);
   const descriptionEditorRef = useRef<HTMLDivElement | null>(null);
@@ -106,6 +104,33 @@ export function AgentOverviewPage() {
   useEffect(() => {
     void loadAgent();
   }, [loadAgent]);
+
+  const loadRules = useCallback(async () => {
+    if (!agentId) {
+      setRules([]);
+      setRulesState("error");
+      setRulesError("Missing agent id");
+      return;
+    }
+
+    setRulesState("loading");
+    setRulesError(null);
+    try {
+      const response = await getAgentRules(agentId);
+      setRules(Array.isArray(response.items) ? response.items : []);
+      setRulesState("ready");
+    } catch (loadRulesError) {
+      setRulesState("error");
+      setRulesError(toAutomationErrorMessage(loadRulesError));
+    }
+  }, [agentId]);
+
+  useEffect(() => {
+    if (status !== "ready") {
+      return;
+    }
+    void loadRules();
+  }, [loadRules, status]);
 
   const startEditing = useCallback((field: Exclude<EditableField, null>) => {
     if (!agent) {
@@ -265,6 +290,109 @@ export function AgentOverviewPage() {
       setIsInstructionSaving(false);
     }
   }, [agent, instructionDraft, isInstructionSaving]);
+
+  const startAddRule = useCallback(() => {
+    if (isRuleSaving || deletingRuleId || lifecycleAction || savingField || isInstructionSaving) {
+      return;
+    }
+    setRulesError(null);
+    setRuleDraft("");
+    setIsAddingRule(true);
+    setEditingRuleId(null);
+  }, [deletingRuleId, isInstructionSaving, isRuleSaving, lifecycleAction, savingField]);
+
+  const cancelAddRule = useCallback(() => {
+    setIsAddingRule(false);
+    setRuleDraft("");
+    setRulesError(null);
+  }, []);
+
+  const saveNewRule = useCallback(async () => {
+    if (!agent || isRuleSaving) {
+      return;
+    }
+
+    setIsRuleSaving(true);
+    setRulesError(null);
+    try {
+      const created = await createAgentRule(agent.id, { text: ruleDraft });
+      setRules((previous) => [...previous, created]
+        .sort((left, right) => left.createdAt.localeCompare(right.createdAt)));
+      setIsAddingRule(false);
+      setRuleDraft("");
+    } catch (saveRuleError) {
+      setRulesError(toAutomationErrorMessage(saveRuleError));
+    } finally {
+      setIsRuleSaving(false);
+    }
+  }, [agent, isRuleSaving, ruleDraft]);
+
+  const startEditRule = useCallback((rule: AgentRule) => {
+    if (isRuleSaving || deletingRuleId || isAddingRule) {
+      return;
+    }
+    setRulesError(null);
+    setEditingRuleId(rule.id);
+    setEditRuleDraft(rule.text);
+  }, [deletingRuleId, isAddingRule, isRuleSaving]);
+
+  const cancelEditRule = useCallback(() => {
+    setEditingRuleId(null);
+    setEditRuleDraft("");
+    setRulesError(null);
+  }, []);
+
+  const saveEditedRule = useCallback(async () => {
+    if (!agent || !editingRuleId || isRuleSaving) {
+      return;
+    }
+
+    setIsRuleSaving(true);
+    setRulesError(null);
+    try {
+      const updated = await patchAgentRule(agent.id, editingRuleId, { text: editRuleDraft });
+      setRules((previous) => previous.map((rule) => (rule.id === updated.id ? updated : rule)));
+      setEditingRuleId(null);
+      setEditRuleDraft("");
+    } catch (saveRuleError) {
+      setRulesError(toAutomationErrorMessage(saveRuleError));
+    } finally {
+      setIsRuleSaving(false);
+    }
+  }, [agent, editRuleDraft, editingRuleId, isRuleSaving]);
+
+  const requestDeleteRule = useCallback((ruleId: string) => {
+    if (isRuleSaving) {
+      return;
+    }
+    setPendingDeleteRuleId(ruleId);
+    setDeleteRuleConfirmOpen(true);
+  }, [isRuleSaving]);
+
+  const confirmDeleteRule = useCallback(async () => {
+    if (!agent || !pendingDeleteRuleId || deletingRuleId) {
+      setDeleteRuleConfirmOpen(false);
+      setPendingDeleteRuleId(null);
+      return;
+    }
+
+    setDeleteRuleConfirmOpen(false);
+    setDeletingRuleId(pendingDeleteRuleId);
+    setRulesError(null);
+    try {
+      await deleteAgentRule(agent.id, pendingDeleteRuleId);
+      setRules((previous) => previous.filter((rule) => rule.id !== pendingDeleteRuleId));
+      if (editingRuleId === pendingDeleteRuleId) {
+        setEditingRuleId(null);
+        setEditRuleDraft("");
+      }
+    } catch (deleteRuleError) {
+      setRulesError(toAutomationErrorMessage(deleteRuleError));
+    } finally {
+      setDeletingRuleId(null);
+      setPendingDeleteRuleId(null);
+    }
+  }, [agent, deletingRuleId, editingRuleId, pendingDeleteRuleId]);
 
   useEffect(() => {
     if (editingField === "name") {
@@ -620,11 +748,178 @@ export function AgentOverviewPage() {
             )}
           </section>
 
-          <SectionPlaceholder
-            title="Rules"
-            description="Rules help shape how this agent should behave. No rules have been added yet."
-            actionLabel="Add rules (Soon)"
-          />
+          <section className="rounded-3xl border border-zinc-200 bg-white p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-zinc-900">Rules</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-600">
+                  Rules define explicit constraints and guidance used by this agent in execution context.
+                </p>
+              </div>
+              {!isAddingRule ? (
+                <button
+                  type="button"
+                  disabled={isRuleSaving || Boolean(editingRuleId)}
+                  onClick={startAddRule}
+                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add rule
+                </button>
+              ) : null}
+            </div>
+
+            {isAddingRule ? (
+              <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                <textarea
+                  value={ruleDraft}
+                  onChange={(event) => setRuleDraft(event.target.value)}
+                  rows={3}
+                  disabled={isRuleSaving}
+                  className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm leading-6 text-zinc-800 outline-none ring-blue-100 focus:ring"
+                />
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={isRuleSaving}
+                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                    onClick={() => void saveNewRule()}
+                  >
+                    {isRuleSaving ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isRuleSaving}
+                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                    onClick={cancelAddRule}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {rulesState === "loading" ? (
+              <div className="mt-4 flex items-center gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading rules...
+              </div>
+            ) : null}
+
+            {rulesState === "error" ? (
+              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                {rulesError ?? "Unable to load rules."}
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                    onClick={() => void loadRules()}
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {rulesState === "ready" && rules.length === 0 ? (
+              <div className="mt-4 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-4">
+                <p className="text-sm text-zinc-700">No rules yet</p>
+                {!isAddingRule ? (
+                  <button
+                    type="button"
+                    onClick={startAddRule}
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add rule
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
+            {rulesState === "ready" && rules.length > 0 ? (
+              <ul className="mt-4 grid gap-3">
+                {rules.map((rule) => {
+                  const isEditingRule = editingRuleId === rule.id;
+                  const isDeletingRule = deletingRuleId === rule.id;
+                  return (
+                    <li key={rule.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                      {isEditingRule ? (
+                        <>
+                          <textarea
+                            value={editRuleDraft}
+                            onChange={(event) => setEditRuleDraft(event.target.value)}
+                            rows={3}
+                            disabled={isRuleSaving}
+                            className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm leading-6 text-zinc-800 outline-none ring-blue-100 focus:ring"
+                          />
+                          <div className="mt-3 flex items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={isRuleSaving}
+                              className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                              onClick={() => void saveEditedRule()}
+                            >
+                              {isRuleSaving ? "Saving..." : "Save"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isRuleSaving}
+                              className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                              onClick={cancelEditRule}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-700">{rule.text}</p>
+                          <div className="mt-3 flex items-center justify-between gap-3">
+                            <span className="text-xs text-zinc-500">
+                              Updated {formatDateTime(rule.updatedAt)}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                disabled={isRuleSaving || Boolean(deletingRuleId)}
+                                className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60"
+                                onClick={() => startEditRule(rule)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isDeletingRule || isRuleSaving}
+                                className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+                                onClick={() => requestDeleteRule(rule.id)}
+                              >
+                                {isDeletingRule ? (
+                                  <>
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    Deleting...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                    Delete
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+
+            {rulesState === "ready" && rulesError ? (
+              <p className="mt-3 text-sm text-red-700">{rulesError}</p>
+            ) : null}
+          </section>
         </div>
 
         <aside className="grid gap-6">
@@ -736,6 +1031,18 @@ export function AgentOverviewPage() {
         tone="danger"
         onCancel={() => setDeleteConfirmOpen(false)}
         onConfirm={confirmDeleteAction}
+      />
+      <ConfirmationDialog
+        open={deleteRuleConfirmOpen}
+        title="Delete rule?"
+        description="The rule will be removed from the active rules list."
+        confirmLabel="Delete"
+        tone="danger"
+        onCancel={() => {
+          setDeleteRuleConfirmOpen(false);
+          setPendingDeleteRuleId(null);
+        }}
+        onConfirm={confirmDeleteRule}
       />
     </div>
   );

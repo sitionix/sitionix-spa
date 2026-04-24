@@ -264,8 +264,8 @@ importers:
   apps/workspace:
     dependencies:
       '@sitionix/app-afesox-bffssox-frontend-stable':
-        specifier: 0.0.27
-        version: 0.0.27
+        specifier: 0.0.28
+        version: 0.0.28
       '@sitionix/auth-session':
         specifier: workspace:*
         version: link:../../packages/auth-session
@@ -892,8 +892,8 @@ packages:
   '@sitionix/app-afesox-bffssox-frontend-stable@0.0.21':
     resolution: {integrity: sha512-qty7nf4PBDhMKS85L1qGnaTFFh3K5L8ewCsnE6UsAR+EJwY1eHe8ovaNsvTo2gcHfm9gaSnzh5LPLAnpn27i0Q==, tarball: https://npm.pkg.github.com/download/@sitionix/app-afesox-bffssox-frontend-stable/0.0.21/f53f3d38c34413eae7f50b4aa1407972dca9ac62}
 
-  '@sitionix/app-afesox-bffssox-frontend-stable@0.0.27':
-    resolution: {integrity: sha512-wAWuC6o/I7UuDNiKrKcpUEJfR6ockzlrH8OELAQDUgn/zoPqkm+DuHStSay4kukVNxaLauxjjWr/GKrdfXHbwQ==, tarball: https://npm.pkg.github.com/download/@sitionix/app-afesox-bffssox-frontend-stable/0.0.27/6dbbec4a82b951532f547dd6b14669e6cd6df521}
+  '@sitionix/app-afesox-bffssox-frontend-stable@0.0.28':
+    resolution: {integrity: sha512-w8Y/IgneJK/SUjlZMvITGUdfR22hqqPTDL3WdYtcn5g/R0ywV1VthBKzTsGoWwCunp7lEKbbVolLeBCJb4cRlw==, tarball: https://npm.pkg.github.com/download/@sitionix/app-afesox-bffssox-frontend-stable/0.0.28/e2cf45923b439024b97b88ea771d9078b5788cdb}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -2376,7 +2376,7 @@ snapshots:
 
   '@sitionix/app-afesox-bffssox-frontend-stable@0.0.21': {}
 
-  '@sitionix/app-afesox-bffssox-frontend-stable@0.0.27': {}
+  '@sitionix/app-afesox-bffssox-frontend-stable@0.0.28': {}
 
   '@standard-schema/spec@1.1.0': {}
 

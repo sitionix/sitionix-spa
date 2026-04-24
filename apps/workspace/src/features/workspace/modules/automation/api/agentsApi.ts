@@ -1,16 +1,23 @@
 import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
 import type {
+  CreateAgentRuleRequestDTO,
   CreateAgentRequestDTO,
+  PatchAgentRuleRequestDTO,
   PatchAgentRequestDTO,
 } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 import { bffApiConfiguration } from "../../../../../shared/http/httpClient";
 import type {
   AgentConversationDetails,
   AgentConversationsResponse,
+  AgentRule,
+  AgentRulesResponse,
   AutomationAgent,
   ChatAgentRequest,
   ChatAgentResponse,
+  CreateAgentRuleRequest,
   CreateAgentRequest,
+  DeleteAgentRuleResponse,
+  PatchAgentRuleRequest,
   PatchAgentRequest,
 } from "../model/types";
 
@@ -21,6 +28,10 @@ type ExtendedAgentApi = {
   getAgentConversations(request: { agentId: string }): Promise<AgentConversationsResponse>;
   getAgentConversation(request: { conversationId: string }): Promise<AgentConversationDetails>;
   chatAgent(request: { agentId: string; chatAgentRequestDTO: ChatAgentRequest }): Promise<ChatAgentResponse>;
+  getAgentRules(request: { agentId: string }): Promise<AgentRulesResponse>;
+  createAgentRule(request: { agentId: string; createAgentRuleRequestDTO: CreateAgentRuleRequest }): Promise<AgentRule>;
+  patchAgentRule(request: { agentId: string; ruleId: string; patchAgentRuleRequestDTO: PatchAgentRuleRequest }): Promise<AgentRule>;
+  deleteAgentRule(request: { agentId: string; ruleId: string }): Promise<DeleteAgentRuleResponse>;
 };
 
 const agentApiExtended = agentApi as unknown as ExtendedAgentApi;
@@ -150,6 +161,44 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
   });
 }
 
+export async function getAgentRules(agentId: string): Promise<AgentRulesResponse> {
+  const response = await agentApiExtended.getAgentRules({ agentId });
+  return {
+    items: Array.isArray(response.items) ? response.items : [],
+  };
+}
+
+export async function createAgentRule(agentId: string, payload: CreateAgentRuleRequest): Promise<AgentRule> {
+  const text = payload.text?.trim() ?? "";
+  if (!text) {
+    throw new Error("Rule text is required");
+  }
+
+  const requestBody: CreateAgentRuleRequestDTO = { text };
+  return agentApiExtended.createAgentRule({
+    agentId,
+    createAgentRuleRequestDTO: requestBody,
+  });
+}
+
+export async function patchAgentRule(agentId: string, ruleId: string, payload: PatchAgentRuleRequest): Promise<AgentRule> {
+  const text = payload.text?.trim() ?? "";
+  if (!text) {
+    throw new Error("Rule text is required");
+  }
+
+  const requestBody: PatchAgentRuleRequestDTO = { text };
+  return agentApiExtended.patchAgentRule({
+    agentId,
+    ruleId,
+    patchAgentRuleRequestDTO: requestBody,
+  });
+}
+
+export async function deleteAgentRule(agentId: string, ruleId: string): Promise<DeleteAgentRuleResponse> {
+  return agentApiExtended.deleteAgentRule({ agentId, ruleId });
+}
+
 type ErrorWithStatus = {
   status?: unknown;
   response?: {
@@ -186,5 +235,9 @@ export const agentsApi = {
   getAgentConversations,
   getAgentConversation,
   chatAgent,
+  getAgentRules,
+  createAgentRule,
+  patchAgentRule,
+  deleteAgentRule,
   getErrorHttpStatus,
 };
