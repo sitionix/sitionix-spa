@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { ArrowLeft, Check, Clock3, Loader2, MessageSquareText, Pencil, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, Clock3, Loader2, MessageSquareText, Pencil, Sparkles, X } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../../../ui/components/PageHeader";
 import { ConfirmationDialog } from "../../../ui/components/ConfirmationDialog";
@@ -368,7 +368,11 @@ export function AgentOverviewPage() {
   }, []);
 
   const confirmRuleDelete = useCallback(async () => {
-    if (!agent || !ruleDeleteTargetId || ruleAction) {
+    if (!agent || !ruleDeleteTargetId) {
+      return;
+    }
+    if (ruleAction
+      && (ruleAction.type !== "suggested-delete" || ruleAction.ruleId !== ruleDeleteTargetId)) {
       return;
     }
     const targetId = ruleDeleteTargetId;
@@ -893,7 +897,7 @@ export function AgentOverviewPage() {
                   const isSaving = ruleAction?.type === "active-save" && ruleAction.ruleId === rule.id;
                   const isDeleting = ruleAction?.type === "active-delete" && ruleAction.ruleId === rule.id;
                   return (
-                    <article key={rule.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                    <article key={rule.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
                       {isEditing ? (
                         <>
                           <input
@@ -930,31 +934,31 @@ export function AgentOverviewPage() {
                         <>
                           <div className="flex items-start justify-between gap-3">
                             <h3 className="text-sm font-semibold text-zinc-900">{rule.title}</h3>
-                            <span className="rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-700">
-                              {rule.authorType}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-700">
+                                {rule.authorType}
+                              </span>
+                              <button
+                                type="button"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-100"
+                                onClick={() => startEditActiveRule(rule)}
+                                disabled={Boolean(ruleAction)}
+                                aria-label="Edit active rule"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-red-300 bg-white text-red-700 transition hover:bg-red-50"
+                                onClick={() => requestRuleDelete(rule.id)}
+                                disabled={Boolean(ruleAction)}
+                                aria-label="Delete active rule"
+                              >
+                                {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                              </button>
+                            </div>
                           </div>
-                          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-700">{rule.content}</p>
-                          <div className="mt-3 flex items-center gap-2">
-                            <button
-                              type="button"
-                              className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
-                              onClick={() => startEditActiveRule(rule)}
-                              disabled={Boolean(ruleAction)}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              className="inline-flex items-center gap-1 rounded-lg border border-red-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50"
-                              onClick={() => requestRuleDelete(rule.id)}
-                              disabled={Boolean(ruleAction)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              {isDeleting ? "Deleting..." : "Delete"}
-                            </button>
-                          </div>
+                          <p className="mt-1.5 whitespace-pre-wrap text-sm leading-6 text-zinc-700">{rule.content}</p>
                         </>
                       )}
                     </article>
@@ -983,12 +987,35 @@ export function AgentOverviewPage() {
                   const isRejecting = ruleAction?.type === "suggested-reject" && ruleAction.ruleId === rule.id;
                   const isDeleting = ruleAction?.type === "suggested-delete" && ruleAction.ruleId === rule.id;
                   return (
-                    <article key={rule.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                    <article key={rule.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
                       <div className="flex items-start justify-between gap-3">
                         <h3 className="text-sm font-semibold text-zinc-900">{rule.title}</h3>
-                        <span className="rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-700">
-                          {rule.authorType}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-700">
+                            {rule.authorType}
+                          </span>
+                          <button
+                            type="button"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-100"
+                            onClick={() => startEditSuggestedRule(rule)}
+                            disabled={Boolean(ruleAction)}
+                            aria-label="Edit suggested rule"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-red-300 bg-white text-red-700 transition hover:bg-red-50"
+                            onClick={() => {
+                              setRuleAction({ type: "suggested-delete", ruleId: rule.id });
+                              requestRuleDelete(rule.id);
+                            }}
+                            disabled={Boolean(ruleAction)}
+                            aria-label="Delete suggested rule"
+                          >
+                            {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                          </button>
+                        </div>
                       </div>
                       {isEditing ? (
                         <>
@@ -1005,7 +1032,7 @@ export function AgentOverviewPage() {
                           />
                         </>
                       ) : (
-                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-700">{rule.content}</p>
+                        <p className="mt-1.5 whitespace-pre-wrap text-sm leading-6 text-zinc-700">{rule.content}</p>
                       )}
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         <button
@@ -1026,18 +1053,6 @@ export function AgentOverviewPage() {
                           <X className="h-3.5 w-3.5" />
                           {isRejecting ? "Rejecting..." : "Reject"}
                         </button>
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 rounded-lg border border-red-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50"
-                          onClick={() => {
-                            setRuleAction({ type: "suggested-delete", ruleId: rule.id });
-                            requestRuleDelete(rule.id);
-                          }}
-                          disabled={Boolean(ruleAction)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          {isDeleting ? "Deleting..." : "Delete"}
-                        </button>
                         {isEditing ? (
                           <button
                             type="button"
@@ -1047,17 +1062,7 @@ export function AgentOverviewPage() {
                           >
                             Cancel edit
                           </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
-                            onClick={() => startEditSuggestedRule(rule)}
-                            disabled={Boolean(ruleAction)}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                            Edit
-                          </button>
-                        )}
+                        ) : null}
                       </div>
                     </article>
                   );
