@@ -7,7 +7,7 @@ import type {
   DeleteAgentRuleResponseDTO,
   PatchAgentRuleRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-sitionix-118-unstable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 
 export type AutomationAgent = AgentDTO;
 export type CreateAgentRequest = CreateAgentRequestDTO;
