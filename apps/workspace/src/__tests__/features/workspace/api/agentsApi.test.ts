@@ -7,13 +7,17 @@ import {
   chatAgent,
   createAgent,
   deleteAgent,
+  deleteAgentRule,
   getAgentById,
+  getAgentRules,
   getAgentConversation,
   getAgentConversations,
   getAgents,
   getErrorHttpStatus,
   patchAgent,
+  patchAgentRule,
   restoreAgent,
+  createAgentRule,
 } from "../../../../features/workspace/modules/automation/api/agentsApi";
 
 describe("agentsApi.getAgents", () => {
@@ -144,6 +148,89 @@ describe("agentsApi.getAgentById", () => {
     expect(getAgentSpy).toHaveBeenCalledWith({ agentId: "agent-5" });
     expect(result.id).toBe("agent-5");
     expect(result.instruction).toBe("Review boundaries strictly.");
+  });
+});
+
+describe("agentsApi.rules", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("getAgentRules returns empty items when backend payload has no list", async () => {
+    const getAgentRulesSpy = vi.spyOn(AgentApi.prototype, "getAgentRules").mockResolvedValue({
+      items: undefined,
+    });
+
+    const result = await getAgentRules("agent-1");
+
+    expect(getAgentRulesSpy).toHaveBeenCalledWith({ agentId: "agent-1" });
+    expect(result).toEqual({ items: [] });
+  });
+
+  it("createAgentRule trims text and sends create payload", async () => {
+    const createAgentRuleSpy = vi.spyOn(AgentApi.prototype, "createAgentRule").mockResolvedValue({
+      id: "rule-1",
+      text: "Always validate input",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:00:00.000Z",
+    });
+
+    const result = await createAgentRule("agent-1", { text: "  Always validate input  " });
+
+    expect(createAgentRuleSpy).toHaveBeenCalledWith({
+      agentId: "agent-1",
+      createAgentRuleRequestDTO: {
+        text: "Always validate input",
+      },
+    });
+    expect(result).toEqual({
+      id: "rule-1",
+      text: "Always validate input",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:00:00.000Z",
+    });
+  });
+
+  it("patchAgentRule trims text and sends patch payload", async () => {
+    const patchAgentRuleSpy = vi.spyOn(AgentApi.prototype, "patchAgentRule").mockResolvedValue({
+      id: "rule-1",
+      text: "Updated rule",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:05:00.000Z",
+    });
+
+    const result = await patchAgentRule("agent-1", "rule-1", { text: "  Updated rule  " });
+
+    expect(patchAgentRuleSpy).toHaveBeenCalledWith({
+      agentId: "agent-1",
+      ruleId: "rule-1",
+      patchAgentRuleRequestDTO: {
+        text: "Updated rule",
+      },
+    });
+    expect(result.text).toBe("Updated rule");
+  });
+
+  it("deleteAgentRule forwards route params", async () => {
+    const deleteAgentRuleSpy = vi.spyOn(AgentApi.prototype, "deleteAgentRule").mockResolvedValue({
+      status: "DELETED",
+    });
+
+    const result = await deleteAgentRule("agent-1", "rule-1");
+
+    expect(deleteAgentRuleSpy).toHaveBeenCalledWith({
+      agentId: "agent-1",
+      ruleId: "rule-1",
+    });
+    expect(result).toEqual({ status: "DELETED" });
+  });
+
+  it("throws when createAgentRule text is blank", async () => {
+    await expect(createAgentRule("agent-1", { text: "   " })).rejects.toThrow("Rule text is required");
+  });
+
+  it("throws when patchAgentRule text is blank", async () => {
+    await expect(patchAgentRule("agent-1", "rule-1", { text: "" })).rejects.toThrow("Rule text is required");
   });
 });
 

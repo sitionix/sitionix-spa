@@ -7,29 +7,41 @@ import { AgentOverviewPage } from "../../../../../features/workspace/modules/aut
 import {
   activateAgent,
   archiveAgent,
+  createAgentRule,
   deleteAgent,
+  deleteAgentRule,
   getAgentById,
+  getAgentRules,
   getErrorHttpStatus,
   patchAgent,
+  patchAgentRule,
   restoreAgent,
 } from "../../../../../features/workspace/modules/automation/api";
 
 vi.mock("../../../../../features/workspace/modules/automation/api", () => ({
   activateAgent: vi.fn(),
   archiveAgent: vi.fn(),
+  createAgentRule: vi.fn(),
   deleteAgent: vi.fn(),
+  deleteAgentRule: vi.fn(),
   getAgentById: vi.fn(),
+  getAgentRules: vi.fn(),
   getErrorHttpStatus: vi.fn(),
   patchAgent: vi.fn(),
+  patchAgentRule: vi.fn(),
   restoreAgent: vi.fn(),
 }));
 
 const activateAgentMock = vi.mocked(activateAgent);
 const archiveAgentMock = vi.mocked(archiveAgent);
+const createAgentRuleMock = vi.mocked(createAgentRule);
 const deleteAgentMock = vi.mocked(deleteAgent);
+const deleteAgentRuleMock = vi.mocked(deleteAgentRule);
 const getAgentByIdMock = vi.mocked(getAgentById);
+const getAgentRulesMock = vi.mocked(getAgentRules);
 const getErrorHttpStatusMock = vi.mocked(getErrorHttpStatus);
 const patchAgentMock = vi.mocked(patchAgent);
+const patchAgentRuleMock = vi.mocked(patchAgentRule);
 const restoreAgentMock = vi.mocked(restoreAgent);
 
 const agent = {
@@ -59,12 +71,17 @@ describe("AgentOverviewPage", () => {
   beforeEach(() => {
     activateAgentMock.mockReset();
     archiveAgentMock.mockReset();
+    createAgentRuleMock.mockReset();
     deleteAgentMock.mockReset();
+    deleteAgentRuleMock.mockReset();
     getAgentByIdMock.mockReset();
+    getAgentRulesMock.mockReset();
     getErrorHttpStatusMock.mockReset();
     patchAgentMock.mockReset();
+    patchAgentRuleMock.mockReset();
     restoreAgentMock.mockReset();
     getErrorHttpStatusMock.mockReturnValue(null);
+    getAgentRulesMock.mockResolvedValue({ items: [] });
   });
 
   it("renders loading and then successful overview with agent definition section", async () => {
@@ -640,5 +657,105 @@ describe("AgentOverviewPage", () => {
 
     expect(deleteAgentMock).toHaveBeenCalledWith("agent-1");
     expect(await screen.findByText("Automation Home")).toBeInTheDocument();
+  });
+
+  it("creates new rule from Add rule form", async () => {
+    getAgentByIdMock.mockResolvedValue({
+      ...agent,
+      status: "ACTIVE",
+    });
+    createAgentRuleMock.mockResolvedValue({
+      id: "rule-1",
+      text: "Always validate input",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:00:00.000Z",
+    });
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+    expect(screen.getByText("No rules yet")).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: "Add rule" })[0]);
+    await user.type(screen.getByRole("textbox"), "  Always validate input  ");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(createAgentRuleMock).toHaveBeenCalledWith("agent-1", { text: "  Always validate input  " });
+    expect(await screen.findByText("Always validate input")).toBeInTheDocument();
+  });
+
+  it("edits existing rule and saves updated text", async () => {
+    getAgentByIdMock.mockResolvedValue({
+      ...agent,
+      status: "ACTIVE",
+    });
+    getAgentRulesMock.mockResolvedValue({
+      items: [{
+        id: "rule-1",
+        text: "Old text",
+        createdAt: "2026-04-21T10:00:00.000Z",
+        updatedAt: "2026-04-21T10:00:00.000Z",
+      }],
+    });
+    patchAgentRuleMock.mockResolvedValue({
+      id: "rule-1",
+      text: "Updated text",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:05:00.000Z",
+    });
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+    expect(await screen.findByText("Old text")).toBeInTheDocument();
+
+    const ruleItem = screen.getByText("Old text").closest("li");
+    if (!ruleItem) {
+      throw new Error("Rule item not found");
+    }
+    await user.click(within(ruleItem).getByRole("button", { name: "Edit" }));
+    const ruleTextbox = screen.getByDisplayValue("Old text");
+    await user.clear(ruleTextbox);
+    await user.type(ruleTextbox, "Updated text");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(patchAgentRuleMock).toHaveBeenCalledWith("agent-1", "rule-1", { text: "Updated text" });
+    expect(await screen.findByText("Updated text")).toBeInTheDocument();
+  });
+
+  it("deletes rule after confirmation", async () => {
+    getAgentByIdMock.mockResolvedValue({
+      ...agent,
+      status: "ACTIVE",
+    });
+    getAgentRulesMock.mockResolvedValue({
+      items: [{
+        id: "rule-1",
+        text: "Delete me",
+        createdAt: "2026-04-21T10:00:00.000Z",
+        updatedAt: "2026-04-21T10:00:00.000Z",
+      }],
+    });
+    deleteAgentRuleMock.mockResolvedValue({ status: "DELETED" });
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+    expect(await screen.findByText("Delete me")).toBeInTheDocument();
+
+    const ruleItem = screen.getByText("Delete me").closest("li");
+    if (!ruleItem) {
+      throw new Error("Rule item not found");
+    }
+    await user.click(within(ruleItem).getByRole("button", { name: "Delete" }));
+    const dialogHeading = screen.getByRole("heading", { name: "Delete rule?" });
+    const dialog = dialogHeading.closest("div");
+    if (!dialog) {
+      throw new Error("Delete rule dialog not found");
+    }
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+    expect(deleteAgentRuleMock).toHaveBeenCalledWith("agent-1", "rule-1");
+    expect(screen.queryByText("Delete me")).not.toBeInTheDocument();
   });
 });
