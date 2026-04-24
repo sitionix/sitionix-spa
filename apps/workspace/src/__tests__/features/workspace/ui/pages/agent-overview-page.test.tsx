@@ -684,6 +684,26 @@ describe("AgentOverviewPage", () => {
     expect(await screen.findByText("Always validate input")).toBeInTheDocument();
   });
 
+  it("retries loading rules when rules request fails", async () => {
+    getAgentByIdMock.mockResolvedValue({
+      ...agent,
+      status: "ACTIVE",
+    });
+    getAgentRulesMock.mockRejectedValueOnce(new Error("Rules error")).mockResolvedValueOnce({
+      items: [],
+    });
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+    expect(await screen.findByText("Rules error")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(await screen.findByText("No rules yet")).toBeInTheDocument();
+    expect(getAgentRulesMock).toHaveBeenCalledTimes(2);
+  });
+
   it("edits existing rule and saves updated text", async () => {
     getAgentByIdMock.mockResolvedValue({
       ...agent,
@@ -757,5 +777,41 @@ describe("AgentOverviewPage", () => {
 
     expect(deleteAgentRuleMock).toHaveBeenCalledWith("agent-1", "rule-1");
     expect(screen.queryByText("Delete me")).not.toBeInTheDocument();
+  });
+
+  it("cancels rule deletion without calling delete endpoint", async () => {
+    getAgentByIdMock.mockResolvedValue({
+      ...agent,
+      status: "ACTIVE",
+    });
+    getAgentRulesMock.mockResolvedValue({
+      items: [{
+        id: "rule-1",
+        text: "Delete me",
+        createdAt: "2026-04-21T10:00:00.000Z",
+        updatedAt: "2026-04-21T10:00:00.000Z",
+      }],
+    });
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+    expect(await screen.findByText("Delete me")).toBeInTheDocument();
+
+    const ruleItem = screen.getByText("Delete me").closest("li");
+    if (!ruleItem) {
+      throw new Error("Rule item not found");
+    }
+    await user.click(within(ruleItem).getByRole("button", { name: "Delete" }));
+    const dialogHeading = screen.getByRole("heading", { name: "Delete rule?" });
+    const dialog = dialogHeading.closest("div");
+    if (!dialog) {
+      throw new Error("Delete rule dialog not found");
+    }
+
+    await user.click(within(dialog).getByRole("button", { name: "Скасувати" }));
+
+    expect(deleteAgentRuleMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("heading", { name: "Delete rule?" })).not.toBeInTheDocument();
   });
 });
