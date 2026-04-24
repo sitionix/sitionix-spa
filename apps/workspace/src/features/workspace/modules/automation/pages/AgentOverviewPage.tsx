@@ -955,7 +955,7 @@ export function AgentOverviewPage() {
                               </button>
                             </div>
                           </div>
-                          <div className="mt-1">
+                          <div className="mt-1 flex justify-end">
                             <span className="rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-700">
                               {rule.authorType}
                             </span>
@@ -1016,7 +1016,7 @@ export function AgentOverviewPage() {
                           </button>
                         </div>
                       </div>
-                      <div className="mt-1">
+                      <div className="mt-1 flex justify-end">
                         <span className="rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-700">
                           {rule.authorType}
                         </span>
