@@ -5,31 +5,49 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { formatDateTime } from "../../../../../features/workspace/model/formatters";
 import { AgentOverviewPage } from "../../../../../features/workspace/modules/automation/pages/AgentOverviewPage";
 import {
+  acceptAgentRule,
   activateAgent,
   archiveAgent,
+  createAgentRule,
   deleteAgent,
+  deleteAgentRule,
   getAgentById,
+  getAgentRules,
   getErrorHttpStatus,
   patchAgent,
+  patchAgentRule,
+  rejectAgentRule,
   restoreAgent,
 } from "../../../../../features/workspace/modules/automation/api";
 
 vi.mock("../../../../../features/workspace/modules/automation/api", () => ({
+  acceptAgentRule: vi.fn(),
   activateAgent: vi.fn(),
   archiveAgent: vi.fn(),
+  createAgentRule: vi.fn(),
   deleteAgent: vi.fn(),
+  deleteAgentRule: vi.fn(),
   getAgentById: vi.fn(),
+  getAgentRules: vi.fn(),
   getErrorHttpStatus: vi.fn(),
   patchAgent: vi.fn(),
+  patchAgentRule: vi.fn(),
+  rejectAgentRule: vi.fn(),
   restoreAgent: vi.fn(),
 }));
 
+const acceptAgentRuleMock = vi.mocked(acceptAgentRule);
 const activateAgentMock = vi.mocked(activateAgent);
 const archiveAgentMock = vi.mocked(archiveAgent);
+const createAgentRuleMock = vi.mocked(createAgentRule);
 const deleteAgentMock = vi.mocked(deleteAgent);
+const deleteAgentRuleMock = vi.mocked(deleteAgentRule);
 const getAgentByIdMock = vi.mocked(getAgentById);
+const getAgentRulesMock = vi.mocked(getAgentRules);
 const getErrorHttpStatusMock = vi.mocked(getErrorHttpStatus);
 const patchAgentMock = vi.mocked(patchAgent);
+const patchAgentRuleMock = vi.mocked(patchAgentRule);
+const rejectAgentRuleMock = vi.mocked(rejectAgentRule);
 const restoreAgentMock = vi.mocked(restoreAgent);
 
 const agent = {
@@ -57,14 +75,21 @@ function renderOverview(initialPath = "/automation/agents/agent-1") {
 
 describe("AgentOverviewPage", () => {
   beforeEach(() => {
+    acceptAgentRuleMock.mockReset();
     activateAgentMock.mockReset();
     archiveAgentMock.mockReset();
+    createAgentRuleMock.mockReset();
     deleteAgentMock.mockReset();
+    deleteAgentRuleMock.mockReset();
     getAgentByIdMock.mockReset();
+    getAgentRulesMock.mockReset();
     getErrorHttpStatusMock.mockReset();
     patchAgentMock.mockReset();
+    patchAgentRuleMock.mockReset();
+    rejectAgentRuleMock.mockReset();
     restoreAgentMock.mockReset();
     getErrorHttpStatusMock.mockReturnValue(null);
+    getAgentRulesMock.mockResolvedValue([]);
   });
 
   it("renders loading and then successful overview with agent definition section", async () => {
@@ -86,9 +111,7 @@ describe("AgentOverviewPage", () => {
     expect(screen.getByText("Add instruction to define how this agent should behave.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Suggested Rules" })).toBeInTheDocument();
-    expect(
-      screen.getByText("System-suggested candidate rules will appear here once rule suggestions are available.")
-    ).toBeInTheDocument();
+    expect(screen.getByText("No suggested rules")).toBeInTheDocument();
     expect(screen.queryByText(/guidance support/i)).not.toBeInTheDocument();
   });
 
