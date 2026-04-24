@@ -1,4 +1,4 @@
-import { SiteApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { SiteApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-119-unstable/apis";
 import type {
   CreateSiteRequestDTO,
   CreateSiteRequestDTOTemplateEnum,
@@ -6,7 +6,7 @@ import type {
   SiteOverviewDTO,
   WorkspaceSiteCardResponseDTO,
   WorkspaceSitesResponseDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-119-unstable/models";
 import { bffApiConfiguration } from "../../../shared/http/httpClient";
 import type {
   Page,

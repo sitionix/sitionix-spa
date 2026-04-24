@@ -1,8 +1,11 @@
 import type {
   AgentDTO,
+  AgentRuleDTO,
+  CreateAgentRuleRequestDTO,
+  PatchAgentRuleRequestDTO,
   CreateAgentRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-119-unstable/models";
 
 export type AutomationAgent = AgentDTO;
 export type CreateAgentRequest = CreateAgentRequestDTO;
@@ -24,6 +27,16 @@ export type ChatAgentMessage = {
 export type ChatAgentResponse = {
   conversationId: string;
   reply: ChatAgentMessage;
+};
+
+export type AgentRule = AgentRuleDTO;
+export type CreateAgentRuleRequest = CreateAgentRuleRequestDTO;
+export type PatchAgentRuleRequest = PatchAgentRuleRequestDTO;
+export type AgentRuleStatus = "PENDING" | "ACTIVE" | "REJECTED" | "DELETED";
+export type AgentRuleAuthorType = "USER" | "AI";
+
+export type DeleteAgentRuleResponse = {
+  status: "DELETED";
 };
 
 export type AgentConversation = {

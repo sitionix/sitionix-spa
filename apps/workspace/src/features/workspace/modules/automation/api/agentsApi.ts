@@ -1,15 +1,24 @@
-import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-119-unstable/apis";
 import type {
+  AcceptAgentRuleRequestDTO,
   CreateAgentRequestDTO,
+  CreateAgentRuleRequestDTO,
+  PatchAgentRuleRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-119-unstable/models";
 import { bffApiConfiguration } from "../../../../../shared/http/httpClient";
 import type {
   AgentConversationDetails,
   AgentConversationsResponse,
+  AgentRule,
+  AgentRuleAuthorType,
+  AgentRuleStatus,
   AutomationAgent,
   ChatAgentRequest,
   ChatAgentResponse,
+  CreateAgentRuleRequest,
+  DeleteAgentRuleResponse,
+  PatchAgentRuleRequest,
   CreateAgentRequest,
   PatchAgentRequest,
 } from "../model/types";
@@ -21,6 +30,12 @@ type ExtendedAgentApi = {
   getAgentConversations(request: { agentId: string }): Promise<AgentConversationsResponse>;
   getAgentConversation(request: { conversationId: string }): Promise<AgentConversationDetails>;
   chatAgent(request: { agentId: string; chatAgentRequestDTO: ChatAgentRequest }): Promise<ChatAgentResponse>;
+  getAgentRules(request: { agentId: string; status?: AgentRuleStatus; authorType?: AgentRuleAuthorType }): Promise<{ items?: AgentRule[] }>;
+  createAgentRule(request: { agentId: string; createAgentRuleRequestDTO: CreateAgentRuleRequestDTO }): Promise<AgentRule>;
+  patchAgentRule(request: { agentId: string; ruleId: string; patchAgentRuleRequestDTO: PatchAgentRuleRequestDTO }): Promise<AgentRule>;
+  acceptAgentRule(request: { agentId: string; ruleId: string; acceptAgentRuleRequestDTO?: AcceptAgentRuleRequestDTO }): Promise<AgentRule>;
+  rejectAgentRule(request: { agentId: string; ruleId: string }): Promise<AgentRule>;
+  deleteAgentRule(request: { agentId: string; ruleId: string }): Promise<DeleteAgentRuleResponse>;
 };
 
 const agentApiExtended = agentApi as unknown as ExtendedAgentApi;
@@ -150,6 +165,99 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
   });
 }
 
+export async function getAgentRules(
+  agentId: string,
+  filters?: { status?: AgentRuleStatus; authorType?: AgentRuleAuthorType },
+): Promise<AgentRule[]> {
+  const response = await agentApiExtended.getAgentRules({
+    agentId,
+    status: filters?.status,
+    authorType: filters?.authorType,
+  });
+  return Array.isArray(response.items) ? response.items : [];
+}
+
+export async function createAgentRule(agentId: string, payload: CreateAgentRuleRequest): Promise<AgentRule> {
+  const title = payload.title?.trim() ?? "";
+  const content = payload.content?.trim() ?? "";
+  if (!title) {
+    throw new Error("Rule title is required");
+  }
+  if (!content) {
+    throw new Error("Rule content is required");
+  }
+  return agentApiExtended.createAgentRule({
+    agentId,
+    createAgentRuleRequestDTO: { title, content },
+  });
+}
+
+export async function patchAgentRule(agentId: string, ruleId: string, payload: PatchAgentRuleRequest): Promise<AgentRule> {
+  const requestBody: PatchAgentRuleRequestDTO = {};
+  if (Object.prototype.hasOwnProperty.call(payload, "title")) {
+    const title = payload.title?.trim() ?? "";
+    if (!title) {
+      throw new Error("Rule title is required");
+    }
+    requestBody.title = title;
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "content")) {
+    const content = payload.content?.trim() ?? "";
+    if (!content) {
+      throw new Error("Rule content is required");
+    }
+    requestBody.content = content;
+  }
+  if (!Object.prototype.hasOwnProperty.call(requestBody, "title")
+    && !Object.prototype.hasOwnProperty.call(requestBody, "content")) {
+    throw new Error("At least one field (title or content) must be provided");
+  }
+  return agentApiExtended.patchAgentRule({
+    agentId,
+    ruleId,
+    patchAgentRuleRequestDTO: requestBody,
+  });
+}
+
+export async function acceptAgentRule(
+  agentId: string,
+  ruleId: string,
+  payload?: { title?: string; content?: string },
+): Promise<AgentRule> {
+  let requestBody: AcceptAgentRuleRequestDTO | undefined;
+  if (payload && (Object.prototype.hasOwnProperty.call(payload, "title")
+      || Object.prototype.hasOwnProperty.call(payload, "content"))) {
+    requestBody = {};
+    if (Object.prototype.hasOwnProperty.call(payload, "title")) {
+      const title = payload.title?.trim() ?? "";
+      if (!title) {
+        throw new Error("Rule title is required");
+      }
+      requestBody.title = title;
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, "content")) {
+      const content = payload.content?.trim() ?? "";
+      if (!content) {
+        throw new Error("Rule content is required");
+      }
+      requestBody.content = content;
+    }
+  }
+  return agentApiExtended.acceptAgentRule({
+    agentId,
+    ruleId,
+    acceptAgentRuleRequestDTO: requestBody,
+  });
+}
+
+export async function rejectAgentRule(agentId: string, ruleId: string): Promise<AgentRule> {
+  return agentApiExtended.rejectAgentRule({ agentId, ruleId });
+}
+
+export async function deleteAgentRule(agentId: string, ruleId: string): Promise<DeleteAgentRuleResponse> {
+  return agentApiExtended.deleteAgentRule({ agentId, ruleId });
+}
+
 type ErrorWithStatus = {
   status?: unknown;
   response?: {
@@ -186,5 +294,11 @@ export const agentsApi = {
   getAgentConversations,
   getAgentConversation,
   chatAgent,
+  getAgentRules,
+  createAgentRule,
+  patchAgentRule,
+  acceptAgentRule,
+  rejectAgentRule,
+  deleteAgentRule,
   getErrorHttpStatus,
 };
