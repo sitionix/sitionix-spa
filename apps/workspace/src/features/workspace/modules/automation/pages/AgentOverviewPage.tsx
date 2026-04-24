@@ -897,7 +897,7 @@ export function AgentOverviewPage() {
                   const isSaving = ruleAction?.type === "active-save" && ruleAction.ruleId === rule.id;
                   const isDeleting = ruleAction?.type === "active-delete" && ruleAction.ruleId === rule.id;
                   return (
-                    <article key={rule.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                    <article key={rule.id} className="group rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
                       {isEditing ? (
                         <>
                           <input
@@ -934,10 +934,7 @@ export function AgentOverviewPage() {
                         <>
                           <div className="flex items-start justify-between gap-3">
                             <h3 className="text-sm font-semibold text-zinc-900">{rule.title}</h3>
-                            <div className="flex items-center gap-1.5">
-                              <span className="rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-700">
-                                {rule.authorType}
-                              </span>
+                            <div className="flex items-center gap-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
                               <button
                                 type="button"
                                 className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-100"
@@ -957,6 +954,11 @@ export function AgentOverviewPage() {
                                 {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
                               </button>
                             </div>
+                          </div>
+                          <div className="mt-1">
+                            <span className="rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-700">
+                              {rule.authorType}
+                            </span>
                           </div>
                           <p className="mt-1.5 whitespace-pre-wrap text-sm leading-6 text-zinc-700">{rule.content}</p>
                         </>
@@ -987,13 +989,10 @@ export function AgentOverviewPage() {
                   const isRejecting = ruleAction?.type === "suggested-reject" && ruleAction.ruleId === rule.id;
                   const isDeleting = ruleAction?.type === "suggested-delete" && ruleAction.ruleId === rule.id;
                   return (
-                    <article key={rule.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                    <article key={rule.id} className="group rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
                       <div className="flex items-start justify-between gap-3">
                         <h3 className="text-sm font-semibold text-zinc-900">{rule.title}</h3>
-                        <div className="flex items-center gap-1.5">
-                          <span className="rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-700">
-                            {rule.authorType}
-                          </span>
+                        <div className="flex items-center gap-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
                           <button
                             type="button"
                             className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-100"
@@ -1016,6 +1015,11 @@ export function AgentOverviewPage() {
                             {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
                           </button>
                         </div>
+                      </div>
+                      <div className="mt-1">
+                        <span className="rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-700">
+                          {rule.authorType}
+                        </span>
                       </div>
                       {isEditing ? (
                         <>
