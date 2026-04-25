@@ -747,13 +747,21 @@ describe("AgentOverviewPage", () => {
     renderOverview();
     expect(await screen.findByText("Original Suggested Title")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Edit suggested rule" }));
+    const suggestedRuleCard = screen.getByText("Original Suggested Title").closest("article");
+    if (!suggestedRuleCard) {
+      throw new Error("Suggested rule card not found");
+    }
+    expect(within(suggestedRuleCard).queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+    await user.click(within(suggestedRuleCard).getByRole("button", { name: "Open suggested rule menu" }));
+    await user.click(screen.getByRole("button", { name: "Edit" }));
     const titleInput = screen.getByDisplayValue("Original Suggested Title");
     const contentInput = screen.getByDisplayValue("Original Suggested Content");
     await user.clear(titleInput);
     await user.type(titleInput, "Edited Suggested Title");
     await user.clear(contentInput);
     await user.type(contentInput, "Edited Suggested Content");
+    expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Accept" }));
 
     expect(acceptAgentRuleMock).toHaveBeenCalledWith("agent-1", "rule-pending-ai-1", {
@@ -795,10 +803,84 @@ describe("AgentOverviewPage", () => {
     renderOverview();
     expect(await screen.findByText("No Change Title")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Edit suggested rule" }));
+    await user.click(screen.getByRole("button", { name: "Open suggested rule menu" }));
+    await user.click(screen.getByRole("button", { name: "Edit" }));
     await user.click(screen.getByRole("button", { name: "Accept" }));
 
     expect(acceptAgentRuleMock).toHaveBeenCalledWith("agent-1", "rule-pending-ai-2", undefined);
+  });
+
+  it("uses content as primary text when suggested rule title is blank", async () => {
+    getAgentByIdMock.mockResolvedValue(agent);
+    getAgentRulesMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "rule-pending-ai-no-title",
+          agentId: "agent-1",
+          title: "   ",
+          content: "Only content suggestion",
+          status: "PENDING",
+          authorType: "AI",
+          createdAt: "2026-04-12T10:00:00.000Z",
+          updatedAt: "2026-04-12T10:00:00.000Z",
+        },
+      ]);
+
+    renderOverview();
+    expect(await screen.findByText("Only content suggestion")).toBeInTheDocument();
+    expect(screen.getAllByText("Only content suggestion")).toHaveLength(1);
+  });
+
+  it("does not render AI/USER badges in Suggested Rules cards", async () => {
+    getAgentByIdMock.mockResolvedValue(agent);
+    getAgentRulesMock
+      .mockResolvedValueOnce([
+        {
+          id: "rule-active-user-2",
+          agentId: "agent-1",
+          title: "Active User Rule",
+          content: "Active USER content",
+          status: "ACTIVE",
+          authorType: "USER",
+          createdAt: "2026-04-12T10:00:00.000Z",
+          updatedAt: "2026-04-12T10:00:00.000Z",
+        },
+        {
+          id: "rule-active-ai-2",
+          agentId: "agent-1",
+          title: "Active AI Rule",
+          content: "Active AI content",
+          status: "ACTIVE",
+          authorType: "AI",
+          createdAt: "2026-04-12T10:00:00.000Z",
+          updatedAt: "2026-04-12T10:00:00.000Z",
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "rule-pending-ai-plain",
+          agentId: "agent-1",
+          title: "Suggestion title",
+          content: "Suggestion body",
+          status: "PENDING",
+          authorType: "AI",
+          createdAt: "2026-04-12T10:00:00.000Z",
+          updatedAt: "2026-04-12T10:00:00.000Z",
+        },
+      ]);
+
+    renderOverview();
+    expect(await screen.findByText("Suggestion title")).toBeInTheDocument();
+
+    const suggestedRuleCard = screen.getByText("Suggestion title").closest("article");
+    if (!suggestedRuleCard) {
+      throw new Error("Suggested rule card not found");
+    }
+    expect(within(suggestedRuleCard).queryByText(/^AI$/)).not.toBeInTheDocument();
+    expect(within(suggestedRuleCard).queryByText(/^USER$/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/^AI$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^USER$/).length).toBeGreaterThan(0);
   });
 
   it("rejects suggested rule, removes it from suggested list, and keeps active list unchanged", async () => {
@@ -978,7 +1060,8 @@ describe("AgentOverviewPage", () => {
     if (!suggestedRuleCard) {
       throw new Error("Suggested rule card not found");
     }
-    await user.click(within(suggestedRuleCard).getByRole("button", { name: "Delete suggested rule" }));
+    await user.click(within(suggestedRuleCard).getByRole("button", { name: "Open suggested rule menu" }));
+    await user.click(within(suggestedRuleCard).getByRole("button", { name: "Delete" }));
     const deleteDialogHeading = screen.getByRole("heading", { name: "Delete suggested rule?" });
     const deleteDialog = deleteDialogHeading.closest("div");
     if (!deleteDialog) {
