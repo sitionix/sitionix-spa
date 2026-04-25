@@ -709,8 +709,8 @@ describe("AgentOverviewPage", () => {
     expect(getAgentRulesMock).toHaveBeenNthCalledWith(1, "agent-1", { status: "ACTIVE" });
     expect(getAgentRulesMock).toHaveBeenNthCalledWith(2, "agent-1", { status: "PENDING", authorType: "AI" });
 
-    expect(screen.getByText("Active User Rule")).toBeInTheDocument();
-    expect(screen.getByText("Active AI Rule")).toBeInTheDocument();
+    expect(screen.getByText("User authored active rule.")).toBeInTheDocument();
+    expect(screen.getByText("AI authored active rule.")).toBeInTheDocument();
     expect(screen.getByText("Pending AI Rule")).toBeInTheDocument();
     expect(screen.getAllByText("USER").length).toBeGreaterThan(0);
     expect(screen.getAllByText("AI").length).toBeGreaterThan(0);
@@ -760,7 +760,7 @@ describe("AgentOverviewPage", () => {
       title: "Edited Suggested Title",
       content: "Edited Suggested Content",
     });
-    expect(await screen.findByText("Edited Suggested Title")).toBeInTheDocument();
+    expect(await screen.findByText("Edited Suggested Content")).toBeInTheDocument();
     expect(screen.queryByText("Original Suggested Title")).not.toBeInTheDocument();
   });
 
@@ -847,7 +847,7 @@ describe("AgentOverviewPage", () => {
 
     expect(rejectAgentRuleMock).toHaveBeenCalledWith("agent-1", "rule-pending-ai-3");
     expect(screen.queryByText("Rejectable Suggested Rule")).not.toBeInTheDocument();
-    expect(screen.getByText("Active Baseline Rule")).toBeInTheDocument();
+    expect(screen.getByText("Always active.")).toBeInTheDocument();
   });
 
   it("shows reject error, keeps suggestion, and allows retry", async () => {

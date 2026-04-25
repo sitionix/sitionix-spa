@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { ArrowLeft, Check, Clock3, Loader2, MessageSquareText, Pencil, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Check, Clock3, EllipsisVertical, Loader2, MessageSquareText, Pencil, Sparkles, X } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../../../ui/components/PageHeader";
 import { ConfirmationDialog } from "../../../ui/components/ConfirmationDialog";
@@ -68,6 +68,7 @@ export function AgentOverviewPage() {
   const [editingActiveRuleId, setEditingActiveRuleId] = useState<string | null>(null);
   const [activeRuleTitleDraft, setActiveRuleTitleDraft] = useState("");
   const [activeRuleContentDraft, setActiveRuleContentDraft] = useState("");
+  const [openActiveRuleMenuId, setOpenActiveRuleMenuId] = useState<string | null>(null);
   const [editingSuggestedRuleId, setEditingSuggestedRuleId] = useState<string | null>(null);
   const [suggestedRuleTitleDraft, setSuggestedRuleTitleDraft] = useState("");
   const [suggestedRuleContentDraft, setSuggestedRuleContentDraft] = useState("");
@@ -330,6 +331,7 @@ export function AgentOverviewPage() {
   }, [agent, createRuleContent, createRuleTitle, isCreateRuleEditing, ruleAction]);
 
   const startEditActiveRule = useCallback((rule: AgentRule) => {
+    setOpenActiveRuleMenuId(null);
     setEditingActiveRuleId(rule.id);
     setActiveRuleTitleDraft(rule.title);
     setActiveRuleContentDraft(rule.content);
@@ -340,6 +342,7 @@ export function AgentOverviewPage() {
     setEditingActiveRuleId(null);
     setActiveRuleTitleDraft("");
     setActiveRuleContentDraft("");
+    setOpenActiveRuleMenuId(null);
   }, []);
 
   const saveActiveRuleEdit = useCallback(async (ruleId: string) => {
@@ -355,6 +358,7 @@ export function AgentOverviewPage() {
       });
       setActiveRules((prev) => prev.map((rule) => (rule.id === ruleId ? updated : rule)));
       setEditingActiveRuleId(null);
+      setOpenActiveRuleMenuId(null);
     } catch (updateError) {
       setRulesError(toAutomationErrorMessage(updateError));
     } finally {
@@ -363,6 +367,7 @@ export function AgentOverviewPage() {
   }, [activeRuleContentDraft, activeRuleTitleDraft, agent, ruleAction]);
 
   const requestRuleDelete = useCallback((ruleId: string) => {
+    setOpenActiveRuleMenuId(null);
     setRuleDeleteTargetId(ruleId);
     setRuleDeleteConfirmOpen(true);
   }, []);
@@ -844,8 +849,7 @@ export function AgentOverviewPage() {
                   onClick={startCreateRule}
                   disabled={Boolean(ruleAction)}
                 >
-                  <Pencil className="h-4 w-4" />
-                  Add rule
+                  + Add rule
                 </button>
               ) : null}
             </div>
@@ -886,18 +890,18 @@ export function AgentOverviewPage() {
               </div>
             ) : null}
 
+            <div className="mt-4 border-t border-zinc-200" />
             {activeRules.length === 0 ? (
-              <div className="mt-4 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-600">
-                No active rules yet.
-              </div>
+              <div className="py-3 text-sm text-zinc-600">No active rules yet.</div>
             ) : (
-              <div className="mt-4 space-y-3">
+              <ul className="divide-y divide-zinc-200">
                 {activeRules.map((rule) => {
                   const isEditing = editingActiveRuleId === rule.id;
                   const isSaving = ruleAction?.type === "active-save" && ruleAction.ruleId === rule.id;
                   const isDeleting = ruleAction?.type === "active-delete" && ruleAction.ruleId === rule.id;
+                  const isMenuOpen = openActiveRuleMenuId === rule.id;
                   return (
-                    <article key={rule.id} className="group rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                    <li key={rule.id} className="group py-2">
                       {isEditing ? (
                         <>
                           <input
@@ -909,9 +913,9 @@ export function AgentOverviewPage() {
                             value={activeRuleContentDraft}
                             onChange={(event) => setActiveRuleContentDraft(event.target.value)}
                             rows={4}
-                            className="mt-3 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-blue-100 focus:ring"
+                            className="mt-2 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-blue-100 focus:ring"
                           />
-                          <div className="mt-3 flex items-center gap-2">
+                          <div className="mt-2 flex items-center gap-2">
                             <button
                               type="button"
                               className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
@@ -931,43 +935,60 @@ export function AgentOverviewPage() {
                           </div>
                         </>
                       ) : (
-                        <>
-                          <div className="flex items-start justify-between gap-3">
-                            <h3 className="text-sm font-semibold text-zinc-900">{rule.title}</h3>
-                            <div className="flex items-center gap-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
-                              <button
-                                type="button"
-                                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-100"
-                                onClick={() => startEditActiveRule(rule)}
-                                disabled={Boolean(ruleAction)}
-                                aria-label="Edit active rule"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-red-300 bg-white text-red-700 transition hover:bg-red-50"
-                                onClick={() => requestRuleDelete(rule.id)}
-                                disabled={Boolean(ruleAction)}
-                                aria-label="Delete active rule"
-                              >
-                                {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
-                              </button>
-                            </div>
+                        <div className="relative flex items-start gap-2">
+                          <p className="min-w-0 flex-1 overflow-hidden text-sm leading-5 text-zinc-800 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+                            {rule.content}
+                          </p>
+                          <span className="mt-0.5 shrink-0 rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600">
+                            {rule.authorType}
+                          </span>
+                          <div className="relative shrink-0">
+                            <button
+                              type="button"
+                              className={`inline-flex h-7 w-7 items-center justify-center rounded text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 ${
+                                isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+                              }`}
+                              onClick={() => setOpenActiveRuleMenuId((prev) => (prev === rule.id ? null : rule.id))}
+                              disabled={Boolean(ruleAction)}
+                              aria-label="Open active rule menu"
+                            >
+                              <EllipsisVertical className="h-4 w-4" />
+                            </button>
+                            {isMenuOpen ? (
+                              <>
+                                <button
+                                  type="button"
+                                  aria-label="Close active rule menu"
+                                  className="fixed inset-0 z-10 bg-transparent"
+                                  onClick={() => setOpenActiveRuleMenuId(null)}
+                                />
+                                <div className="absolute right-0 top-8 z-20 min-w-24 rounded-md bg-white py-1">
+                                  <button
+                                    type="button"
+                                    className="block w-full px-3 py-1.5 text-left text-xs text-zinc-700 hover:bg-zinc-50"
+                                    onClick={() => startEditActiveRule(rule)}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="block w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50"
+                                    onClick={() => requestRuleDelete(rule.id)}
+                                  >
+                                    {isDeleting ? "Deleting..." : "Delete"}
+                                  </button>
+                                </div>
+                              </>
+                            ) : null}
                           </div>
-                          <div className="mt-1 flex justify-end">
-                            <span className="rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-700">
-                              {rule.authorType}
-                            </span>
-                          </div>
-                          <p className="mt-1.5 whitespace-pre-wrap text-sm leading-6 text-zinc-700">{rule.content}</p>
-                        </>
+                        </div>
                       )}
-                    </article>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             )}
+            <div className="border-t border-zinc-200" />
           </section>
         </div>
 
