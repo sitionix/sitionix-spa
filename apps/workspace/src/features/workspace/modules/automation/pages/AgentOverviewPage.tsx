@@ -894,7 +894,7 @@ export function AgentOverviewPage() {
             {activeRules.length === 0 ? (
               <div className="py-3 text-sm text-zinc-600">No active rules yet.</div>
             ) : (
-              <ul className="space-y-1 py-1">
+              <ul className="space-y-2 py-2">
                 {activeRules.map((rule) => {
                   const isEditing = editingActiveRuleId === rule.id;
                   const isSaving = ruleAction?.type === "active-save" && ruleAction.ruleId === rule.id;
@@ -903,7 +903,7 @@ export function AgentOverviewPage() {
                   return (
                     <li
                       key={rule.id}
-                      className="group rounded-md bg-zinc-50/70 px-3 py-2 transition-colors hover:bg-zinc-100 focus-within:bg-zinc-100"
+                      className="rounded-lg bg-zinc-50 px-4 py-3 transition-colors hover:bg-zinc-100 focus-within:bg-zinc-100"
                     >
                       {isEditing ? (
                         <>
@@ -938,26 +938,31 @@ export function AgentOverviewPage() {
                           </div>
                         </>
                       ) : (
-                        <div className="relative flex items-start gap-2">
+                        <div className="relative flex items-center justify-between gap-3">
                           <p className="min-w-0 flex-1 overflow-hidden text-sm leading-5 text-zinc-800 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
                             {rule.content}
                           </p>
-                          <span className="shrink-0 self-center rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600">
-                            {rule.authorType}
-                          </span>
-                          <div className="relative shrink-0">
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span
+                              className={`rounded-md border px-2 py-0.5 text-xs font-semibold uppercase tracking-[0.08em] ${
+                                rule.authorType === "AI"
+                                  ? "border-blue-200 text-blue-600"
+                                  : "border-zinc-300 text-zinc-600"
+                              }`}
+                            >
+                              {rule.authorType}
+                            </span>
+                            <div className="relative shrink-0">
                             <button
                               type="button"
-                              className={`inline-flex h-7 w-7 items-center justify-center rounded text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 ${
-                                isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
-                              }`}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700"
                               onClick={() => setOpenActiveRuleMenuId((prev) => (prev === rule.id ? null : rule.id))}
                               disabled={Boolean(ruleAction)}
                               aria-label="Open active rule menu"
                             >
                               <EllipsisVertical className="h-4 w-4" />
                             </button>
-                            {isMenuOpen ? (
+                              {isMenuOpen ? (
                               <>
                                 <button
                                   type="button"
@@ -965,7 +970,7 @@ export function AgentOverviewPage() {
                                   className="fixed inset-0 z-10 bg-transparent"
                                   onClick={() => setOpenActiveRuleMenuId(null)}
                                 />
-                                <div className="absolute right-0 top-8 z-20 min-w-24 rounded-md bg-white py-1">
+                                  <div className="absolute right-0 top-8 z-20 min-w-24 rounded-md bg-white py-1">
                                   <button
                                     type="button"
                                     className="block w-full px-3 py-1.5 text-left text-xs text-zinc-700 hover:bg-zinc-50"
@@ -973,16 +978,17 @@ export function AgentOverviewPage() {
                                   >
                                     Edit
                                   </button>
-                                  <button
+                                    <button
                                     type="button"
                                     className="block w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50"
                                     onClick={() => requestRuleDelete(rule.id)}
                                   >
                                     {isDeleting ? "Deleting..." : "Delete"}
                                   </button>
-                                </div>
+                                  </div>
                               </>
-                            ) : null}
+                              ) : null}
+                            </div>
                           </div>
                         </div>
                       )}
@@ -991,7 +997,6 @@ export function AgentOverviewPage() {
                 })}
               </ul>
             )}
-            <div className="border-t border-zinc-300" />
           </section>
         </div>
 
