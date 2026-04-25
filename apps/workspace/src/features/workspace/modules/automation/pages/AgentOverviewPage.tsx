@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { ArrowLeft, Check, Clock3, EllipsisVertical, Loader2, MessageSquareText, Pencil, X } from "lucide-react";
+import { ArrowLeft, Check, Clock3, EllipsisVertical, Loader2, MessageSquareText, Pencil, Sparkles, X } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../../../ui/components/PageHeader";
 import { ConfirmationDialog } from "../../../ui/components/ConfirmationDialog";
@@ -1007,15 +1007,18 @@ export function AgentOverviewPage() {
         <aside className="grid gap-6">
           <section className="rounded-3xl border border-zinc-200 bg-white p-6">
             <h2 className="text-lg font-semibold text-zinc-900">Suggested Rules</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-600">
-              The system suggests rules based on conversations.
-            </p>
             {suggestedRules.length === 0 ? (
-              <div className="mt-4 py-3 text-sm text-zinc-600">
-                No suggested rules
+              <div className="mt-4 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-4">
+                <div className="flex items-center gap-2 text-sm font-medium text-zinc-700">
+                  <Sparkles className="h-4 w-4" />
+                  No suggested rules
+                </div>
               </div>
             ) : (
               <div className="mt-4 space-y-2">
+                <p className="text-sm leading-6 text-zinc-600">
+                  The system suggests rules based on conversations.
+                </p>
                 {suggestedRules.map((rule) => {
                   const isEditing = editingSuggestedRuleId === rule.id;
                   const isAccepting = ruleAction?.type === "suggested-accept" && ruleAction.ruleId === rule.id;
