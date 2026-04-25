@@ -894,7 +894,7 @@ export function AgentOverviewPage() {
             {activeRules.length === 0 ? (
               <div className="py-3 text-sm text-zinc-600">No active rules yet.</div>
             ) : (
-              <ul className="space-y-2 pt-2">
+              <ul className="space-y-1 py-1">
                 {activeRules.map((rule) => {
                   const isEditing = editingActiveRuleId === rule.id;
                   const isSaving = ruleAction?.type === "active-save" && ruleAction.ruleId === rule.id;
@@ -903,7 +903,7 @@ export function AgentOverviewPage() {
                   return (
                     <li
                       key={rule.id}
-                      className="group rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 transition-colors hover:bg-zinc-100 focus-within:bg-zinc-100"
+                      className="group rounded-md bg-zinc-50/70 px-3 py-2 transition-colors hover:bg-zinc-100 focus-within:bg-zinc-100"
                     >
                       {isEditing ? (
                         <>
@@ -942,7 +942,7 @@ export function AgentOverviewPage() {
                           <p className="min-w-0 flex-1 overflow-hidden text-sm leading-5 text-zinc-800 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
                             {rule.content}
                           </p>
-                          <span className="mt-0.5 shrink-0 rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600">
+                          <span className="shrink-0 self-center rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600">
                             {rule.authorType}
                           </span>
                           <div className="relative shrink-0">
