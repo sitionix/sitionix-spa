@@ -894,14 +894,17 @@ export function AgentOverviewPage() {
             {activeRules.length === 0 ? (
               <div className="py-3 text-sm text-zinc-600">No active rules yet.</div>
             ) : (
-              <ul className="divide-y divide-zinc-300">
+              <ul className="space-y-2 pt-2">
                 {activeRules.map((rule) => {
                   const isEditing = editingActiveRuleId === rule.id;
                   const isSaving = ruleAction?.type === "active-save" && ruleAction.ruleId === rule.id;
                   const isDeleting = ruleAction?.type === "active-delete" && ruleAction.ruleId === rule.id;
                   const isMenuOpen = openActiveRuleMenuId === rule.id;
                   return (
-                    <li key={rule.id} className="group rounded-md px-3 py-2 transition-colors hover:bg-zinc-50 focus-within:bg-zinc-50">
+                    <li
+                      key={rule.id}
+                      className="group rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 transition-colors hover:bg-zinc-100 focus-within:bg-zinc-100"
+                    >
                       {isEditing ? (
                         <>
                           <input
