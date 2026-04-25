@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { ArrowLeft, Clock3, Loader2, MessageSquareText, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Clock3, EllipsisVertical, Loader2, MessageSquareText, Pencil, Sparkles, X } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../../../ui/components/PageHeader";
 import { ConfirmationDialog } from "../../../ui/components/ConfirmationDialog";
 import { formatDateTime } from "../../../model/formatters";
 import {
+  acceptAgentRule,
   activateAgent,
   archiveAgent,
   createAgentRule,
@@ -15,6 +16,7 @@ import {
   getErrorHttpStatus,
   patchAgent,
   patchAgentRule,
+  rejectAgentRule,
   restoreAgent,
 } from "../api";
 import { toAutomationErrorMessage } from "../model/mappers";
@@ -23,7 +25,7 @@ import type { AgentRule, AutomationAgent } from "../model/types";
 type AgentOverviewState = "idle" | "loading" | "ready" | "not_found" | "error";
 type EditableField = "name" | "description" | null;
 type LifecycleAction = "activate" | "archive" | "restore" | "delete" | null;
-type RulesState = "idle" | "loading" | "ready" | "error";
+type RuleAction = "create" | "active-save" | "active-delete" | "suggested-accept" | "suggested-reject" | "suggested-delete";
 
 function getStatusBadgeClass(status: AutomationAgent["status"]): string {
   if (status === "ACTIVE") {
@@ -56,17 +58,22 @@ export function AgentOverviewPage() {
   const [lifecycleAction, setLifecycleAction] = useState<LifecycleAction>(null);
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [rules, setRules] = useState<AgentRule[]>([]);
-  const [rulesState, setRulesState] = useState<RulesState>("idle");
+  const [activeRules, setActiveRules] = useState<AgentRule[]>([]);
+  const [suggestedRules, setSuggestedRules] = useState<AgentRule[]>([]);
   const [rulesError, setRulesError] = useState<string | null>(null);
-  const [isAddingRule, setIsAddingRule] = useState(false);
-  const [ruleDraft, setRuleDraft] = useState("");
-  const [isRuleSaving, setIsRuleSaving] = useState(false);
-  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
-  const [editRuleDraft, setEditRuleDraft] = useState("");
-  const [deletingRuleId, setDeletingRuleId] = useState<string | null>(null);
-  const [deleteRuleConfirmOpen, setDeleteRuleConfirmOpen] = useState(false);
-  const [pendingDeleteRuleId, setPendingDeleteRuleId] = useState<string | null>(null);
+  const [ruleAction, setRuleAction] = useState<{ type: RuleAction; ruleId?: string } | null>(null);
+  const [isCreateRuleEditing, setIsCreateRuleEditing] = useState(false);
+  const [createRuleTitle, setCreateRuleTitle] = useState("");
+  const [createRuleContent, setCreateRuleContent] = useState("");
+  const [editingActiveRuleId, setEditingActiveRuleId] = useState<string | null>(null);
+  const [activeRuleTitleDraft, setActiveRuleTitleDraft] = useState("");
+  const [activeRuleContentDraft, setActiveRuleContentDraft] = useState("");
+  const [openActiveRuleMenuId, setOpenActiveRuleMenuId] = useState<string | null>(null);
+  const [editingSuggestedRuleId, setEditingSuggestedRuleId] = useState<string | null>(null);
+  const [suggestedRuleTitleDraft, setSuggestedRuleTitleDraft] = useState("");
+  const [suggestedRuleContentDraft, setSuggestedRuleContentDraft] = useState("");
+  const [ruleDeleteConfirmOpen, setRuleDeleteConfirmOpen] = useState(false);
+  const [ruleDeleteTargetId, setRuleDeleteTargetId] = useState<string | null>(null);
 
   const nameEditorRef = useRef<HTMLDivElement | null>(null);
   const descriptionEditorRef = useRef<HTMLDivElement | null>(null);
@@ -101,36 +108,33 @@ export function AgentOverviewPage() {
     }
   }, [agentId]);
 
-  useEffect(() => {
-    void loadAgent();
-  }, [loadAgent]);
-
   const loadRules = useCallback(async () => {
     if (!agentId) {
-      setRules([]);
-      setRulesState("error");
-      setRulesError("Missing agent id");
+      setActiveRules([]);
+      setSuggestedRules([]);
+      setRulesError(null);
       return;
     }
-
-    setRulesState("loading");
-    setRulesError(null);
     try {
-      const response = await getAgentRules(agentId);
-      setRules(Array.isArray(response.items) ? response.items : []);
-      setRulesState("ready");
+      const [active, suggested] = await Promise.all([
+        getAgentRules(agentId, { status: "ACTIVE" }),
+        getAgentRules(agentId, { status: "PENDING", authorType: "AI" }),
+      ]);
+      setActiveRules(active);
+      setSuggestedRules(suggested);
+      setRulesError(null);
     } catch (loadRulesError) {
-      setRulesState("error");
       setRulesError(toAutomationErrorMessage(loadRulesError));
     }
   }, [agentId]);
 
   useEffect(() => {
-    if (status !== "ready") {
-      return;
-    }
+    void loadAgent();
+  }, [loadAgent]);
+
+  useEffect(() => {
     void loadRules();
-  }, [loadRules, status]);
+  }, [loadRules]);
 
   const startEditing = useCallback((field: Exclude<EditableField, null>) => {
     if (!agent) {
@@ -291,108 +295,187 @@ export function AgentOverviewPage() {
     }
   }, [agent, instructionDraft, isInstructionSaving]);
 
-  const startAddRule = useCallback(() => {
-    if (isRuleSaving || deletingRuleId || lifecycleAction || savingField || isInstructionSaving) {
-      return;
-    }
-    setRulesError(null);
-    setRuleDraft("");
-    setIsAddingRule(true);
-    setEditingRuleId(null);
-  }, [deletingRuleId, isInstructionSaving, isRuleSaving, lifecycleAction, savingField]);
-
-  const cancelAddRule = useCallback(() => {
-    setIsAddingRule(false);
-    setRuleDraft("");
+  const startCreateRule = useCallback(() => {
+    setIsCreateRuleEditing(true);
+    setCreateRuleTitle("");
+    setCreateRuleContent("");
     setRulesError(null);
   }, []);
 
-  const saveNewRule = useCallback(async () => {
-    if (!agent || isRuleSaving) {
+  const cancelCreateRule = useCallback(() => {
+    setIsCreateRuleEditing(false);
+    setCreateRuleTitle("");
+    setCreateRuleContent("");
+  }, []);
+
+  const saveCreateRule = useCallback(async () => {
+    if (!agent || !isCreateRuleEditing || ruleAction) {
       return;
     }
-
-    setIsRuleSaving(true);
+    setRuleAction({ type: "create" });
     setRulesError(null);
     try {
-      const created = await createAgentRule(agent.id, { text: ruleDraft });
-      setRules((previous) => [...previous, created]
-        .sort((left, right) => left.createdAt.localeCompare(right.createdAt)));
-      setIsAddingRule(false);
-      setRuleDraft("");
-    } catch (saveRuleError) {
-      setRulesError(toAutomationErrorMessage(saveRuleError));
+      const createdRule = await createAgentRule(agent.id, {
+        title: createRuleTitle,
+        content: createRuleContent,
+      });
+      setActiveRules((prev) => [...prev, createdRule]);
+      setIsCreateRuleEditing(false);
+      setCreateRuleTitle("");
+      setCreateRuleContent("");
+    } catch (createRuleError) {
+      setRulesError(toAutomationErrorMessage(createRuleError));
     } finally {
-      setIsRuleSaving(false);
+      setRuleAction(null);
     }
-  }, [agent, isRuleSaving, ruleDraft]);
+  }, [agent, createRuleContent, createRuleTitle, isCreateRuleEditing, ruleAction]);
 
-  const startEditRule = useCallback((rule: AgentRule) => {
-    if (isRuleSaving || deletingRuleId || isAddingRule) {
-      return;
-    }
-    setRulesError(null);
-    setEditingRuleId(rule.id);
-    setEditRuleDraft(rule.text);
-  }, [deletingRuleId, isAddingRule, isRuleSaving]);
-
-  const cancelEditRule = useCallback(() => {
-    setEditingRuleId(null);
-    setEditRuleDraft("");
+  const startEditActiveRule = useCallback((rule: AgentRule) => {
+    setOpenActiveRuleMenuId(null);
+    setEditingActiveRuleId(rule.id);
+    setActiveRuleTitleDraft(rule.title);
+    setActiveRuleContentDraft(rule.content);
     setRulesError(null);
   }, []);
 
-  const saveEditedRule = useCallback(async () => {
-    if (!agent || !editingRuleId || isRuleSaving) {
+  const cancelEditActiveRule = useCallback(() => {
+    setEditingActiveRuleId(null);
+    setActiveRuleTitleDraft("");
+    setActiveRuleContentDraft("");
+    setOpenActiveRuleMenuId(null);
+  }, []);
+
+  const saveActiveRuleEdit = useCallback(async (ruleId: string) => {
+    if (!agent || ruleAction) {
       return;
     }
-
-    setIsRuleSaving(true);
+    setRuleAction({ type: "active-save", ruleId });
     setRulesError(null);
     try {
-      const updated = await patchAgentRule(agent.id, editingRuleId, { text: editRuleDraft });
-      setRules((previous) => previous.map((rule) => (rule.id === updated.id ? updated : rule)));
-      setEditingRuleId(null);
-      setEditRuleDraft("");
-    } catch (saveRuleError) {
-      setRulesError(toAutomationErrorMessage(saveRuleError));
+      const updated = await patchAgentRule(agent.id, ruleId, {
+        title: activeRuleTitleDraft,
+        content: activeRuleContentDraft,
+      });
+      setActiveRules((prev) => prev.map((rule) => (rule.id === ruleId ? updated : rule)));
+      setEditingActiveRuleId(null);
+      setOpenActiveRuleMenuId(null);
+    } catch (updateError) {
+      setRulesError(toAutomationErrorMessage(updateError));
     } finally {
-      setIsRuleSaving(false);
+      setRuleAction(null);
     }
-  }, [agent, editRuleDraft, editingRuleId, isRuleSaving]);
+  }, [activeRuleContentDraft, activeRuleTitleDraft, agent, ruleAction]);
 
-  const requestDeleteRule = useCallback((ruleId: string) => {
-    if (isRuleSaving) {
+  const requestRuleDelete = useCallback((ruleId: string) => {
+    setOpenActiveRuleMenuId(null);
+    setRuleDeleteTargetId(ruleId);
+    setRuleDeleteConfirmOpen(true);
+  }, []);
+
+  const confirmRuleDelete = useCallback(async () => {
+    if (!agent || !ruleDeleteTargetId) {
       return;
     }
-    setPendingDeleteRuleId(ruleId);
-    setDeleteRuleConfirmOpen(true);
-  }, [isRuleSaving]);
-
-  const confirmDeleteRule = useCallback(async () => {
-    if (!agent || !pendingDeleteRuleId || deletingRuleId) {
-      setDeleteRuleConfirmOpen(false);
-      setPendingDeleteRuleId(null);
+    if (ruleAction
+      && (ruleAction.type !== "suggested-delete" || ruleAction.ruleId !== ruleDeleteTargetId)) {
       return;
     }
-
-    setDeleteRuleConfirmOpen(false);
-    setDeletingRuleId(pendingDeleteRuleId);
+    const targetId = ruleDeleteTargetId;
+    setRuleDeleteConfirmOpen(false);
+    const deleteType: RuleAction = ruleAction?.type === "suggested-delete" ? "suggested-delete" : "active-delete";
+    setRuleAction({ type: deleteType, ruleId: targetId });
     setRulesError(null);
     try {
-      await deleteAgentRule(agent.id, pendingDeleteRuleId);
-      setRules((previous) => previous.filter((rule) => rule.id !== pendingDeleteRuleId));
-      if (editingRuleId === pendingDeleteRuleId) {
-        setEditingRuleId(null);
-        setEditRuleDraft("");
+      await deleteAgentRule(agent.id, targetId);
+      setActiveRules((prev) => prev.filter((rule) => rule.id !== targetId));
+      setSuggestedRules((prev) => prev.filter((rule) => rule.id !== targetId));
+      if (editingActiveRuleId === targetId) {
+        setEditingActiveRuleId(null);
+      }
+      if (editingSuggestedRuleId === targetId) {
+        setEditingSuggestedRuleId(null);
       }
     } catch (deleteRuleError) {
       setRulesError(toAutomationErrorMessage(deleteRuleError));
     } finally {
-      setDeletingRuleId(null);
-      setPendingDeleteRuleId(null);
+      setRuleDeleteTargetId(null);
+      setRuleAction(null);
     }
-  }, [agent, deletingRuleId, editingRuleId, pendingDeleteRuleId]);
+  }, [agent, editingActiveRuleId, editingSuggestedRuleId, ruleAction, ruleDeleteTargetId]);
+
+  const cancelRuleDelete = useCallback(() => {
+    setRuleDeleteConfirmOpen(false);
+    setRuleDeleteTargetId(null);
+    if (ruleAction?.type === "suggested-delete") {
+      setRuleAction(null);
+    }
+  }, [ruleAction]);
+
+  const startEditSuggestedRule = useCallback((rule: AgentRule) => {
+    setEditingSuggestedRuleId(rule.id);
+    setSuggestedRuleTitleDraft(rule.title);
+    setSuggestedRuleContentDraft(rule.content);
+    setRulesError(null);
+  }, []);
+
+  const cancelEditSuggestedRule = useCallback(() => {
+    setEditingSuggestedRuleId(null);
+    setSuggestedRuleTitleDraft("");
+    setSuggestedRuleContentDraft("");
+  }, []);
+
+  const acceptSuggestedRule = useCallback(async (rule: AgentRule) => {
+    if (!agent || ruleAction) {
+      return;
+    }
+    setRuleAction({ type: "suggested-accept", ruleId: rule.id });
+    setRulesError(null);
+    try {
+      const shouldSendEdit = editingSuggestedRuleId === rule.id
+        && (suggestedRuleTitleDraft.trim() !== rule.title || suggestedRuleContentDraft.trim() !== rule.content);
+      const accepted = await acceptAgentRule(
+        agent.id,
+        rule.id,
+        shouldSendEdit
+          ? { title: suggestedRuleTitleDraft, content: suggestedRuleContentDraft }
+          : undefined,
+      );
+      setSuggestedRules((prev) => prev.filter((item) => item.id !== rule.id));
+      setActiveRules((prev) => {
+        const existingIndex = prev.findIndex((item) => item.id === accepted.id);
+        if (existingIndex >= 0) {
+          return prev.map((item) => (item.id === accepted.id ? accepted : item));
+        }
+        return [...prev, accepted];
+      });
+      if (editingSuggestedRuleId === rule.id) {
+        setEditingSuggestedRuleId(null);
+      }
+    } catch (acceptError) {
+      setRulesError(toAutomationErrorMessage(acceptError));
+    } finally {
+      setRuleAction(null);
+    }
+  }, [agent, editingSuggestedRuleId, ruleAction, suggestedRuleContentDraft, suggestedRuleTitleDraft]);
+
+  const rejectSuggestedRule = useCallback(async (ruleId: string) => {
+    if (!agent || ruleAction) {
+      return;
+    }
+    setRuleAction({ type: "suggested-reject", ruleId });
+    setRulesError(null);
+    try {
+      await rejectAgentRule(agent.id, ruleId);
+      setSuggestedRules((prev) => prev.filter((rule) => rule.id !== ruleId));
+      if (editingSuggestedRuleId === ruleId) {
+        setEditingSuggestedRuleId(null);
+      }
+    } catch (rejectError) {
+      setRulesError(toAutomationErrorMessage(rejectError));
+    } finally {
+      setRuleAction(null);
+    }
+  }, [agent, editingSuggestedRuleId, ruleAction]);
 
   useEffect(() => {
     if (editingField === "name") {
@@ -658,6 +741,9 @@ export function AgentOverviewPage() {
             {lifecycleError ? (
               <p className="mt-3 text-sm text-red-700">{lifecycleError}</p>
             ) : null}
+            {rulesError ? (
+              <p className="mt-3 text-sm text-red-700">{rulesError}</p>
+            ) : null}
           </div>
           <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-xs text-zinc-600">
             <div>ID: {agent.id}</div>
@@ -753,45 +839,50 @@ export function AgentOverviewPage() {
               <div>
                 <h2 className="text-lg font-semibold text-zinc-900">Rules</h2>
                 <p className="mt-2 text-sm leading-6 text-zinc-600">
-                  Rules define explicit constraints and guidance used by this agent in execution context.
+                  Active rules are used during execution.
                 </p>
               </div>
-              {!isAddingRule ? (
+              {!isCreateRuleEditing ? (
                 <button
                   type="button"
-                  disabled={isRuleSaving || Boolean(editingRuleId)}
-                  onClick={startAddRule}
-                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+                  onClick={startCreateRule}
+                  disabled={Boolean(ruleAction)}
                 >
-                  <Plus className="h-4 w-4" />
-                  Add rule
+                  + Add rule
                 </button>
               ) : null}
             </div>
 
-            {isAddingRule ? (
+            {isCreateRuleEditing ? (
               <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                <input
+                  value={createRuleTitle}
+                  onChange={(event) => setCreateRuleTitle(event.target.value)}
+                  placeholder="Rule title"
+                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-blue-100 focus:ring"
+                />
                 <textarea
-                  value={ruleDraft}
-                  onChange={(event) => setRuleDraft(event.target.value)}
-                  rows={3}
-                  disabled={isRuleSaving}
-                  className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm leading-6 text-zinc-800 outline-none ring-blue-100 focus:ring"
+                  value={createRuleContent}
+                  onChange={(event) => setCreateRuleContent(event.target.value)}
+                  placeholder="Rule content"
+                  rows={4}
+                  className="mt-3 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-blue-100 focus:ring"
                 />
                 <div className="mt-3 flex items-center gap-2">
                   <button
                     type="button"
-                    disabled={isRuleSaving}
                     className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
-                    onClick={() => void saveNewRule()}
+                    onClick={() => void saveCreateRule()}
+                    disabled={Boolean(ruleAction)}
                   >
-                    {isRuleSaving ? "Saving..." : "Save"}
+                    {ruleAction?.type === "create" ? "Saving..." : "Save"}
                   </button>
                   <button
                     type="button"
-                    disabled={isRuleSaving}
                     className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                    onClick={cancelAddRule}
+                    onClick={cancelCreateRule}
+                    disabled={Boolean(ruleAction)}
                   >
                     Cancel
                   </button>
@@ -799,141 +890,218 @@ export function AgentOverviewPage() {
               </div>
             ) : null}
 
-            {rulesState === "loading" ? (
-              <div className="mt-4 flex items-center gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading rules...
-              </div>
-            ) : null}
-
-            {rulesState === "error" ? (
-              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                {rulesError ?? "Unable to load rules."}
-                <div className="mt-3">
-                  <button
-                    type="button"
-                    className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
-                    onClick={() => void loadRules()}
-                  >
-                    Retry
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            {rulesState === "ready" && rules.length === 0 ? (
-              <div className="mt-4 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-4">
-                <p className="text-sm text-zinc-700">No rules yet</p>
-                {!isAddingRule ? (
-                  <button
-                    type="button"
-                    onClick={startAddRule}
-                    className="mt-3 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Add rule
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-
-            {rulesState === "ready" && rules.length > 0 ? (
-              <ul className="mt-4 grid gap-3">
-                {rules.map((rule) => {
-                  const isEditingRule = editingRuleId === rule.id;
-                  const isDeletingRule = deletingRuleId === rule.id;
+            <div className="mt-4 border-t border-zinc-300" />
+            {activeRules.length === 0 ? (
+              <div className="py-3 text-sm text-zinc-600">No active rules yet.</div>
+            ) : (
+              <ul className="space-y-2 py-2">
+                {activeRules.map((rule) => {
+                  const isEditing = editingActiveRuleId === rule.id;
+                  const isSaving = ruleAction?.type === "active-save" && ruleAction.ruleId === rule.id;
+                  const isDeleting = ruleAction?.type === "active-delete" && ruleAction.ruleId === rule.id;
+                  const isMenuOpen = openActiveRuleMenuId === rule.id;
                   return (
-                    <li key={rule.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                      {isEditingRule ? (
+                    <li
+                      key={rule.id}
+                      className="rounded-lg bg-zinc-50 px-4 py-3 transition-colors hover:bg-zinc-100 focus-within:bg-zinc-100"
+                    >
+                      {isEditing ? (
                         <>
-                          <textarea
-                            value={editRuleDraft}
-                            onChange={(event) => setEditRuleDraft(event.target.value)}
-                            rows={3}
-                            disabled={isRuleSaving}
-                            className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm leading-6 text-zinc-800 outline-none ring-blue-100 focus:ring"
+                          <input
+                            value={activeRuleTitleDraft}
+                            onChange={(event) => setActiveRuleTitleDraft(event.target.value)}
+                            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-blue-100 focus:ring"
                           />
-                          <div className="mt-3 flex items-center gap-2">
+                          <textarea
+                            value={activeRuleContentDraft}
+                            onChange={(event) => setActiveRuleContentDraft(event.target.value)}
+                            rows={4}
+                            className="mt-2 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-blue-100 focus:ring"
+                          />
+                          <div className="mt-2 flex items-center gap-2">
                             <button
                               type="button"
-                              disabled={isRuleSaving}
                               className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
-                              onClick={() => void saveEditedRule()}
+                              onClick={() => void saveActiveRuleEdit(rule.id)}
+                              disabled={Boolean(ruleAction)}
                             >
-                              {isRuleSaving ? "Saving..." : "Save"}
+                              {isSaving ? "Saving..." : "Save"}
                             </button>
                             <button
                               type="button"
-                              disabled={isRuleSaving}
                               className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                              onClick={cancelEditRule}
+                              onClick={cancelEditActiveRule}
+                              disabled={Boolean(ruleAction)}
                             >
                               Cancel
                             </button>
                           </div>
                         </>
                       ) : (
-                        <>
-                          <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-700">{rule.text}</p>
-                          <div className="mt-3 flex items-center justify-between gap-3">
-                            <span className="text-xs text-zinc-500">
-                              Updated {formatDateTime(rule.updatedAt)}
+                        <div className="relative flex items-center justify-between gap-3">
+                          <p className="min-w-0 flex-1 overflow-hidden text-sm leading-5 text-zinc-800 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+                            {rule.content}
+                          </p>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span
+                              className={`rounded-md border px-2 py-0.5 text-xs font-semibold uppercase tracking-[0.08em] ${
+                                rule.authorType === "AI"
+                                  ? "border-blue-200 text-blue-600"
+                                  : "border-zinc-300 text-zinc-600"
+                              }`}
+                            >
+                              {rule.authorType}
                             </span>
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                disabled={isRuleSaving || Boolean(deletingRuleId)}
-                                className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60"
-                                onClick={() => startEditRule(rule)}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                disabled={isDeletingRule || isRuleSaving}
-                                className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
-                                onClick={() => requestDeleteRule(rule.id)}
-                              >
-                                {isDeletingRule ? (
-                                  <>
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    Deleting...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                    Delete
-                                  </>
-                                )}
-                              </button>
+                            <div className="relative shrink-0">
+                            <button
+                              type="button"
+                              className="inline-flex h-7 w-7 items-center justify-center rounded text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700"
+                              onClick={() => setOpenActiveRuleMenuId((prev) => (prev === rule.id ? null : rule.id))}
+                              disabled={Boolean(ruleAction)}
+                              aria-label="Open active rule menu"
+                            >
+                              <EllipsisVertical className="h-4 w-4" />
+                            </button>
+                              {isMenuOpen ? (
+                              <>
+                                <button
+                                  type="button"
+                                  aria-label="Close active rule menu"
+                                  className="fixed inset-0 z-10 bg-transparent"
+                                  onClick={() => setOpenActiveRuleMenuId(null)}
+                                />
+                                  <div className="absolute right-0 top-8 z-20 min-w-24 rounded-md bg-white py-1">
+                                  <button
+                                    type="button"
+                                    className="block w-full px-3 py-1.5 text-left text-xs text-zinc-700 hover:bg-zinc-50"
+                                    onClick={() => startEditActiveRule(rule)}
+                                  >
+                                    Edit
+                                  </button>
+                                    <button
+                                    type="button"
+                                    className="block w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50"
+                                    onClick={() => requestRuleDelete(rule.id)}
+                                  >
+                                    {isDeleting ? "Deleting..." : "Delete"}
+                                  </button>
+                                  </div>
+                              </>
+                              ) : null}
                             </div>
                           </div>
-                        </>
+                        </div>
                       )}
                     </li>
                   );
                 })}
               </ul>
-            ) : null}
-
-            {rulesState === "ready" && rulesError ? (
-              <p className="mt-3 text-sm text-red-700">{rulesError}</p>
-            ) : null}
+            )}
           </section>
         </div>
 
         <aside className="grid gap-6">
           <section className="rounded-3xl border border-zinc-200 bg-white p-6">
             <h2 className="text-lg font-semibold text-zinc-900">Suggested Rules</h2>
-            <div className="mt-4 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-zinc-700">
-                <Sparkles className="h-4 w-4" />
-                Future rule suggestions
+            {suggestedRules.length === 0 ? (
+              <div className="mt-4 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-4">
+                <div className="flex items-center gap-2 text-sm font-medium text-zinc-700">
+                  <Sparkles className="h-4 w-4" />
+                  No suggested rules
+                </div>
               </div>
-              <p className="mt-2 text-sm leading-6 text-zinc-600">
-                System-suggested candidate rules will appear here once rule suggestions are available.
-              </p>
-            </div>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {suggestedRules.map((rule) => {
+                  const isEditing = editingSuggestedRuleId === rule.id;
+                  const isAccepting = ruleAction?.type === "suggested-accept" && ruleAction.ruleId === rule.id;
+                  const isRejecting = ruleAction?.type === "suggested-reject" && ruleAction.ruleId === rule.id;
+                  const isDeleting = ruleAction?.type === "suggested-delete" && ruleAction.ruleId === rule.id;
+                  return (
+                    <article key={rule.id} className="group rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="text-sm font-semibold text-zinc-900">{rule.title}</h3>
+                        <div className="flex items-center gap-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+                          <button
+                            type="button"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-100"
+                            onClick={() => startEditSuggestedRule(rule)}
+                            disabled={Boolean(ruleAction)}
+                            aria-label="Edit suggested rule"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-red-300 bg-white text-red-700 transition hover:bg-red-50"
+                            onClick={() => {
+                              setRuleAction({ type: "suggested-delete", ruleId: rule.id });
+                              requestRuleDelete(rule.id);
+                            }}
+                            disabled={Boolean(ruleAction)}
+                            aria-label="Delete suggested rule"
+                          >
+                            {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-1 flex justify-end">
+                        <span className="rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-700">
+                          {rule.authorType}
+                        </span>
+                      </div>
+                      {isEditing ? (
+                        <>
+                          <input
+                            value={suggestedRuleTitleDraft}
+                            onChange={(event) => setSuggestedRuleTitleDraft(event.target.value)}
+                            className="mt-3 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-blue-100 focus:ring"
+                          />
+                          <textarea
+                            value={suggestedRuleContentDraft}
+                            onChange={(event) => setSuggestedRuleContentDraft(event.target.value)}
+                            rows={4}
+                            className="mt-3 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-blue-100 focus:ring"
+                          />
+                        </>
+                      ) : (
+                        <p className="mt-1.5 whitespace-pre-wrap text-sm leading-6 text-zinc-700">{rule.content}</p>
+                      )}
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50"
+                          onClick={() => void acceptSuggestedRule(rule)}
+                          disabled={Boolean(ruleAction)}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          {isAccepting ? "Accepting..." : "Accept"}
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-50"
+                          onClick={() => void rejectSuggestedRule(rule.id)}
+                          disabled={Boolean(ruleAction)}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          {isRejecting ? "Rejecting..." : "Reject"}
+                        </button>
+                        {isEditing ? (
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+                            onClick={cancelEditSuggestedRule}
+                            disabled={Boolean(ruleAction)}
+                          >
+                            Cancel edit
+                          </button>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           <section className="rounded-3xl border border-zinc-200 bg-white p-6">
@@ -1033,16 +1201,13 @@ export function AgentOverviewPage() {
         onConfirm={confirmDeleteAction}
       />
       <ConfirmationDialog
-        open={deleteRuleConfirmOpen}
-        title="Delete rule?"
-        description="The rule will be removed from the active rules list."
+        open={ruleDeleteConfirmOpen}
+        title="Delete suggested rule?"
+        description="Are you sure you want to delete this suggested rule?"
         confirmLabel="Delete"
         tone="danger"
-        onCancel={() => {
-          setDeleteRuleConfirmOpen(false);
-          setPendingDeleteRuleId(null);
-        }}
-        onConfirm={confirmDeleteRule}
+        onCancel={cancelRuleDelete}
+        onConfirm={() => void confirmRuleDelete()}
       />
     </div>
   );

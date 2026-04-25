@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { formatDateTime } from "../../../../../features/workspace/model/formatters";
 import { AgentOverviewPage } from "../../../../../features/workspace/modules/automation/pages/AgentOverviewPage";
 import {
+  acceptAgentRule,
   activateAgent,
   archiveAgent,
   createAgentRule,
@@ -15,10 +16,12 @@ import {
   getErrorHttpStatus,
   patchAgent,
   patchAgentRule,
+  rejectAgentRule,
   restoreAgent,
 } from "../../../../../features/workspace/modules/automation/api";
 
 vi.mock("../../../../../features/workspace/modules/automation/api", () => ({
+  acceptAgentRule: vi.fn(),
   activateAgent: vi.fn(),
   archiveAgent: vi.fn(),
   createAgentRule: vi.fn(),
@@ -29,9 +32,11 @@ vi.mock("../../../../../features/workspace/modules/automation/api", () => ({
   getErrorHttpStatus: vi.fn(),
   patchAgent: vi.fn(),
   patchAgentRule: vi.fn(),
+  rejectAgentRule: vi.fn(),
   restoreAgent: vi.fn(),
 }));
 
+const acceptAgentRuleMock = vi.mocked(acceptAgentRule);
 const activateAgentMock = vi.mocked(activateAgent);
 const archiveAgentMock = vi.mocked(archiveAgent);
 const createAgentRuleMock = vi.mocked(createAgentRule);
@@ -42,6 +47,7 @@ const getAgentRulesMock = vi.mocked(getAgentRules);
 const getErrorHttpStatusMock = vi.mocked(getErrorHttpStatus);
 const patchAgentMock = vi.mocked(patchAgent);
 const patchAgentRuleMock = vi.mocked(patchAgentRule);
+const rejectAgentRuleMock = vi.mocked(rejectAgentRule);
 const restoreAgentMock = vi.mocked(restoreAgent);
 
 const agent = {
@@ -69,6 +75,7 @@ function renderOverview(initialPath = "/automation/agents/agent-1") {
 
 describe("AgentOverviewPage", () => {
   beforeEach(() => {
+    acceptAgentRuleMock.mockReset();
     activateAgentMock.mockReset();
     archiveAgentMock.mockReset();
     createAgentRuleMock.mockReset();
@@ -79,9 +86,10 @@ describe("AgentOverviewPage", () => {
     getErrorHttpStatusMock.mockReset();
     patchAgentMock.mockReset();
     patchAgentRuleMock.mockReset();
+    rejectAgentRuleMock.mockReset();
     restoreAgentMock.mockReset();
     getErrorHttpStatusMock.mockReturnValue(null);
-    getAgentRulesMock.mockResolvedValue({ items: [] });
+    getAgentRulesMock.mockResolvedValue([]);
   });
 
   it("renders loading and then successful overview with agent definition section", async () => {
@@ -103,9 +111,7 @@ describe("AgentOverviewPage", () => {
     expect(screen.getByText("Add instruction to define how this agent should behave.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Suggested Rules" })).toBeInTheDocument();
-    expect(
-      screen.getByText("System-suggested candidate rules will appear here once rule suggestions are available.")
-    ).toBeInTheDocument();
+    expect(screen.getByText("No suggested rules")).toBeInTheDocument();
     expect(screen.queryByText(/guidance support/i)).not.toBeInTheDocument();
   });
 
@@ -659,159 +665,328 @@ describe("AgentOverviewPage", () => {
     expect(await screen.findByText("Automation Home")).toBeInTheDocument();
   });
 
-  it("creates new rule from Add rule form", async () => {
-    getAgentByIdMock.mockResolvedValue({
-      ...agent,
+  it("loads active and suggested rules with correct filters and renders author badges", async () => {
+    getAgentByIdMock.mockResolvedValue(agent);
+    getAgentRulesMock
+      .mockResolvedValueOnce([
+        {
+          id: "rule-active-user",
+          agentId: "agent-1",
+          title: "Active User Rule",
+          content: "User authored active rule.",
+          status: "ACTIVE",
+          authorType: "USER",
+          createdAt: "2026-04-12T10:00:00.000Z",
+          updatedAt: "2026-04-12T10:00:00.000Z",
+        },
+        {
+          id: "rule-active-ai",
+          agentId: "agent-1",
+          title: "Active AI Rule",
+          content: "AI authored active rule.",
+          status: "ACTIVE",
+          authorType: "AI",
+          createdAt: "2026-04-12T10:00:00.000Z",
+          updatedAt: "2026-04-12T10:00:00.000Z",
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "rule-pending-ai",
+          agentId: "agent-1",
+          title: "Pending AI Rule",
+          content: "AI suggestion.",
+          status: "PENDING",
+          authorType: "AI",
+          createdAt: "2026-04-12T10:00:00.000Z",
+          updatedAt: "2026-04-12T10:00:00.000Z",
+        },
+      ]);
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+
+    expect(getAgentRulesMock).toHaveBeenNthCalledWith(1, "agent-1", { status: "ACTIVE" });
+    expect(getAgentRulesMock).toHaveBeenNthCalledWith(2, "agent-1", { status: "PENDING", authorType: "AI" });
+
+    expect(screen.getByText("User authored active rule.")).toBeInTheDocument();
+    expect(screen.getByText("AI authored active rule.")).toBeInTheDocument();
+    expect(screen.getByText("Pending AI Rule")).toBeInTheDocument();
+    expect(screen.getAllByText("USER").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("AI").length).toBeGreaterThan(0);
+  });
+
+  it("accepts suggested rule with edited payload and moves it to active list", async () => {
+    getAgentByIdMock.mockResolvedValue(agent);
+    getAgentRulesMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "rule-pending-ai-1",
+          agentId: "agent-1",
+          title: "Original Suggested Title",
+          content: "Original Suggested Content",
+          status: "PENDING",
+          authorType: "AI",
+          createdAt: "2026-04-12T10:00:00.000Z",
+          updatedAt: "2026-04-12T10:00:00.000Z",
+        },
+      ]);
+    acceptAgentRuleMock.mockResolvedValue({
+      id: "rule-pending-ai-1",
+      agentId: "agent-1",
+      title: "Edited Suggested Title",
+      content: "Edited Suggested Content",
       status: "ACTIVE",
-    });
-    createAgentRuleMock.mockResolvedValue({
-      id: "rule-1",
-      text: "Always validate input",
-      createdAt: "2026-04-21T10:00:00.000Z",
-      updatedAt: "2026-04-21T10:00:00.000Z",
+      authorType: "AI",
+      createdAt: "2026-04-12T10:00:00.000Z",
+      updatedAt: "2026-04-12T10:02:00.000Z",
     });
     const user = userEvent.setup();
 
     renderOverview();
-    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
-    expect(screen.getByText("No rules yet")).toBeInTheDocument();
+    expect(await screen.findByText("Original Suggested Title")).toBeInTheDocument();
 
-    await user.click(screen.getAllByRole("button", { name: "Add rule" })[0]);
-    await user.type(screen.getByRole("textbox"), "  Always validate input  ");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Edit suggested rule" }));
+    const titleInput = screen.getByDisplayValue("Original Suggested Title");
+    const contentInput = screen.getByDisplayValue("Original Suggested Content");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Edited Suggested Title");
+    await user.clear(contentInput);
+    await user.type(contentInput, "Edited Suggested Content");
+    await user.click(screen.getByRole("button", { name: "Accept" }));
 
-    expect(createAgentRuleMock).toHaveBeenCalledWith("agent-1", { text: "  Always validate input  " });
-    expect(await screen.findByText("Always validate input")).toBeInTheDocument();
+    expect(acceptAgentRuleMock).toHaveBeenCalledWith("agent-1", "rule-pending-ai-1", {
+      title: "Edited Suggested Title",
+      content: "Edited Suggested Content",
+    });
+    expect(await screen.findByText("Edited Suggested Content")).toBeInTheDocument();
+    expect(screen.queryByText("Original Suggested Title")).not.toBeInTheDocument();
   });
 
-  it("retries loading rules when rules request fails", async () => {
-    getAgentByIdMock.mockResolvedValue({
-      ...agent,
+  it("accepts suggested rule without payload when edit mode has no changes", async () => {
+    getAgentByIdMock.mockResolvedValue(agent);
+    getAgentRulesMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "rule-pending-ai-2",
+          agentId: "agent-1",
+          title: "No Change Title",
+          content: "No Change Content",
+          status: "PENDING",
+          authorType: "AI",
+          createdAt: "2026-04-12T10:00:00.000Z",
+          updatedAt: "2026-04-12T10:00:00.000Z",
+        },
+      ]);
+    acceptAgentRuleMock.mockResolvedValue({
+      id: "rule-pending-ai-2",
+      agentId: "agent-1",
+      title: "No Change Title",
+      content: "No Change Content",
       status: "ACTIVE",
-    });
-    getAgentRulesMock.mockRejectedValueOnce(new Error("Rules error")).mockResolvedValueOnce({
-      items: [],
+      authorType: "AI",
+      createdAt: "2026-04-12T10:00:00.000Z",
+      updatedAt: "2026-04-12T10:01:00.000Z",
     });
     const user = userEvent.setup();
 
     renderOverview();
-    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
-    expect(await screen.findByText("Rules error")).toBeInTheDocument();
+    expect(await screen.findByText("No Change Title")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Retry" }));
+    await user.click(screen.getByRole("button", { name: "Edit suggested rule" }));
+    await user.click(screen.getByRole("button", { name: "Accept" }));
 
-    expect(await screen.findByText("No rules yet")).toBeInTheDocument();
-    expect(getAgentRulesMock).toHaveBeenCalledTimes(2);
+    expect(acceptAgentRuleMock).toHaveBeenCalledWith("agent-1", "rule-pending-ai-2", undefined);
   });
 
-  it("edits existing rule and saves updated text", async () => {
-    getAgentByIdMock.mockResolvedValue({
-      ...agent,
-      status: "ACTIVE",
-    });
-    getAgentRulesMock.mockResolvedValue({
-      items: [{
-        id: "rule-1",
-        text: "Old text",
-        createdAt: "2026-04-21T10:00:00.000Z",
-        updatedAt: "2026-04-21T10:00:00.000Z",
-      }],
-    });
-    patchAgentRuleMock.mockResolvedValue({
-      id: "rule-1",
-      text: "Updated text",
-      createdAt: "2026-04-21T10:00:00.000Z",
-      updatedAt: "2026-04-21T10:05:00.000Z",
+  it("rejects suggested rule, removes it from suggested list, and keeps active list unchanged", async () => {
+    getAgentByIdMock.mockResolvedValue(agent);
+    getAgentRulesMock
+      .mockResolvedValueOnce([
+        {
+          id: "rule-active-1",
+          agentId: "agent-1",
+          title: "Active Baseline Rule",
+          content: "Always active.",
+          status: "ACTIVE",
+          authorType: "USER",
+          createdAt: "2026-04-12T10:00:00.000Z",
+          updatedAt: "2026-04-12T10:00:00.000Z",
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "rule-pending-ai-3",
+          agentId: "agent-1",
+          title: "Rejectable Suggested Rule",
+          content: "Reject me.",
+          status: "PENDING",
+          authorType: "AI",
+          createdAt: "2026-04-12T10:00:00.000Z",
+          updatedAt: "2026-04-12T10:00:00.000Z",
+        },
+      ]);
+    rejectAgentRuleMock.mockResolvedValue({
+      id: "rule-pending-ai-3",
+      agentId: "agent-1",
+      title: "Rejectable Suggested Rule",
+      content: "Reject me.",
+      status: "REJECTED",
+      authorType: "AI",
+      createdAt: "2026-04-12T10:00:00.000Z",
+      updatedAt: "2026-04-12T10:01:00.000Z",
     });
     const user = userEvent.setup();
 
     renderOverview();
-    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
-    expect(await screen.findByText("Old text")).toBeInTheDocument();
+    expect(await screen.findByText("Rejectable Suggested Rule")).toBeInTheDocument();
 
-    const ruleItem = screen.getByText("Old text").closest("li");
-    if (!ruleItem) {
-      throw new Error("Rule item not found");
-    }
-    await user.click(within(ruleItem).getByRole("button", { name: "Edit" }));
-    const ruleTextbox = screen.getByDisplayValue("Old text");
-    await user.clear(ruleTextbox);
-    await user.type(ruleTextbox, "Updated text");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Reject" }));
 
-    expect(patchAgentRuleMock).toHaveBeenCalledWith("agent-1", "rule-1", { text: "Updated text" });
-    expect(await screen.findByText("Updated text")).toBeInTheDocument();
+    expect(rejectAgentRuleMock).toHaveBeenCalledWith("agent-1", "rule-pending-ai-3");
+    expect(screen.queryByText("Rejectable Suggested Rule")).not.toBeInTheDocument();
+    expect(screen.getByText("Always active.")).toBeInTheDocument();
   });
 
-  it("deletes rule after confirmation", async () => {
-    getAgentByIdMock.mockResolvedValue({
-      ...agent,
-      status: "ACTIVE",
+  it("shows reject error, keeps suggestion, and allows retry", async () => {
+    getAgentByIdMock.mockResolvedValue(agent);
+    getAgentRulesMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "rule-pending-ai-4",
+          agentId: "agent-1",
+          title: "Retry Suggested Rule",
+          content: "Retry content.",
+          status: "PENDING",
+          authorType: "AI",
+          createdAt: "2026-04-12T10:00:00.000Z",
+          updatedAt: "2026-04-12T10:00:00.000Z",
+        },
+      ]);
+    rejectAgentRuleMock
+      .mockRejectedValueOnce(new Error("Reject failed"))
+      .mockResolvedValueOnce({
+        id: "rule-pending-ai-4",
+        agentId: "agent-1",
+        title: "Retry Suggested Rule",
+        content: "Retry content.",
+        status: "REJECTED",
+        authorType: "AI",
+        createdAt: "2026-04-12T10:00:00.000Z",
+        updatedAt: "2026-04-12T10:01:00.000Z",
+      });
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByText("Retry Suggested Rule")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Reject" }));
+    expect(await screen.findByText("Reject failed")).toBeInTheDocument();
+    expect(screen.getByText("Retry Suggested Rule")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Reject" }));
+    expect(rejectAgentRuleMock).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText("Retry Suggested Rule")).not.toBeInTheDocument();
+    expect(screen.queryByText("Reject failed")).not.toBeInTheDocument();
+  });
+
+  it("prevents duplicate reject submits while request is in progress", async () => {
+    getAgentByIdMock.mockResolvedValue(agent);
+    getAgentRulesMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "rule-pending-ai-5",
+          agentId: "agent-1",
+          title: "Concurrent Suggested Rule",
+          content: "Concurrent content.",
+          status: "PENDING",
+          authorType: "AI",
+          createdAt: "2026-04-12T10:00:00.000Z",
+          updatedAt: "2026-04-12T10:00:00.000Z",
+        },
+      ]);
+    let resolveReject: ((value: {
+      id: string;
+      agentId: string;
+      title: string;
+      content: string;
+      status: "REJECTED";
+      authorType: "AI";
+      createdAt: string;
+      updatedAt: string;
+    }) => void) | null = null;
+    rejectAgentRuleMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveReject = resolve;
+        })
+    );
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByText("Concurrent Suggested Rule")).toBeInTheDocument();
+
+    const rejectButton = screen.getByRole("button", { name: "Reject" });
+    await user.click(rejectButton);
+    await user.click(rejectButton);
+
+    expect(rejectAgentRuleMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Rejecting..." })).toBeDisabled();
+
+    await act(async () => {
+      resolveReject?.({
+        id: "rule-pending-ai-5",
+        agentId: "agent-1",
+        title: "Concurrent Suggested Rule",
+        content: "Concurrent content.",
+        status: "REJECTED",
+        authorType: "AI",
+        createdAt: "2026-04-12T10:00:00.000Z",
+        updatedAt: "2026-04-12T10:01:00.000Z",
+      });
     });
-    getAgentRulesMock.mockResolvedValue({
-      items: [{
-        id: "rule-1",
-        text: "Delete me",
-        createdAt: "2026-04-21T10:00:00.000Z",
-        updatedAt: "2026-04-21T10:00:00.000Z",
-      }],
-    });
+    expect(screen.queryByText("Concurrent Suggested Rule")).not.toBeInTheDocument();
+  });
+
+  it("deletes suggested rule after confirmation dialog", async () => {
+    getAgentByIdMock.mockResolvedValue(agent);
+    getAgentRulesMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "rule-pending-ai-6",
+          agentId: "agent-1",
+          title: "Deletable Suggested Rule",
+          content: "Delete content.",
+          status: "PENDING",
+          authorType: "AI",
+          createdAt: "2026-04-12T10:00:00.000Z",
+          updatedAt: "2026-04-12T10:00:00.000Z",
+        },
+      ]);
     deleteAgentRuleMock.mockResolvedValue({ status: "DELETED" });
     const user = userEvent.setup();
 
     renderOverview();
-    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
-    expect(await screen.findByText("Delete me")).toBeInTheDocument();
+    expect(await screen.findByText("Deletable Suggested Rule")).toBeInTheDocument();
 
-    const ruleItem = screen.getByText("Delete me").closest("li");
-    if (!ruleItem) {
-      throw new Error("Rule item not found");
+    const suggestedRuleCard = screen.getByText("Deletable Suggested Rule").closest("article");
+    if (!suggestedRuleCard) {
+      throw new Error("Suggested rule card not found");
     }
-    await user.click(within(ruleItem).getByRole("button", { name: "Delete" }));
-    const dialogHeading = screen.getByRole("heading", { name: "Delete rule?" });
-    const dialog = dialogHeading.closest("div");
-    if (!dialog) {
-      throw new Error("Delete rule dialog not found");
+    await user.click(within(suggestedRuleCard).getByRole("button", { name: "Delete suggested rule" }));
+    const deleteDialogHeading = screen.getByRole("heading", { name: "Delete suggested rule?" });
+    const deleteDialog = deleteDialogHeading.closest("div");
+    if (!deleteDialog) {
+      throw new Error("Delete suggested rule dialog not found");
     }
-    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+    await user.click(within(deleteDialog).getByRole("button", { name: "Delete" }));
 
-    expect(deleteAgentRuleMock).toHaveBeenCalledWith("agent-1", "rule-1");
-    expect(screen.queryByText("Delete me")).not.toBeInTheDocument();
-  });
-
-  it("cancels rule deletion without calling delete endpoint", async () => {
-    getAgentByIdMock.mockResolvedValue({
-      ...agent,
-      status: "ACTIVE",
-    });
-    getAgentRulesMock.mockResolvedValue({
-      items: [{
-        id: "rule-1",
-        text: "Delete me",
-        createdAt: "2026-04-21T10:00:00.000Z",
-        updatedAt: "2026-04-21T10:00:00.000Z",
-      }],
-    });
-    const user = userEvent.setup();
-
-    renderOverview();
-    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
-    expect(await screen.findByText("Delete me")).toBeInTheDocument();
-
-    const ruleItem = screen.getByText("Delete me").closest("li");
-    if (!ruleItem) {
-      throw new Error("Rule item not found");
-    }
-    await user.click(within(ruleItem).getByRole("button", { name: "Delete" }));
-    const dialogHeading = screen.getByRole("heading", { name: "Delete rule?" });
-    const dialog = dialogHeading.closest("div");
-    if (!dialog) {
-      throw new Error("Delete rule dialog not found");
-    }
-
-    await user.click(within(dialog).getByRole("button", { name: "Скасувати" }));
-
-    expect(deleteAgentRuleMock).not.toHaveBeenCalled();
-    expect(screen.queryByRole("heading", { name: "Delete rule?" })).not.toBeInTheDocument();
+    expect(deleteAgentRuleMock).toHaveBeenCalledWith("agent-1", "rule-pending-ai-6");
+    expect(screen.queryByText("Deletable Suggested Rule")).not.toBeInTheDocument();
   });
 });

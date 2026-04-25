@@ -1,7 +1,8 @@
 import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
 import type {
-  CreateAgentRuleRequestDTO,
+  AcceptAgentRuleRequestDTO,
   CreateAgentRequestDTO,
+  CreateAgentRuleRequestDTO,
   PatchAgentRuleRequestDTO,
   PatchAgentRequestDTO,
 } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
@@ -10,31 +11,58 @@ import type {
   AgentConversationDetails,
   AgentConversationsResponse,
   AgentRule,
-  AgentRulesResponse,
+  AgentRuleAuthorType,
+  AgentRuleStatus,
   AutomationAgent,
   ChatAgentRequest,
   ChatAgentResponse,
   CreateAgentRuleRequest,
-  CreateAgentRequest,
   DeleteAgentRuleResponse,
   PatchAgentRuleRequest,
+  CreateAgentRequest,
   PatchAgentRequest,
 } from "../model/types";
 
 const agentApi = new AgentApi(bffApiConfiguration);
+type RuleTextPayload = { title?: string; content?: string };
 type ExtendedAgentApi = {
   restoreAgent(request: { agentId: string }): Promise<AutomationAgent>;
   deleteAgent(request: { agentId: string }): Promise<AutomationAgent>;
   getAgentConversations(request: { agentId: string }): Promise<AgentConversationsResponse>;
   getAgentConversation(request: { conversationId: string }): Promise<AgentConversationDetails>;
   chatAgent(request: { agentId: string; chatAgentRequestDTO: ChatAgentRequest }): Promise<ChatAgentResponse>;
-  getAgentRules(request: { agentId: string }): Promise<AgentRulesResponse>;
-  createAgentRule(request: { agentId: string; createAgentRuleRequestDTO: CreateAgentRuleRequest }): Promise<AgentRule>;
-  patchAgentRule(request: { agentId: string; ruleId: string; patchAgentRuleRequestDTO: PatchAgentRuleRequest }): Promise<AgentRule>;
+  getAgentRules(request: { agentId: string; status?: AgentRuleStatus; authorType?: AgentRuleAuthorType }): Promise<{ items?: AgentRule[] }>;
+  createAgentRule(request: { agentId: string; createAgentRuleRequestDTO: CreateAgentRuleRequestDTO }): Promise<AgentRule>;
+  patchAgentRule(request: { agentId: string; ruleId: string; patchAgentRuleRequestDTO: PatchAgentRuleRequestDTO }): Promise<AgentRule>;
+  acceptAgentRule(request: { agentId: string; ruleId: string; acceptAgentRuleRequestDTO?: AcceptAgentRuleRequestDTO }): Promise<AgentRule>;
+  rejectAgentRule(request: { agentId: string; ruleId: string }): Promise<AgentRule>;
   deleteAgentRule(request: { agentId: string; ruleId: string }): Promise<DeleteAgentRuleResponse>;
 };
 
 const agentApiExtended = agentApi as unknown as ExtendedAgentApi;
+
+function hasOwn(source: object, key: PropertyKey): boolean {
+  return Object.prototype.hasOwnProperty.call(source, key);
+}
+
+function getRequiredTrimmed(value: string | undefined, errorMessage: string): string {
+  const normalized = value?.trim() ?? "";
+  if (!normalized) {
+    throw new Error(errorMessage);
+  }
+  return normalized;
+}
+
+function getOptionalTrimmedField(
+  payload: RuleTextPayload,
+  field: keyof RuleTextPayload,
+  errorMessage: string,
+): string | undefined {
+  if (!hasOwn(payload, field)) {
+    return undefined;
+  }
+  return getRequiredTrimmed(payload[field], errorMessage);
+}
 
 export async function getAgents(): Promise<AutomationAgent[]> {
   const response = await agentApi.getAgents();
@@ -70,7 +98,7 @@ export async function createAgent(payload: CreateAgentRequest): Promise<Automati
 export async function patchAgent(agentId: string, payload: PatchAgentRequest): Promise<AutomationAgent> {
   const requestBody: PatchAgentRequestDTO = {};
 
-  if (Object.prototype.hasOwnProperty.call(payload, "name")) {
+  if (hasOwn(payload, "name")) {
     const name = payload.name?.trim() ?? "";
     if (!name) {
       throw new Error("Agent name is required");
@@ -78,7 +106,7 @@ export async function patchAgent(agentId: string, payload: PatchAgentRequest): P
     requestBody.name = name;
   }
 
-  if (Object.prototype.hasOwnProperty.call(payload, "description")) {
+  if (hasOwn(payload, "description")) {
     const rawDescription = payload.description;
     if (rawDescription === null) {
       requestBody.description = null;
@@ -88,7 +116,7 @@ export async function patchAgent(agentId: string, payload: PatchAgentRequest): P
     }
   }
 
-  if (Object.prototype.hasOwnProperty.call(payload, "instruction")) {
+  if (hasOwn(payload, "instruction")) {
     const instruction = payload.instruction?.trim() ?? "";
     if (!instruction) {
       throw new Error("Agent instruction is required");
@@ -96,9 +124,9 @@ export async function patchAgent(agentId: string, payload: PatchAgentRequest): P
     requestBody.instruction = instruction;
   }
 
-  if (!Object.prototype.hasOwnProperty.call(requestBody, "name")
-    && !Object.prototype.hasOwnProperty.call(requestBody, "description")
-    && !Object.prototype.hasOwnProperty.call(requestBody, "instruction")) {
+  if (!hasOwn(requestBody, "name")
+    && !hasOwn(requestBody, "description")
+    && !hasOwn(requestBody, "instruction")) {
     throw new Error("At least one field (name, description or instruction) must be provided");
   }
 
@@ -161,38 +189,75 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
   });
 }
 
-export async function getAgentRules(agentId: string): Promise<AgentRulesResponse> {
-  const response = await agentApiExtended.getAgentRules({ agentId });
-  return {
-    items: Array.isArray(response.items) ? response.items : [],
-  };
+export async function getAgentRules(
+  agentId: string,
+  filters?: { status?: AgentRuleStatus; authorType?: AgentRuleAuthorType },
+): Promise<AgentRule[]> {
+  const response = await agentApiExtended.getAgentRules({
+    agentId,
+    status: filters?.status,
+    authorType: filters?.authorType,
+  });
+  return Array.isArray(response.items) ? response.items : [];
 }
 
 export async function createAgentRule(agentId: string, payload: CreateAgentRuleRequest): Promise<AgentRule> {
-  const text = payload.text?.trim() ?? "";
-  if (!text) {
-    throw new Error("Rule text is required");
-  }
-
-  const requestBody: CreateAgentRuleRequestDTO = { text };
+  const title = getRequiredTrimmed(payload.title, "Rule title is required");
+  const content = getRequiredTrimmed(payload.content, "Rule content is required");
   return agentApiExtended.createAgentRule({
     agentId,
-    createAgentRuleRequestDTO: requestBody,
+    createAgentRuleRequestDTO: { title, content },
   });
 }
 
 export async function patchAgentRule(agentId: string, ruleId: string, payload: PatchAgentRuleRequest): Promise<AgentRule> {
-  const text = payload.text?.trim() ?? "";
-  if (!text) {
-    throw new Error("Rule text is required");
+  const requestBody: PatchAgentRuleRequestDTO = {};
+  const title = getOptionalTrimmedField(payload, "title", "Rule title is required");
+  if (title !== undefined) {
+    requestBody.title = title;
   }
-
-  const requestBody: PatchAgentRuleRequestDTO = { text };
+  const content = getOptionalTrimmedField(payload, "content", "Rule content is required");
+  if (content !== undefined) {
+    requestBody.content = content;
+  }
+  if (!hasOwn(requestBody, "title")
+    && !hasOwn(requestBody, "content")) {
+    throw new Error("At least one field (title or content) must be provided");
+  }
   return agentApiExtended.patchAgentRule({
     agentId,
     ruleId,
     patchAgentRuleRequestDTO: requestBody,
   });
+}
+
+export async function acceptAgentRule(
+  agentId: string,
+  ruleId: string,
+  payload?: { title?: string; content?: string },
+): Promise<AgentRule> {
+  let requestBody: AcceptAgentRuleRequestDTO | undefined;
+  if (payload && (hasOwn(payload, "title")
+      || hasOwn(payload, "content"))) {
+    requestBody = {};
+    const title = getOptionalTrimmedField(payload, "title", "Rule title is required");
+    if (title !== undefined) {
+      requestBody.title = title;
+    }
+    const content = getOptionalTrimmedField(payload, "content", "Rule content is required");
+    if (content !== undefined) {
+      requestBody.content = content;
+    }
+  }
+  return agentApiExtended.acceptAgentRule({
+    agentId,
+    ruleId,
+    acceptAgentRuleRequestDTO: requestBody,
+  });
+}
+
+export async function rejectAgentRule(agentId: string, ruleId: string): Promise<AgentRule> {
+  return agentApiExtended.rejectAgentRule({ agentId, ruleId });
 }
 
 export async function deleteAgentRule(agentId: string, ruleId: string): Promise<DeleteAgentRuleResponse> {
@@ -238,6 +303,8 @@ export const agentsApi = {
   getAgentRules,
   createAgentRule,
   patchAgentRule,
+  acceptAgentRule,
+  rejectAgentRule,
   deleteAgentRule,
   getErrorHttpStatus,
 };
