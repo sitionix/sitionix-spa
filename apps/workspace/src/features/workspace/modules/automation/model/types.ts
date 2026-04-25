@@ -5,7 +5,7 @@ import type {
   PatchAgentRuleRequestDTO,
   CreateAgentRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-119-unstable/models";
 
 export type AutomationAgent = AgentDTO;
 export type CreateAgentRequest = CreateAgentRequestDTO;
