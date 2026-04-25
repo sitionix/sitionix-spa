@@ -40,7 +40,7 @@ function getStatusBadgeClass(status: AutomationAgent["status"]): string {
   return "bg-amber-50 text-amber-700";
 }
 
-type SuggestedRuleCardProps = {
+type SuggestedRuleCardProps = Readonly<{
   rule: AgentRule;
   isEditing: boolean;
   isAccepting: boolean;
@@ -59,7 +59,7 @@ type SuggestedRuleCardProps = {
   cancelEditSuggestedRule: () => void;
   setRuleAction: Dispatch<SetStateAction<{ type: RuleAction; ruleId?: string } | null>>;
   setOpenSuggestedRuleMenuId: Dispatch<SetStateAction<string | null>>;
-};
+}>;
 
 function SuggestedRuleCard({
   rule,
@@ -170,7 +170,16 @@ function SuggestedRuleCard({
           <Check className="h-3.5 w-3.5" />
           {isAccepting ? "Accepting..." : "Accept"}
         </button>
-        {isEditing ? null : (
+        {isEditing ? (
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+            onClick={cancelEditSuggestedRule}
+            disabled={isActionInProgress}
+          >
+            Cancel
+          </button>
+        ) : (
           <button
             type="button"
             className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
@@ -181,16 +190,6 @@ function SuggestedRuleCard({
             {isRejecting ? "Rejecting..." : "Reject"}
           </button>
         )}
-        {isEditing ? (
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
-            onClick={cancelEditSuggestedRule}
-            disabled={isActionInProgress}
-          >
-            Cancel
-          </button>
-        ) : null}
       </div>
     </article>
   );
