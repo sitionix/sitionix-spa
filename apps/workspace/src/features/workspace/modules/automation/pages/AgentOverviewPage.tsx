@@ -890,18 +890,18 @@ export function AgentOverviewPage() {
               </div>
             ) : null}
 
-            <div className="mt-4 border-t border-zinc-200" />
+            <div className="mt-4 border-t border-zinc-300" />
             {activeRules.length === 0 ? (
               <div className="py-3 text-sm text-zinc-600">No active rules yet.</div>
             ) : (
-              <ul className="divide-y divide-zinc-200">
+              <ul className="divide-y divide-zinc-300">
                 {activeRules.map((rule) => {
                   const isEditing = editingActiveRuleId === rule.id;
                   const isSaving = ruleAction?.type === "active-save" && ruleAction.ruleId === rule.id;
                   const isDeleting = ruleAction?.type === "active-delete" && ruleAction.ruleId === rule.id;
                   const isMenuOpen = openActiveRuleMenuId === rule.id;
                   return (
-                    <li key={rule.id} className="group py-2">
+                    <li key={rule.id} className="group rounded-md px-3 py-2 transition-colors hover:bg-zinc-50 focus-within:bg-zinc-50">
                       {isEditing ? (
                         <>
                           <input
@@ -988,7 +988,7 @@ export function AgentOverviewPage() {
                 })}
               </ul>
             )}
-            <div className="border-t border-zinc-200" />
+            <div className="border-t border-zinc-300" />
           </section>
         </div>
 
