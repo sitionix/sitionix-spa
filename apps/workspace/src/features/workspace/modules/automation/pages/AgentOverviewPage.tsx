@@ -99,9 +99,20 @@ function SuggestedRuleCard({
   const primaryText = hasTitle ? rule.title : rule.content;
   const secondaryText = hasTitle ? rule.content : "";
   const [isExpanded, setIsExpanded] = useState(false);
-  const canExpandPrimary = shouldCollapseSuggestedRuleText(primaryText);
-  const canExpandSecondary = secondaryText.trim().length > 0 && shouldCollapseSuggestedRuleText(secondaryText);
-  const canExpandRule = canExpandPrimary || canExpandSecondary;
+  const [canExpandRule, setCanExpandRule] = useState(false);
+  const primaryTextRef = useRef<HTMLParagraphElement | null>(null);
+  const secondaryTextRef = useRef<HTMLParagraphElement | null>(null);
+
+  useEffect(() => {
+    const canExpandByLength = shouldCollapseSuggestedRuleText(primaryText)
+      || (secondaryText.trim().length > 0 && shouldCollapseSuggestedRuleText(secondaryText));
+    const canExpandByOverflow = (
+      (primaryTextRef.current?.scrollHeight ?? 0) > (primaryTextRef.current?.clientHeight ?? 0)
+    ) || (
+      (secondaryTextRef.current?.scrollHeight ?? 0) > (secondaryTextRef.current?.clientHeight ?? 0)
+    );
+    setCanExpandRule(isExpanded || canExpandByLength || canExpandByOverflow);
+  }, [isExpanded, primaryText, secondaryText]);
 
   return (
     <article
@@ -128,11 +139,17 @@ function SuggestedRuleCard({
             </>
           ) : (
             <>
-              <p className={`overflow-hidden text-sm font-medium leading-5 text-zinc-900 ${isExpanded ? "whitespace-pre-wrap break-words" : "[display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]"}`}>
+              <p
+                ref={primaryTextRef}
+                className={`overflow-hidden text-sm font-medium leading-5 text-zinc-900 ${isExpanded ? "whitespace-pre-wrap break-words" : "[display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]"}`}
+              >
                 {primaryText}
               </p>
               {secondaryText.trim().length > 0 ? (
-                <p className={`mt-1 overflow-hidden text-xs leading-5 text-zinc-600 ${isExpanded ? "whitespace-pre-wrap break-words" : "[display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]"}`}>
+                <p
+                  ref={secondaryTextRef}
+                  className={`mt-1 overflow-hidden text-xs leading-5 text-zinc-600 ${isExpanded ? "whitespace-pre-wrap break-words" : "[display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]"}`}
+                >
                   {secondaryText}
                 </p>
               ) : null}
