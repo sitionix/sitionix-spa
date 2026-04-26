@@ -393,6 +393,65 @@ describe("AgentOverviewPage", () => {
     expect(screen.getByText("Current instruction")).toBeInTheDocument();
   });
 
+  it("renders long instruction as collapsible preview and toggles full content view", async () => {
+    const longInstruction = [
+      "Line 1: Keep output deterministic.",
+      "Line 2: Validate every user input.",
+      "Line 3: Prefer explicit error handling.",
+      "Line 4: Keep actions idempotent when possible.",
+      "Line 5: Avoid hidden side effects.",
+      "Line 6: Log meaningful diagnostics only.",
+      "Line 7: Return stable structured responses.",
+    ].join("\n");
+    getAgentByIdMock.mockResolvedValue({
+      ...agent,
+      instruction: longInstruction,
+    });
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+
+    const instructionText = screen.getByText(/Line 1: Keep output deterministic\./i);
+    expect(instructionText.className).toContain("-webkit-line-clamp:6");
+    expect(screen.getByRole("button", { name: "Show full" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Show full" }));
+    expect(screen.getByRole("button", { name: "Show less" })).toBeInTheDocument();
+    expect(instructionText.className).not.toContain("-webkit-line-clamp:6");
+  });
+
+  it("after saving long instruction shows collapsed preview with Show full button", async () => {
+    const longInstruction = [
+      "Line 1: Keep output deterministic.",
+      "Line 2: Validate every user input.",
+      "Line 3: Prefer explicit error handling.",
+      "Line 4: Keep actions idempotent when possible.",
+      "Line 5: Avoid hidden side effects.",
+      "Line 6: Log meaningful diagnostics only.",
+      "Line 7: Return stable structured responses.",
+    ].join("\n");
+    getAgentByIdMock.mockResolvedValue(agent);
+    patchAgentMock.mockResolvedValue({
+      ...agent,
+      instruction: longInstruction,
+      updatedAt: "2026-04-13T12:00:00.000Z",
+    });
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Add agent instruction" }));
+    await user.type(screen.getByRole("textbox"), longInstruction);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(patchAgentMock).toHaveBeenCalledWith("agent-1", { instruction: longInstruction });
+    expect(await screen.findByRole("button", { name: "Show full" })).toBeInTheDocument();
+    const savedInstruction = screen.getByText(/Line 1: Keep output deterministic\./i);
+    expect(savedInstruction.className).toContain("-webkit-line-clamp:6");
+  });
+
   it("shows Activate for DRAFT and updates to ACTIVE after successful activation", async () => {
     getAgentByIdMock.mockResolvedValue(agent);
     activateAgentMock.mockResolvedValue({
@@ -665,6 +724,41 @@ describe("AgentOverviewPage", () => {
     expect(await screen.findByText("Automation Home")).toBeInTheDocument();
   });
 
+  it("shows title validation error and blocks create rule request when title is empty", async () => {
+    getAgentByIdMock.mockResolvedValue(agent);
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "+ Add rule" }));
+    await user.type(screen.getByPlaceholderText("Rule content"), "Rule without explicit title");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    const titleInput = screen.getByPlaceholderText("Rule title");
+    expect(titleInput).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("Rule title is required")).toBeInTheDocument();
+    expect(createAgentRuleMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+  });
+
+  it("treats whitespace-only create rule title as missing and keeps form in edit mode", async () => {
+    getAgentByIdMock.mockResolvedValue(agent);
+    const user = userEvent.setup();
+
+    renderOverview();
+    expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "+ Add rule" }));
+    await user.type(screen.getByPlaceholderText("Rule title"), "   ");
+    await user.type(screen.getByPlaceholderText("Rule content"), "Whitespace title case");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByText("Rule title is required")).toBeInTheDocument();
+    expect(createAgentRuleMock).not.toHaveBeenCalled();
+    expect(screen.getByPlaceholderText("Rule title")).toBeInTheDocument();
+  });
+
   it("loads active and suggested rules with correct filters and renders author badges", async () => {
     getAgentByIdMock.mockResolvedValue(agent);
     getAgentRulesMock
@@ -714,6 +808,40 @@ describe("AgentOverviewPage", () => {
     expect(screen.getByText("Pending AI Rule")).toBeInTheDocument();
     expect(screen.getAllByText("USER").length).toBeGreaterThan(0);
     expect(screen.getAllByText("AI").length).toBeGreaterThan(0);
+  });
+
+  it("expands and collapses long suggested rule content", async () => {
+    getAgentByIdMock.mockResolvedValue(agent);
+    const longSuggestedContent = [
+      "Line 1: Keep responses deterministic and concise.",
+      "Line 2: Validate inputs before any side-effect.",
+      "Line 3: Prefer explicit assumptions in output.",
+    ].join("\n");
+    getAgentRulesMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "rule-pending-ai-long",
+          agentId: "agent-1",
+          title: "Long suggested rule title that should be collapsible in the card preview",
+          content: longSuggestedContent,
+          status: "PENDING",
+          authorType: "AI",
+          createdAt: "2026-04-12T10:00:00.000Z",
+          updatedAt: "2026-04-12T10:00:00.000Z",
+        },
+      ]);
+    const user = userEvent.setup();
+
+    renderOverview();
+    const title = await screen.findByText("Long suggested rule title that should be collapsible in the card preview");
+    expect(screen.getByRole("button", { name: "Show full rule" })).toBeInTheDocument();
+    expect(title.className).toContain("-webkit-line-clamp:2");
+
+    await user.click(screen.getByRole("button", { name: "Show full rule" }));
+
+    expect(screen.getByRole("button", { name: "Show less" })).toBeInTheDocument();
+    expect(title.className).not.toContain("-webkit-line-clamp:2");
   });
 
   it("accepts suggested rule with edited payload and moves it to active list", async () => {

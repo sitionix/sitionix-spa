@@ -26,6 +26,10 @@ type AgentOverviewState = "idle" | "loading" | "ready" | "not_found" | "error";
 type EditableField = "name" | "description" | null;
 type LifecycleAction = "activate" | "archive" | "restore" | "delete" | null;
 type RuleAction = "create" | "active-save" | "active-delete" | "suggested-accept" | "suggested-reject" | "suggested-delete";
+const INSTRUCTION_PREVIEW_MAX_LINES = 6;
+const INSTRUCTION_PREVIEW_MAX_CHARS = 420;
+const SUGGESTED_RULE_PREVIEW_MAX_LINES = 2;
+const SUGGESTED_RULE_PREVIEW_MAX_CHARS = 180;
 
 function getStatusBadgeClass(status: AutomationAgent["status"]): string {
   if (status === "ACTIVE") {
@@ -38,6 +42,16 @@ function getStatusBadgeClass(status: AutomationAgent["status"]): string {
     return "bg-red-50 text-red-700";
   }
   return "bg-amber-50 text-amber-700";
+}
+
+function shouldCollapseInstruction(instruction: string): boolean {
+  const linesCount = instruction.split(/\r?\n/).length;
+  return instruction.length > INSTRUCTION_PREVIEW_MAX_CHARS || linesCount > INSTRUCTION_PREVIEW_MAX_LINES;
+}
+
+function shouldCollapseSuggestedRuleText(text: string): boolean {
+  const linesCount = text.split(/\r?\n/).length;
+  return text.length > SUGGESTED_RULE_PREVIEW_MAX_CHARS || linesCount > SUGGESTED_RULE_PREVIEW_MAX_LINES;
 }
 
 type SuggestedRuleCardProps = Readonly<{
@@ -84,6 +98,10 @@ function SuggestedRuleCard({
   const hasTitle = rule.title.trim().length > 0;
   const primaryText = hasTitle ? rule.title : rule.content;
   const secondaryText = hasTitle ? rule.content : "";
+  const [isExpanded, setIsExpanded] = useState(false);
+  const canExpandPrimary = shouldCollapseSuggestedRuleText(primaryText);
+  const canExpandSecondary = secondaryText.trim().length > 0 && shouldCollapseSuggestedRuleText(secondaryText);
+  const canExpandRule = canExpandPrimary || canExpandSecondary;
 
   return (
     <article
@@ -110,13 +128,22 @@ function SuggestedRuleCard({
             </>
           ) : (
             <>
-              <p className="overflow-hidden text-sm font-medium leading-5 text-zinc-900 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+              <p className={`overflow-hidden text-sm font-medium leading-5 text-zinc-900 ${isExpanded ? "whitespace-pre-wrap break-words" : "[display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]"}`}>
                 {primaryText}
               </p>
               {secondaryText.trim().length > 0 ? (
-                <p className="mt-1 overflow-hidden text-xs leading-5 text-zinc-600 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+                <p className={`mt-1 overflow-hidden text-xs leading-5 text-zinc-600 ${isExpanded ? "whitespace-pre-wrap break-words" : "[display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]"}`}>
                   {secondaryText}
                 </p>
+              ) : null}
+              {canExpandRule ? (
+                <button
+                  type="button"
+                  className="mt-2 text-xs font-medium text-blue-700 transition hover:text-blue-800"
+                  onClick={() => setIsExpanded((prev) => !prev)}
+                >
+                  {isExpanded ? "Show less" : "Show full rule"}
+                </button>
               ) : null}
             </>
           )}
@@ -209,6 +236,7 @@ export function AgentOverviewPage() {
   const [instructionDraft, setInstructionDraft] = useState("");
   const [isInstructionEditing, setIsInstructionEditing] = useState(false);
   const [isInstructionSaving, setIsInstructionSaving] = useState(false);
+  const [isInstructionExpanded, setIsInstructionExpanded] = useState(false);
   const [instructionSaveError, setInstructionSaveError] = useState<string | null>(null);
   const [lifecycleAction, setLifecycleAction] = useState<LifecycleAction>(null);
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
@@ -220,6 +248,7 @@ export function AgentOverviewPage() {
   const [isCreateRuleEditing, setIsCreateRuleEditing] = useState(false);
   const [createRuleTitle, setCreateRuleTitle] = useState("");
   const [createRuleContent, setCreateRuleContent] = useState("");
+  const [createRuleTitleError, setCreateRuleTitleError] = useState<string | null>(null);
   const [editingActiveRuleId, setEditingActiveRuleId] = useState<string | null>(null);
   const [activeRuleTitleDraft, setActiveRuleTitleDraft] = useState("");
   const [activeRuleContentDraft, setActiveRuleContentDraft] = useState("");
@@ -419,6 +448,7 @@ export function AgentOverviewPage() {
     setIsInstructionSaving(false);
     setInstructionSaveError(null);
     setInstructionDraft(agent?.instruction ?? "");
+    setIsInstructionExpanded(false);
   }, [agent]);
 
   const saveInstruction = useCallback(async () => {
@@ -443,6 +473,7 @@ export function AgentOverviewPage() {
       const updatedAgent = await patchAgent(agent.id, { instruction: normalizedDraft });
       setAgent(updatedAgent);
       setIsInstructionEditing(false);
+      setIsInstructionExpanded(false);
       setLifecycleError(null);
     } catch (instructionError) {
       setInstructionSaveError(toAutomationErrorMessage(instructionError));
@@ -455,6 +486,7 @@ export function AgentOverviewPage() {
     setIsCreateRuleEditing(true);
     setCreateRuleTitle("");
     setCreateRuleContent("");
+    setCreateRuleTitleError(null);
     setRulesError(null);
   }, []);
 
@@ -462,29 +494,41 @@ export function AgentOverviewPage() {
     setIsCreateRuleEditing(false);
     setCreateRuleTitle("");
     setCreateRuleContent("");
+    setCreateRuleTitleError(null);
   }, []);
 
   const saveCreateRule = useCallback(async () => {
     if (!agent || !isCreateRuleEditing || ruleAction) {
       return;
     }
+    const normalizedTitle = createRuleTitle.trim();
+    if (!normalizedTitle) {
+      setCreateRuleTitleError("Rule title is required");
+      setRulesError(null);
+      return;
+    }
+    setCreateRuleTitleError(null);
     setRuleAction({ type: "create" });
     setRulesError(null);
     try {
       const createdRule = await createAgentRule(agent.id, {
-        title: createRuleTitle,
+        title: normalizedTitle,
         content: createRuleContent,
       });
       setActiveRules((prev) => [...prev, createdRule]);
       setIsCreateRuleEditing(false);
       setCreateRuleTitle("");
       setCreateRuleContent("");
+      setCreateRuleTitleError(null);
     } catch (createRuleError) {
       setRulesError(toAutomationErrorMessage(createRuleError));
     } finally {
       setRuleAction(null);
     }
   }, [agent, createRuleContent, createRuleTitle, isCreateRuleEditing, ruleAction]);
+
+  const instructionText = agent?.instruction ?? "";
+  const isInstructionCollapsible = shouldCollapseInstruction(instructionText);
 
   const startEditActiveRule = useCallback((rule: AgentRule) => {
     setOpenActiveRuleMenuId(null);
@@ -981,8 +1025,27 @@ export function AgentOverviewPage() {
               </div>
             ) : (
               <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                {agent.instruction ? (
-                  <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-700">{agent.instruction}</p>
+                {instructionText ? (
+                  <>
+                    <p
+                      className={`whitespace-pre-wrap text-sm leading-6 text-zinc-700 ${
+                        isInstructionCollapsible && !isInstructionExpanded
+                          ? "overflow-hidden [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:6]"
+                          : ""
+                      }`}
+                    >
+                      {instructionText}
+                    </p>
+                    {isInstructionCollapsible ? (
+                      <button
+                        type="button"
+                        className="mt-2 text-xs font-semibold text-blue-700 transition hover:text-blue-800"
+                        onClick={() => setIsInstructionExpanded((prev) => !prev)}
+                      >
+                        {isInstructionExpanded ? "Show less" : "Show full"}
+                      </button>
+                    ) : null}
+                  </>
                 ) : (
                   <div className="text-sm text-zinc-600">
                     <p>No instruction defined yet.</p>
@@ -1017,10 +1080,22 @@ export function AgentOverviewPage() {
               <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                 <input
                   value={createRuleTitle}
-                  onChange={(event) => setCreateRuleTitle(event.target.value)}
+                  onChange={(event) => {
+                    setCreateRuleTitle(event.target.value);
+                    if (createRuleTitleError && event.target.value.trim().length > 0) {
+                      setCreateRuleTitleError(null);
+                    }
+                  }}
                   placeholder="Rule title"
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-blue-100 focus:ring"
+                  aria-invalid={Boolean(createRuleTitleError)}
+                  aria-describedby={createRuleTitleError ? "create-rule-title-error" : undefined}
+                  className={`w-full rounded-lg border px-3 py-2 text-sm text-zinc-900 outline-none ring-blue-100 focus:ring ${
+                    createRuleTitleError ? "border-red-400" : "border-zinc-300"
+                  }`}
                 />
+                {createRuleTitleError ? (
+                  <p id="create-rule-title-error" className="mt-2 text-xs text-red-700">{createRuleTitleError}</p>
+                ) : null}
                 <textarea
                   value={createRuleContent}
                   onChange={(event) => setCreateRuleContent(event.target.value)}
