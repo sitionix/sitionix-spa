@@ -273,6 +273,77 @@ describe("AgentChatPage", () => {
     expect(await screen.findByText("continued")).toBeInTheDocument();
   });
 
+  it("givenAsyncAcceptedExecution_whenTerminalSucceededPolled_thenRendersAssistantReply", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock
+      .mockResolvedValueOnce({ items: [] })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "conv-async",
+            title: "Async",
+            type: "DIRECT",
+            createdAt: "2026-04-21T10:00:00.000Z",
+            updatedAt: "2026-04-21T10:02:00.000Z",
+            lastMessageAt: "2026-04-21T10:02:00.000Z",
+          },
+        ],
+      });
+    chatAgentMock.mockResolvedValue({
+      executionId: "exec-1",
+      conversationId: "conv-async",
+      status: "PENDING",
+    });
+    getChatAgentExecutionMock.mockResolvedValue({
+      executionId: "exec-1",
+      conversationId: "conv-async",
+      status: "SUCCEEDED",
+      reply: {
+        id: "msg-reply",
+        authorType: "AGENT",
+        authorId: "agent-1",
+        content: "async done",
+        createdAt: "2026-04-21T10:02:00.000Z",
+      },
+    });
+    const user = userEvent.setup();
+
+    renderChatPage();
+
+    await screen.findByText("No conversations yet.");
+    await user.type(screen.getByLabelText("Message"), "next");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(getChatAgentExecutionMock).toHaveBeenCalledWith("exec-1");
+    expect(await screen.findByText("async done")).toBeInTheDocument();
+  });
+
+  it("givenAsyncAcceptedExecution_whenTerminalFailedPolled_thenShowsErrorAndRemovesOptimisticMessage", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock.mockResolvedValue({ items: [] });
+    chatAgentMock.mockResolvedValue({
+      executionId: "exec-2",
+      conversationId: "conv-failed",
+      status: "PENDING",
+    });
+    getChatAgentExecutionMock.mockResolvedValue({
+      executionId: "exec-2",
+      conversationId: "conv-failed",
+      status: "FAILED",
+      errorMessage: "Downstream failed",
+    });
+    const user = userEvent.setup();
+
+    renderChatPage();
+
+    await screen.findByText("No conversations yet.");
+    await user.type(screen.getByLabelText("Message"), "next");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(await screen.findByText("Downstream failed")).toBeInTheDocument();
+    expect(screen.queryByText("next")).not.toBeInTheDocument();
+  });
+
   it("givenExistingConversationClicked_whenConversationOpened_thenLoadsAndRendersItsHistory", async () => {
     getAgentByIdMock.mockResolvedValue(activeAgent);
     getAgentConversationsMock.mockResolvedValue({
@@ -439,5 +510,32 @@ describe("AgentChatPage", () => {
 
     await screen.findByText("No conversations yet.");
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+  });
+
+  it("givenAsyncPollingInProgress_whenComponentUnmounted_thenStopsFurtherPollingRequests", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock.mockResolvedValue({ items: [] });
+    chatAgentMock.mockResolvedValue({
+      executionId: "exec-cancel",
+      conversationId: "conv-cancel",
+      status: "PENDING",
+    });
+    getChatAgentExecutionMock.mockImplementation(
+      () =>
+        new Promise(() => {
+          // keep first poll in-flight to simulate screen leave during polling
+        })
+    );
+    const user = userEvent.setup();
+
+    const view = renderChatPage();
+
+    await screen.findByText("No conversations yet.");
+    await user.type(screen.getByLabelText("Message"), "cancel me");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    expect(getChatAgentExecutionMock).toHaveBeenCalledTimes(1);
+
+    view.unmount();
+    expect(getChatAgentExecutionMock).toHaveBeenCalledTimes(1);
   });
 });

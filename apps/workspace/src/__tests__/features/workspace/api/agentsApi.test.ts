@@ -13,6 +13,7 @@ import {
   getAgentById,
   getAgentConversation,
   getAgentConversations,
+  getChatAgentExecution,
   getAgents,
   getErrorHttpStatus,
   getAgentRules,
@@ -486,6 +487,43 @@ describe("agentsApi.chat", () => {
     });
   });
 
+  it("returns async accepted lifecycle response when backend replies with execution payload", async () => {
+    const chatAgentSpy = vi.fn().mockResolvedValue({
+      executionId: "exec-1",
+      conversationId: "conv-1",
+      status: "PENDING",
+    });
+    (AgentApi.prototype as any).chatAgent = chatAgentSpy;
+
+    const result = await chatAgent("agent-11", {
+      conversationId: "conv-1",
+      message: "next",
+    });
+
+    expect(result).toEqual({
+      executionId: "exec-1",
+      conversationId: "conv-1",
+      status: "PENDING",
+    });
+  });
+
+  it("normalizes unknown lifecycle status to pending for forward compatibility", async () => {
+    const chatAgentSpy = vi.fn().mockResolvedValue({
+      executionId: "exec-2",
+      conversationId: "conv-2",
+      status: "ACCEPTED",
+    });
+    (AgentApi.prototype as any).chatAgent = chatAgentSpy;
+
+    const result = await chatAgent("agent-11", { message: "hello" });
+
+    expect(result).toEqual({
+      executionId: "exec-2",
+      conversationId: "conv-2",
+      status: "PENDING",
+    });
+  });
+
   it("throws when message is blank", async () => {
     const chatAgentSpy = vi.fn();
     (AgentApi.prototype as any).chatAgent = chatAgentSpy;
@@ -497,6 +535,24 @@ describe("agentsApi.chat", () => {
     (AgentApi.prototype as any).chatAgent = vi.fn().mockRejectedValue(new Error("Gateway timeout"));
 
     await expect(chatAgent("agent-11", { message: "hello" })).rejects.toThrow("Gateway timeout");
+  });
+
+  it("forwards execution id to lifecycle endpoint and returns result", async () => {
+    const getExecutionSpy = vi.fn().mockResolvedValue({
+      executionId: "exec-10",
+      conversationId: "conv-10",
+      status: "RUNNING",
+    });
+    (AgentApi.prototype as any).getChatAgentExecution = getExecutionSpy;
+
+    const result = await getChatAgentExecution("exec-10");
+
+    expect(getExecutionSpy).toHaveBeenCalledWith({ executionId: "exec-10" });
+    expect(result).toEqual({
+      executionId: "exec-10",
+      conversationId: "conv-10",
+      status: "RUNNING",
+    });
   });
 });
 
