@@ -1,11 +1,11 @@
-import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-126-unstable/apis";
 import type {
   AcceptAgentRuleRequestDTO,
   CreateAgentRequestDTO,
   CreateAgentRuleRequestDTO,
   PatchAgentRuleRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-126-unstable/models";
 import { bffApiConfiguration } from "../../../../../shared/http/httpClient";
 import type {
   AgentConversationDetails,
@@ -14,8 +14,10 @@ import type {
   AgentRuleAuthorType,
   AgentRuleStatus,
   AutomationAgent,
+  ChatAgentAcceptedResponse,
   ChatAgentRequest,
   ChatAgentResponse,
+  ChatExecutionResult,
   ChatExecutionStatusResponse,
   CreateAgentRuleRequest,
   DeleteAgentRuleResponse,
@@ -32,7 +34,27 @@ type ExtendedAgentApi = {
   deleteAgent(request: { agentId: string }): Promise<AutomationAgent>;
   getAgentConversations(request: { agentId: string }): Promise<AgentConversationsResponse>;
   getAgentConversation(request: { conversationId: string }): Promise<AgentConversationDetails>;
-  chatAgent(request: { agentId: string; chatAgentRequestDTO: ChatAgentRequest }): Promise<ChatAgentResponse>;
+  submitAgentChatExecution(request: {
+    agentId: string;
+    chatAgentRequestDTO: ChatAgentRequest;
+    idempotencyKey?: string;
+  }): Promise<{
+    executionId: string;
+    conversationId: string;
+    status: "ACCEPTED" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+    error?: { failureClass: ChatExecutionResult["failureClass"]; reason: string; retryable: boolean } | null;
+  }>;
+  getAgentChatExecution(request: {
+    agentId: string;
+    executionId: string;
+    conversationId?: string;
+  }): Promise<{
+    executionId: string;
+    conversationId: string;
+    status: "ACCEPTED" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+    error?: { failureClass: ChatExecutionResult["failureClass"]; reason: string; retryable: boolean } | null;
+    assistantMessage?: ChatExecutionResult["reply"] | null;
+  }>;
   getAgentRules(request: { agentId: string; status?: AgentRuleStatus; authorType?: AgentRuleAuthorType }): Promise<{ items?: AgentRule[] }>;
   createAgentRule(request: { agentId: string; createAgentRuleRequestDTO: CreateAgentRuleRequestDTO }): Promise<AgentRule>;
   patchAgentRule(request: { agentId: string; ruleId: string; patchAgentRuleRequestDTO: PatchAgentRuleRequestDTO }): Promise<AgentRule>;
@@ -185,41 +207,96 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
     requestBody.conversationId = payload.conversationId;
   }
 
-  return agentApiExtended.chatAgent({
+  const response = await agentApiExtended.submitAgentChatExecution({
     agentId,
     chatAgentRequestDTO: requestBody,
   });
+
+  let normalizedStatus: ChatAgentAcceptedResponse["status"] = "PENDING";
+  if (response.status === "RUNNING") {
+    normalizedStatus = "RUNNING";
+  } else if (response.status === "COMPLETED") {
+    normalizedStatus = "SUCCEEDED";
+  } else if (response.status === "FAILED") {
+    normalizedStatus = "FAILED";
+  }
+
+  return {
+    executionId: response.executionId,
+    conversationId: response.conversationId,
+    status: normalizedStatus,
+  } satisfies ChatAgentAcceptedResponse;
+}
+
+export async function getChatAgentExecution(agentId: string, executionId: string, conversationId?: string): Promise<ChatExecutionResult> {
+  const response = await agentApiExtended.getAgentChatExecution({ agentId, executionId, conversationId });
+  let normalizedStatus: ChatExecutionResult["status"] = "PENDING";
+  if (response.status === "RUNNING") {
+    normalizedStatus = "RUNNING";
+  } else if (response.status === "COMPLETED") {
+    normalizedStatus = "SUCCEEDED";
+  } else if (response.status === "FAILED") {
+    normalizedStatus = "FAILED";
+  }
+  return {
+    executionId: response.executionId,
+    conversationId: response.conversationId,
+    status: normalizedStatus,
+    reply: response.assistantMessage ?? undefined,
+    errorMessage: response.error?.reason,
+    failureClass: response.error?.failureClass,
+    reason: response.error?.reason,
+    retryable: response.error?.retryable,
+  };
 }
 
 export async function submitChatExecution(agentId: string, payload: ChatAgentRequest): Promise<SubmitChatExecutionResponse> {
   const response = await chatAgent(agentId, payload);
+  let state: SubmitChatExecutionResponse["state"] = "ACCEPTED";
+  if (response.status === "RUNNING") {
+    state = "IN_PROGRESS";
+  } else if (response.status === "SUCCEEDED") {
+    state = "SUCCEEDED";
+  } else if (response.status === "FAILED") {
+    state = "FAILED";
+  }
   return {
-    executionId: `legacy-sync-${response.reply.id}`,
-    state: "IN_PROGRESS",
-    conversationId: response.conversationId,
+    executionId: response.executionId,
+    state,
+    conversationId: response.conversationId ?? "",
   };
 }
 
 export async function getChatExecutionStatus(
-  _agentId: string,
+  agentId: string,
   executionId: string,
   conversationId: string,
 ): Promise<ChatExecutionStatusResponse> {
-  const details = await getAgentConversation(conversationId);
-  const latestReply = details.messages.filter((message) => message.authorType === "AGENT").at(-1);
-  if (latestReply) {
+  const execution = await getChatAgentExecution(agentId, executionId, conversationId);
+  if (execution.status === "SUCCEEDED") {
     return {
       executionId,
       state: "SUCCEEDED",
-      conversationId,
-      reply: latestReply,
+      conversationId: execution.conversationId ?? conversationId,
+      reply: execution.reply,
     };
   }
-
+  if (execution.status === "FAILED") {
+    return {
+      executionId,
+      state: "FAILED",
+      conversationId: execution.conversationId ?? conversationId,
+      failure: {
+        code: execution.failureClass ?? "EXECUTION_ERROR",
+        message: execution.errorMessage ?? "The assistant could not complete this request.",
+        details: execution.reason,
+      },
+    };
+  }
   return {
     executionId,
-    state: "IN_PROGRESS",
-    conversationId,
+    state: execution.status === "RUNNING" ? "IN_PROGRESS" : "ACCEPTED",
+    conversationId: execution.conversationId ?? conversationId,
   };
 }
 
@@ -334,6 +411,7 @@ export const agentsApi = {
   getAgentConversations,
   getAgentConversation,
   chatAgent,
+  getChatAgentExecution,
   submitChatExecution,
   getChatExecutionStatus,
   getAgentRules,

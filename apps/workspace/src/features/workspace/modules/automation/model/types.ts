@@ -5,7 +5,7 @@ import type {
   PatchAgentRuleRequestDTO,
   CreateAgentRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-126-unstable/models";
 
 export type AutomationAgent = AgentDTO;
 export type CreateAgentRequest = CreateAgentRequestDTO;
@@ -24,9 +24,26 @@ export type ChatAgentMessage = {
   createdAt: string;
 };
 
-export type ChatAgentResponse = {
-  conversationId: string;
-  reply: ChatAgentMessage;
+export type ChatExecutionLifecycleStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED";
+export type ChatExecutionFailureClass = "OWNERSHIP_VIOLATION" | "CONVERSATION_NOT_FOUND" | "INVALID_LIFECYCLE_STATE" | "IDEMPOTENCY_CONFLICT" | "EXECUTION_ERROR";
+
+export type ChatAgentAcceptedResponse = {
+  executionId: string;
+  conversationId?: string;
+  status: ChatExecutionLifecycleStatus;
+};
+
+export type ChatAgentResponse = ChatAgentAcceptedResponse;
+
+export type ChatExecutionResult = {
+  executionId: string;
+  conversationId?: string;
+  status: ChatExecutionLifecycleStatus;
+  reply?: ChatAgentMessage;
+  errorMessage?: string;
+  failureClass?: ChatExecutionFailureClass;
+  reason?: string;
+  retryable?: boolean;
 };
 
 export type ChatExecutionState = "ACCEPTED" | "IN_PROGRESS" | "SUCCEEDED" | "FAILED";
