@@ -6,6 +6,7 @@ import { AgentChatPage } from "../../../../../features/workspace/modules/automat
 import {
   chatAgent,
   getAgentById,
+  getChatAgentExecution,
   getAgentConversation,
   getAgentConversations,
   getErrorHttpStatus,
@@ -14,6 +15,7 @@ import {
 vi.mock("../../../../../features/workspace/modules/automation/api", () => ({
   chatAgent: vi.fn(),
   getAgentById: vi.fn(),
+  getChatAgentExecution: vi.fn(),
   getAgentConversation: vi.fn(),
   getAgentConversations: vi.fn(),
   getErrorHttpStatus: vi.fn(),
@@ -21,6 +23,7 @@ vi.mock("../../../../../features/workspace/modules/automation/api", () => ({
 
 const chatAgentMock = vi.mocked(chatAgent);
 const getAgentByIdMock = vi.mocked(getAgentById);
+const getChatAgentExecutionMock = vi.mocked(getChatAgentExecution);
 const getAgentConversationMock = vi.mocked(getAgentConversation);
 const getAgentConversationsMock = vi.mocked(getAgentConversations);
 const getErrorHttpStatusMock = vi.mocked(getErrorHttpStatus);
@@ -51,6 +54,7 @@ describe("AgentChatPage", () => {
   beforeEach(() => {
     chatAgentMock.mockReset();
     getAgentByIdMock.mockReset();
+    getChatAgentExecutionMock.mockReset();
     getAgentConversationMock.mockReset();
     getAgentConversationsMock.mockReset();
     getErrorHttpStatusMock.mockReset();

@@ -5,7 +5,7 @@ import type {
   PatchAgentRuleRequestDTO,
   CreateAgentRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-126-unstable/models";
 
 export type AutomationAgent = AgentDTO;
 export type CreateAgentRequest = CreateAgentRequestDTO;
@@ -24,9 +24,27 @@ export type ChatAgentMessage = {
   createdAt: string;
 };
 
-export type ChatAgentResponse = {
+export type ChatExecutionLifecycleStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED";
+
+export type ChatAgentSyncResponse = {
   conversationId: string;
   reply: ChatAgentMessage;
+};
+
+export type ChatAgentAcceptedResponse = {
+  executionId: string;
+  conversationId?: string;
+  status: ChatExecutionLifecycleStatus;
+};
+
+export type ChatAgentResponse = ChatAgentSyncResponse | ChatAgentAcceptedResponse;
+
+export type ChatExecutionResult = {
+  executionId: string;
+  conversationId?: string;
+  status: ChatExecutionLifecycleStatus;
+  reply?: ChatAgentMessage;
+  errorMessage?: string;
 };
 
 export type AgentRule = AgentRuleDTO;

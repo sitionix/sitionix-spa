@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-126-unstable/apis";
 
 import {
   acceptAgentRule,
@@ -452,8 +452,11 @@ describe("agentsApi.chat", () => {
         message: "Explain clean architecture",
       },
     });
-    expect(result.reply.content).toBe("Assistant reply");
-    expect(result.conversationId).toBe("conv-1");
+    expect("reply" in result).toBe(true);
+    if ("reply" in result) {
+      expect(result.reply.content).toBe("Assistant reply");
+      expect(result.conversationId).toBe("conv-1");
+    }
   });
 
   it("includes conversationId when continuing existing chat", async () => {

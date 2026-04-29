@@ -1,11 +1,11 @@
-import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-126-unstable/apis";
 import type {
   AcceptAgentRuleRequestDTO,
   CreateAgentRequestDTO,
   CreateAgentRuleRequestDTO,
   PatchAgentRuleRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-126-unstable/models";
 import { bffApiConfiguration } from "../../../../../shared/http/httpClient";
 import type {
   AgentConversationDetails,
@@ -14,8 +14,10 @@ import type {
   AgentRuleAuthorType,
   AgentRuleStatus,
   AutomationAgent,
+  ChatAgentAcceptedResponse,
   ChatAgentRequest,
   ChatAgentResponse,
+  ChatExecutionResult,
   CreateAgentRuleRequest,
   DeleteAgentRuleResponse,
   PatchAgentRuleRequest,
@@ -31,6 +33,7 @@ type ExtendedAgentApi = {
   getAgentConversations(request: { agentId: string }): Promise<AgentConversationsResponse>;
   getAgentConversation(request: { conversationId: string }): Promise<AgentConversationDetails>;
   chatAgent(request: { agentId: string; chatAgentRequestDTO: ChatAgentRequest }): Promise<ChatAgentResponse>;
+  getChatAgentExecution(request: { executionId: string }): Promise<ChatExecutionResult>;
   getAgentRules(request: { agentId: string; status?: AgentRuleStatus; authorType?: AgentRuleAuthorType }): Promise<{ items?: AgentRule[] }>;
   createAgentRule(request: { agentId: string; createAgentRuleRequestDTO: CreateAgentRuleRequestDTO }): Promise<AgentRule>;
   patchAgentRule(request: { agentId: string; ruleId: string; patchAgentRuleRequestDTO: PatchAgentRuleRequestDTO }): Promise<AgentRule>;
@@ -183,10 +186,30 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
     requestBody.conversationId = payload.conversationId;
   }
 
-  return agentApiExtended.chatAgent({
+  const response = await agentApiExtended.chatAgent({
     agentId,
     chatAgentRequestDTO: requestBody,
   });
+
+  if ("reply" in response) {
+    return response;
+  }
+
+  const normalizedStatus = response.status;
+  if (normalizedStatus === "PENDING" || normalizedStatus === "RUNNING"
+    || normalizedStatus === "SUCCEEDED" || normalizedStatus === "FAILED") {
+    return response;
+  }
+
+  return {
+    executionId: response.executionId,
+    conversationId: response.conversationId,
+    status: "PENDING",
+  } satisfies ChatAgentAcceptedResponse;
+}
+
+export async function getChatAgentExecution(executionId: string): Promise<ChatExecutionResult> {
+  return agentApiExtended.getChatAgentExecution({ executionId });
 }
 
 export async function getAgentRules(

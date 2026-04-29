@@ -1,17 +1,26 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Loader2, PencilLine, Plus, Send } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import {
   chatAgent,
   getAgentById,
+  getChatAgentExecution,
   getAgentConversation,
   getAgentConversations,
   getErrorHttpStatus,
 } from "../api";
 import { toAutomationErrorMessage } from "../model/mappers";
-import type { AgentConversation, AutomationAgent, ChatAgentMessage } from "../model/types";
+import type {
+  AgentConversation,
+  AutomationAgent,
+  ChatAgentMessage,
+  ChatExecutionLifecycleStatus,
+  ChatExecutionResult,
+} from "../model/types";
 
 type AgentChatState = "loading" | "ready" | "not_found" | "error";
+type LocalExecutionStatus = "idle" | "pending" | "running" | "succeeded" | "failed";
+const TERMINAL_EXECUTION_STATUSES: ChatExecutionLifecycleStatus[] = ["SUCCEEDED", "FAILED"];
 
 function getStatusBadgeClass(status: AutomationAgent["status"]): string {
   if (status === "ACTIVE") {
@@ -52,8 +61,49 @@ export function AgentChatPage() {
   const [draftMessage, setDraftMessage] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [executionStatus, setExecutionStatus] = useState<LocalExecutionStatus>("idle");
+  const isUnmountedRef = useRef(false);
 
   const isConversationPanelBusy = isLoadingConversations || isLoadingConversationDetails;
+
+  useEffect(() => () => {
+    isUnmountedRef.current = true;
+  }, []);
+
+  const resolveExecutionState = useCallback((statusValue: ChatExecutionLifecycleStatus): LocalExecutionStatus => {
+    if (statusValue === "PENDING") {
+      return "pending";
+    }
+    if (statusValue === "RUNNING") {
+      return "running";
+    }
+    if (statusValue === "SUCCEEDED") {
+      return "succeeded";
+    }
+    return "failed";
+  }, []);
+
+  const pollExecutionResult = useCallback(async (executionId: string, maxAttempts = 20): Promise<ChatExecutionResult> => {
+    let attempts = 0;
+    while (attempts < maxAttempts) {
+      if (isUnmountedRef.current) {
+        throw new Error("Polling cancelled");
+      }
+      const result = await getChatAgentExecution(executionId);
+      if (isUnmountedRef.current) {
+        throw new Error("Polling cancelled");
+      }
+      setExecutionStatus(resolveExecutionState(result.status));
+      if (TERMINAL_EXECUTION_STATUSES.includes(result.status)) {
+        return result;
+      }
+      attempts += 1;
+      await new Promise((resolve) => {
+        setTimeout(resolve, Math.min(2500, 500 + attempts * 250));
+      });
+    }
+    throw new Error("Agent execution polling timeout");
+  }, [resolveExecutionState]);
 
   const loadConversationDetails = useCallback(async (conversationId: string) => {
     setIsLoadingConversationDetails(true);
@@ -156,6 +206,7 @@ export function AgentChatPage() {
 
     setSendError(null);
     setIsSending(true);
+    setExecutionStatus("pending");
     setDraftMessage("");
 
     const optimisticMessage: ChatAgentMessage = {
@@ -174,17 +225,44 @@ export function AgentChatPage() {
         message,
       });
 
-      setMessages((current) => [...current, response.reply]);
-      setActiveConversationId(response.conversationId);
-      setIsDraftChat(false);
-      await loadConversationList(agentId, false);
+      if ("reply" in response) {
+        setMessages((current) => [...current, response.reply]);
+        setActiveConversationId(response.conversationId);
+        setIsDraftChat(false);
+        setExecutionStatus("succeeded");
+        await loadConversationList(agentId, false);
+      } else {
+        setExecutionStatus(resolveExecutionState(response.status));
+        const executionResult = await pollExecutionResult(response.executionId);
+        if (executionResult.status === "SUCCEEDED" && executionResult.reply) {
+          setMessages((current) => [...current, executionResult.reply]);
+          if (executionResult.conversationId) {
+            setActiveConversationId(executionResult.conversationId);
+          }
+          setIsDraftChat(false);
+          await loadConversationList(agentId, false);
+        } else {
+          throw new Error(executionResult.errorMessage ?? "Agent execution failed");
+        }
+      }
     } catch (error) {
       setSendError(toAutomationErrorMessage(error));
+      setExecutionStatus("failed");
       setMessages((current) => current.filter((item) => item.id !== optimisticMessage.id));
     } finally {
       setIsSending(false);
     }
-  }, [activeConversationId, agent, agentId, draftMessage, isDraftChat, isSending, loadConversationList]);
+  }, [
+    activeConversationId,
+    agent,
+    agentId,
+    draftMessage,
+    isDraftChat,
+    isSending,
+    loadConversationList,
+    pollExecutionResult,
+    resolveExecutionState,
+  ]);
 
   const pageTitle = useMemo(() => {
     if (isDraftChat) {
@@ -360,11 +438,11 @@ export function AgentChatPage() {
               </div>
             ))}
 
-            {isSending ? (
+            {isSending || executionStatus === "pending" || executionStatus === "running" ? (
               <div className="mt-auto flex justify-start pt-3" aria-live="polite" aria-label={`${agent.name} typing indicator`}>
                 <div className="inline-flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-2 text-[13px] font-medium leading-5 text-blue-800 shadow-sm">
                   <PencilLine className="h-3.5 w-3.5 animate-pulse text-blue-600" />
-                  <span>{agent.name} is typing</span>
+                  <span>{executionStatus === "pending" ? `${agent.name} received your message` : `${agent.name} is typing`}</span>
                 </div>
               </div>
             ) : null}
