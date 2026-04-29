@@ -314,7 +314,7 @@ describe("AgentChatPage", () => {
     await user.type(screen.getByLabelText("Message"), "next");
     await user.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(getChatAgentExecutionMock).toHaveBeenCalledWith("exec-1");
+    expect(getChatAgentExecutionMock).toHaveBeenCalledWith("agent-1", "exec-1", "conv-async");
     expect(await screen.findByText("async done")).toBeInTheDocument();
   });
 
@@ -331,6 +331,9 @@ describe("AgentChatPage", () => {
       conversationId: "conv-failed",
       status: "FAILED",
       errorMessage: "Downstream failed",
+      failureClass: "EXECUTION_ERROR",
+      reason: "Downstream failed",
+      retryable: true,
     });
     const user = userEvent.setup();
 
@@ -340,7 +343,7 @@ describe("AgentChatPage", () => {
     await user.type(screen.getByLabelText("Message"), "next");
     await user.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(await screen.findByText("Downstream failed")).toBeInTheDocument();
+    expect(await screen.findByText("EXECUTION_ERROR: Downstream failed. You can retry this request.")).toBeInTheDocument();
     expect(screen.queryByText("next")).not.toBeInTheDocument();
   });
 

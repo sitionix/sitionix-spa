@@ -434,16 +434,11 @@ describe("agentsApi.chat", () => {
 
   it("trims message and calls chat endpoint without conversationId for first send", async () => {
     const chatAgentSpy = vi.fn().mockResolvedValue({
+      executionId: "exec-1",
       conversationId: "conv-1",
-      reply: {
-        id: "msg-1",
-        authorType: "AGENT",
-        authorId: "agent-11",
-        content: "Assistant reply",
-        createdAt: "2026-04-21T10:01:00.000Z",
-      },
+      status: "QUEUED",
     });
-    (AgentApi.prototype as any).chatAgent = chatAgentSpy;
+    (AgentApi.prototype as any).submitAgentChatExecution = chatAgentSpy;
 
     const result = await chatAgent("agent-11", { message: "  Explain clean architecture  " });
 
@@ -453,25 +448,20 @@ describe("agentsApi.chat", () => {
         message: "Explain clean architecture",
       },
     });
-    expect("reply" in result).toBe(true);
-    if ("reply" in result) {
-      expect(result.reply.content).toBe("Assistant reply");
-      expect(result.conversationId).toBe("conv-1");
-    }
+    expect(result).toEqual({
+      executionId: "exec-1",
+      conversationId: "conv-1",
+      status: "PENDING",
+    });
   });
 
   it("includes conversationId when continuing existing chat", async () => {
     const chatAgentSpy = vi.fn().mockResolvedValue({
+      executionId: "exec-2",
       conversationId: "conv-1",
-      reply: {
-        id: "msg-2",
-        authorType: "AGENT",
-        authorId: "agent-11",
-        content: "Next reply",
-        createdAt: "2026-04-21T10:02:00.000Z",
-      },
+      status: "QUEUED",
     });
-    (AgentApi.prototype as any).chatAgent = chatAgentSpy;
+    (AgentApi.prototype as any).submitAgentChatExecution = chatAgentSpy;
 
     await chatAgent("agent-11", {
       conversationId: "conv-1",
@@ -491,9 +481,9 @@ describe("agentsApi.chat", () => {
     const chatAgentSpy = vi.fn().mockResolvedValue({
       executionId: "exec-1",
       conversationId: "conv-1",
-      status: "PENDING",
+      status: "QUEUED",
     });
-    (AgentApi.prototype as any).chatAgent = chatAgentSpy;
+    (AgentApi.prototype as any).submitAgentChatExecution = chatAgentSpy;
 
     const result = await chatAgent("agent-11", {
       conversationId: "conv-1",
@@ -513,7 +503,7 @@ describe("agentsApi.chat", () => {
       conversationId: "conv-2",
       status: "ACCEPTED",
     });
-    (AgentApi.prototype as any).chatAgent = chatAgentSpy;
+    (AgentApi.prototype as any).submitAgentChatExecution = chatAgentSpy;
 
     const result = await chatAgent("agent-11", { message: "hello" });
 
@@ -532,7 +522,7 @@ describe("agentsApi.chat", () => {
   });
 
   it("throws request error when chat request fails", async () => {
-    (AgentApi.prototype as any).chatAgent = vi.fn().mockRejectedValue(new Error("Gateway timeout"));
+    (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockRejectedValue(new Error("Gateway timeout"));
 
     await expect(chatAgent("agent-11", { message: "hello" })).rejects.toThrow("Gateway timeout");
   });
@@ -543,11 +533,11 @@ describe("agentsApi.chat", () => {
       conversationId: "conv-10",
       status: "RUNNING",
     });
-    (AgentApi.prototype as any).getChatAgentExecution = getExecutionSpy;
+    (AgentApi.prototype as any).getAgentChatExecution = getExecutionSpy;
 
-    const result = await getChatAgentExecution("exec-10");
+    const result = await getChatAgentExecution("agent-11", "exec-10", "conv-10");
 
-    expect(getExecutionSpy).toHaveBeenCalledWith({ executionId: "exec-10" });
+    expect(getExecutionSpy).toHaveBeenCalledWith({ agentId: "agent-11", executionId: "exec-10", conversationId: "conv-10" });
     expect(result).toEqual({
       executionId: "exec-10",
       conversationId: "conv-10",

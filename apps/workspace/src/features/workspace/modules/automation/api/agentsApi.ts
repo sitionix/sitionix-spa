@@ -32,8 +32,27 @@ type ExtendedAgentApi = {
   deleteAgent(request: { agentId: string }): Promise<AutomationAgent>;
   getAgentConversations(request: { agentId: string }): Promise<AgentConversationsResponse>;
   getAgentConversation(request: { conversationId: string }): Promise<AgentConversationDetails>;
-  chatAgent(request: { agentId: string; chatAgentRequestDTO: ChatAgentRequest }): Promise<ChatAgentResponse>;
-  getChatAgentExecution(request: { executionId: string }): Promise<ChatExecutionResult>;
+  submitAgentChatExecution(request: {
+    agentId: string;
+    chatAgentRequestDTO: ChatAgentRequest;
+    idempotencyKey?: string;
+  }): Promise<{
+    executionId: string;
+    conversationId: string;
+    status: "ACCEPTED" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+    error?: { failureClass: ChatExecutionResult["failureClass"]; reason: string; retryable: boolean } | null;
+  }>;
+  getAgentChatExecution(request: {
+    agentId: string;
+    executionId: string;
+    conversationId?: string;
+  }): Promise<{
+    executionId: string;
+    conversationId: string;
+    status: "ACCEPTED" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+    error?: { failureClass: ChatExecutionResult["failureClass"]; reason: string; retryable: boolean } | null;
+    assistantMessage?: ChatExecutionResult["reply"] | null;
+  }>;
   getAgentRules(request: { agentId: string; status?: AgentRuleStatus; authorType?: AgentRuleAuthorType }): Promise<{ items?: AgentRule[] }>;
   createAgentRule(request: { agentId: string; createAgentRuleRequestDTO: CreateAgentRuleRequestDTO }): Promise<AgentRule>;
   patchAgentRule(request: { agentId: string; ruleId: string; patchAgentRuleRequestDTO: PatchAgentRuleRequestDTO }): Promise<AgentRule>;
@@ -186,30 +205,47 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
     requestBody.conversationId = payload.conversationId;
   }
 
-  const response = await agentApiExtended.chatAgent({
+  const response = await agentApiExtended.submitAgentChatExecution({
     agentId,
     chatAgentRequestDTO: requestBody,
   });
 
-  if ("reply" in response) {
-    return response;
-  }
-
-  const normalizedStatus = response.status;
-  if (normalizedStatus === "PENDING" || normalizedStatus === "RUNNING"
-    || normalizedStatus === "SUCCEEDED" || normalizedStatus === "FAILED") {
-    return response;
+  let normalizedStatus: ChatAgentAcceptedResponse["status"] = "PENDING";
+  if (response.status === "RUNNING") {
+    normalizedStatus = "RUNNING";
+  } else if (response.status === "COMPLETED") {
+    normalizedStatus = "SUCCEEDED";
+  } else if (response.status === "FAILED") {
+    normalizedStatus = "FAILED";
   }
 
   return {
     executionId: response.executionId,
     conversationId: response.conversationId,
-    status: "PENDING",
+    status: normalizedStatus,
   } satisfies ChatAgentAcceptedResponse;
 }
 
-export async function getChatAgentExecution(executionId: string): Promise<ChatExecutionResult> {
-  return agentApiExtended.getChatAgentExecution({ executionId });
+export async function getChatAgentExecution(agentId: string, executionId: string, conversationId?: string): Promise<ChatExecutionResult> {
+  const response = await agentApiExtended.getAgentChatExecution({ agentId, executionId, conversationId });
+  let normalizedStatus: ChatExecutionResult["status"] = "PENDING";
+  if (response.status === "RUNNING") {
+    normalizedStatus = "RUNNING";
+  } else if (response.status === "COMPLETED") {
+    normalizedStatus = "SUCCEEDED";
+  } else if (response.status === "FAILED") {
+    normalizedStatus = "FAILED";
+  }
+  return {
+    executionId: response.executionId,
+    conversationId: response.conversationId,
+    status: normalizedStatus,
+    reply: response.assistantMessage ?? undefined,
+    errorMessage: response.error?.reason,
+    failureClass: response.error?.failureClass,
+    reason: response.error?.reason,
+    retryable: response.error?.retryable,
+  };
 }
 
 export async function getAgentRules(

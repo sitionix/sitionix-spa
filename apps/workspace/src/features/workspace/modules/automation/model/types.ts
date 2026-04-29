@@ -25,6 +25,7 @@ export type ChatAgentMessage = {
 };
 
 export type ChatExecutionLifecycleStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED";
+export type ChatExecutionFailureClass = "OWNERSHIP_VIOLATION" | "CONVERSATION_NOT_FOUND" | "INVALID_LIFECYCLE_STATE" | "IDEMPOTENCY_CONFLICT" | "EXECUTION_ERROR";
 
 export type ChatAgentSyncResponse = {
   conversationId: string;
@@ -45,6 +46,9 @@ export type ChatExecutionResult = {
   status: ChatExecutionLifecycleStatus;
   reply?: ChatAgentMessage;
   errorMessage?: string;
+  failureClass?: ChatExecutionFailureClass;
+  reason?: string;
+  retryable?: boolean;
 };
 
 export type AgentRule = AgentRuleDTO;

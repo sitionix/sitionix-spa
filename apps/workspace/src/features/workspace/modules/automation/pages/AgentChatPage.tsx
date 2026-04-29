@@ -21,6 +21,7 @@ import type {
 type AgentChatState = "loading" | "ready" | "not_found" | "error";
 type LocalExecutionStatus = "idle" | "pending" | "running" | "succeeded" | "failed";
 const TERMINAL_EXECUTION_STATUSES: ChatExecutionLifecycleStatus[] = ["SUCCEEDED", "FAILED"];
+const EXECUTION_POLL_MAX_ATTEMPTS = 20;
 
 function getStatusBadgeClass(status: AutomationAgent["status"]): string {
   if (status === "ACTIVE") {
@@ -70,6 +71,14 @@ export function AgentChatPage() {
     isUnmountedRef.current = true;
   }, []);
 
+  const formatExecutionFailureMessage = useCallback((result: ChatExecutionResult): string => {
+    if (result.reason) {
+      const retryHint = result.retryable === true ? " You can retry this request." : "";
+      return `${result.failureClass ?? "EXECUTION_ERROR"}: ${result.reason}.${retryHint}`;
+    }
+    return result.errorMessage ?? "Agent execution failed";
+  }, []);
+
   const resolveExecutionState = useCallback((statusValue: ChatExecutionLifecycleStatus): LocalExecutionStatus => {
     if (statusValue === "PENDING") {
       return "pending";
@@ -83,13 +92,20 @@ export function AgentChatPage() {
     return "failed";
   }, []);
 
-  const pollExecutionResult = useCallback(async (executionId: string, maxAttempts = 20): Promise<ChatExecutionResult> => {
+  const pollExecutionResult = useCallback(async (
+    executionId: string,
+    conversationId?: string,
+    maxAttempts = EXECUTION_POLL_MAX_ATTEMPTS,
+  ): Promise<ChatExecutionResult> => {
+    if (!agentId) {
+      throw new Error("Agent context is required for execution polling");
+    }
     let attempts = 0;
     while (attempts < maxAttempts) {
       if (isUnmountedRef.current) {
         throw new Error("Polling cancelled");
       }
-      const result = await getChatAgentExecution(executionId);
+      const result = await getChatAgentExecution(agentId, executionId, conversationId);
       if (isUnmountedRef.current) {
         throw new Error("Polling cancelled");
       }
@@ -102,8 +118,8 @@ export function AgentChatPage() {
         setTimeout(resolve, Math.min(2500, 500 + attempts * 250));
       });
     }
-    throw new Error("Agent execution polling timeout");
-  }, [resolveExecutionState]);
+    throw new Error("Agent execution polling timeout. The request is still processing, please check again.");
+  }, [agentId, resolveExecutionState]);
 
   const loadConversationDetails = useCallback(async (conversationId: string) => {
     setIsLoadingConversationDetails(true);
@@ -233,7 +249,7 @@ export function AgentChatPage() {
         await loadConversationList(agentId, false);
       } else {
         setExecutionStatus(resolveExecutionState(response.status));
-        const executionResult = await pollExecutionResult(response.executionId);
+        const executionResult = await pollExecutionResult(response.executionId, response.conversationId);
         if (executionResult.status === "SUCCEEDED" && executionResult.reply) {
           setMessages((current) => [...current, executionResult.reply]);
           if (executionResult.conversationId) {
@@ -242,7 +258,7 @@ export function AgentChatPage() {
           setIsDraftChat(false);
           await loadConversationList(agentId, false);
         } else {
-          throw new Error(executionResult.errorMessage ?? "Agent execution failed");
+          throw new Error(formatExecutionFailureMessage(executionResult));
         }
       }
     } catch (error) {
@@ -260,6 +276,7 @@ export function AgentChatPage() {
     isDraftChat,
     isSending,
     loadConversationList,
+    formatExecutionFailureMessage,
     pollExecutionResult,
     resolveExecutionState,
   ]);
