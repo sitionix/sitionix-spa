@@ -443,6 +443,8 @@ describe("AgentOverviewPage", () => {
     expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add agent instruction" }));
+    const instructionTextarea = screen.getByRole("textbox");
+    await user.click(instructionTextarea);
     await user.paste(longInstruction);
     await user.click(screen.getByRole("button", { name: "Save" }));
 
