@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { formatDateTime } from "../../../../../features/workspace/model/formatters";
@@ -446,7 +446,9 @@ describe("AgentOverviewPage", () => {
     await user.paste(longInstruction);
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(patchAgentMock).toHaveBeenCalledWith("agent-1", { instruction: longInstruction });
+    await waitFor(() =>
+      expect(patchAgentMock).toHaveBeenCalledWith("agent-1", { instruction: longInstruction })
+    );
     expect(await screen.findByRole("button", { name: "Show full" })).toBeInTheDocument();
     const savedInstruction = screen.getByText(/Line 1: Keep output deterministic\./i);
     expect(savedInstruction.className).toContain("-webkit-line-clamp:6");
