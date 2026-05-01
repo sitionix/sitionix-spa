@@ -14,6 +14,7 @@ import {
   getAgentConversation,
   getAgentConversations,
   getChatAgentExecution,
+  getChatExecutionStatus,
   getAgents,
   getErrorHttpStatus,
   getAgentRules,
@@ -21,6 +22,7 @@ import {
   patchAgentRule,
   rejectAgentRule,
   restoreAgent,
+  submitChatExecution,
 } from "../../../../features/workspace/modules/automation/api/agentsApi";
 
 describe("agentsApi.getAgents", () => {
@@ -542,6 +544,210 @@ describe("agentsApi.chat", () => {
       executionId: "exec-10",
       conversationId: "conv-10",
       status: "RUNNING",
+    });
+  });
+
+  it("maps completed lifecycle response to succeeded with reply", async () => {
+    const getExecutionSpy = vi.fn().mockResolvedValue({
+      executionId: "exec-11",
+      conversationId: "conv-11",
+      status: "COMPLETED",
+      assistantMessage: "Ready",
+    });
+    (AgentApi.prototype as any).getAgentChatExecution = getExecutionSpy;
+
+    const result = await getChatAgentExecution("agent-11", "exec-11");
+
+    expect(result).toEqual({
+      executionId: "exec-11",
+      conversationId: "conv-11",
+      status: "SUCCEEDED",
+      reply: "Ready",
+      errorMessage: undefined,
+      failureClass: undefined,
+      reason: undefined,
+      retryable: undefined,
+    });
+  });
+
+  it("maps failed lifecycle response with error metadata", async () => {
+    const getExecutionSpy = vi.fn().mockResolvedValue({
+      executionId: "exec-12",
+      conversationId: "conv-12",
+      status: "FAILED",
+      error: {
+        failureClass: "TIMEOUT",
+        reason: "Execution timed out",
+        retryable: true,
+      },
+    });
+    (AgentApi.prototype as any).getAgentChatExecution = getExecutionSpy;
+
+    const result = await getChatAgentExecution("agent-11", "exec-12", "conv-12");
+
+    expect(result).toEqual({
+      executionId: "exec-12",
+      conversationId: "conv-12",
+      status: "FAILED",
+      reply: undefined,
+      errorMessage: "Execution timed out",
+      failureClass: "TIMEOUT",
+      reason: "Execution timed out",
+      retryable: true,
+    });
+  });
+});
+
+describe("agentsApi.chat execution wrappers", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("maps queued submit response to accepted state", async () => {
+    (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
+      executionId: "exec-20",
+      conversationId: "conv-20",
+      status: "QUEUED",
+    });
+
+    const result = await submitChatExecution("agent-20", { message: "hello" });
+
+    expect(result).toEqual({
+      executionId: "exec-20",
+      state: "ACCEPTED",
+      conversationId: "conv-20",
+    });
+  });
+
+  it("maps running submit response to in-progress state", async () => {
+    (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
+      executionId: "exec-21",
+      conversationId: "conv-21",
+      status: "RUNNING",
+    });
+
+    const result = await submitChatExecution("agent-20", { message: "hello" });
+
+    expect(result.state).toBe("IN_PROGRESS");
+  });
+
+  it("maps completed submit response to succeeded state", async () => {
+    (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
+      executionId: "exec-22",
+      conversationId: "conv-22",
+      status: "COMPLETED",
+    });
+
+    const result = await submitChatExecution("agent-20", { message: "hello" });
+
+    expect(result.state).toBe("SUCCEEDED");
+  });
+
+  it("maps failed submit response to failed state", async () => {
+    (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
+      executionId: "exec-23",
+      conversationId: "conv-23",
+      status: "FAILED",
+    });
+
+    const result = await submitChatExecution("agent-20", { message: "hello" });
+
+    expect(result.state).toBe("FAILED");
+  });
+
+  it("maps succeeded execution status and keeps reply", async () => {
+    (AgentApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
+      executionId: "exec-30",
+      conversationId: "conv-30",
+      status: "COMPLETED",
+      assistantMessage: "Done",
+    });
+
+    const result = await getChatExecutionStatus("agent-30", "exec-30", "conv-fallback");
+
+    expect(result).toEqual({
+      executionId: "exec-30",
+      state: "SUCCEEDED",
+      conversationId: "conv-30",
+      reply: "Done",
+    });
+  });
+
+  it("maps failed execution status and keeps fallback error defaults", async () => {
+    (AgentApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
+      executionId: "exec-31",
+      conversationId: "conv-31",
+      status: "FAILED",
+      error: {
+        failureClass: "BUSINESS_VALIDATION",
+        reason: "Invalid context",
+        retryable: false,
+      },
+    });
+
+    const result = await getChatExecutionStatus("agent-30", "exec-31", "conv-fallback");
+
+    expect(result).toEqual({
+      executionId: "exec-31",
+      state: "FAILED",
+      conversationId: "conv-31",
+      failure: {
+        code: "BUSINESS_VALIDATION",
+        message: "Invalid context",
+        details: "Invalid context",
+      },
+    });
+  });
+
+  it("maps failed execution with missing details to defaults", async () => {
+    (AgentApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
+      executionId: "exec-32",
+      conversationId: "conv-32",
+      status: "FAILED",
+    });
+
+    const result = await getChatExecutionStatus("agent-30", "exec-32", "conv-fallback");
+
+    expect(result).toEqual({
+      executionId: "exec-32",
+      state: "FAILED",
+      conversationId: "conv-32",
+      failure: {
+        code: "EXECUTION_ERROR",
+        message: "The assistant could not complete this request.",
+        details: undefined,
+      },
+    });
+  });
+
+  it("maps running execution to in-progress state", async () => {
+    (AgentApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
+      executionId: "exec-33",
+      conversationId: "conv-33",
+      status: "RUNNING",
+    });
+
+    const result = await getChatExecutionStatus("agent-30", "exec-33", "conv-fallback");
+
+    expect(result).toEqual({
+      executionId: "exec-33",
+      state: "IN_PROGRESS",
+      conversationId: "conv-33",
+    });
+  });
+
+  it("maps pending execution to accepted state and uses fallback conversation id", async () => {
+    (AgentApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
+      executionId: "exec-34",
+      status: "ACCEPTED",
+    });
+
+    const result = await getChatExecutionStatus("agent-30", "exec-34", "conv-fallback");
+
+    expect(result).toEqual({
+      executionId: "exec-34",
+      state: "ACCEPTED",
+      conversationId: "conv-fallback",
     });
   });
 });
