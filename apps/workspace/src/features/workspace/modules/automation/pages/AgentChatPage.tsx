@@ -68,7 +68,7 @@ export function AgentChatPage() {
   } | null>(null);
 
   const isConversationPanelBusy = isLoadingConversations || isLoadingConversationDetails;
-  const isExecutionInFlight = executionState === "ACCEPTED" || executionState === "IN_PROGRESS";
+  const isExecutionInFlight = executionState === "accepted" || executionState === "queued" || executionState === "running";
   const isSending = isExecutionInFlight;
 
   const loadConversationDetails = useCallback(async (conversationId: string) => {
@@ -171,7 +171,7 @@ export function AgentChatPage() {
 
     setSendError(null);
     setTerminalFailure(null);
-    setExecutionState("ACCEPTED");
+    setExecutionState("accepted");
     setDraftMessage("");
 
     const optimisticMessage: ChatAgentMessage = {
@@ -196,7 +196,7 @@ export function AgentChatPage() {
       setIsDraftChat(false);
       setLastSubmitContext({
         message,
-        conversationId,
+        conversationId: submitResponse.conversationId || conversationId,
       });
       await loadConversationList(agentId, false);
     } catch (error) {
@@ -238,7 +238,7 @@ export function AgentChatPage() {
         }
 
         setExecutionState(statusResponse.state);
-        if (statusResponse.state === "SUCCEEDED") {
+        if (statusResponse.state === "succeeded") {
           if (statusResponse.reply) {
             setMessages((current) => {
               const withoutPending = pendingUserMessage
@@ -255,7 +255,7 @@ export function AgentChatPage() {
           setInFlightExecutionId(null);
           setTerminalFailure(null);
           void loadConversationList(agentId, false);
-        } else if (statusResponse.state === "FAILED") {
+        } else if (statusResponse.state === "failed") {
           setTerminalFailure(statusResponse.failure ?? {
             code: "EXECUTION_FAILED",
             message: "The assistant could not complete this request.",
@@ -273,7 +273,7 @@ export function AgentChatPage() {
         });
         setPendingUserMessage(null);
         setInFlightExecutionId(null);
-        setExecutionState("FAILED");
+        setExecutionState("failed");
       }
     };
 

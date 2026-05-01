@@ -213,7 +213,9 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
   });
 
   let normalizedStatus: ChatAgentAcceptedResponse["status"] = "PENDING";
-  if (response.status === "RUNNING") {
+  if (response.status === "QUEUED") {
+    normalizedStatus = "QUEUED";
+  } else if (response.status === "RUNNING") {
     normalizedStatus = "RUNNING";
   } else if (response.status === "COMPLETED") {
     normalizedStatus = "SUCCEEDED";
@@ -231,7 +233,9 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
 export async function getChatAgentExecution(agentId: string, executionId: string, conversationId?: string): Promise<ChatExecutionResult> {
   const response = await agentApiExtended.getAgentChatExecution({ agentId, executionId, conversationId });
   let normalizedStatus: ChatExecutionResult["status"] = "PENDING";
-  if (response.status === "RUNNING") {
+  if (response.status === "QUEUED") {
+    normalizedStatus = "QUEUED";
+  } else if (response.status === "RUNNING") {
     normalizedStatus = "RUNNING";
   } else if (response.status === "COMPLETED") {
     normalizedStatus = "SUCCEEDED";
@@ -252,13 +256,17 @@ export async function getChatAgentExecution(agentId: string, executionId: string
 
 export async function submitChatExecution(agentId: string, payload: ChatAgentRequest): Promise<SubmitChatExecutionResponse> {
   const response = await chatAgent(agentId, payload);
-  let state: SubmitChatExecutionResponse["state"] = "ACCEPTED";
+  let state: SubmitChatExecutionResponse["state"] = "queued";
   if (response.status === "RUNNING") {
-    state = "IN_PROGRESS";
+    state = "running";
+  } else if (response.status === "QUEUED") {
+    state = "queued";
   } else if (response.status === "SUCCEEDED") {
-    state = "SUCCEEDED";
+    state = "succeeded";
   } else if (response.status === "FAILED") {
-    state = "FAILED";
+    state = "failed";
+  } else if (response.status === "PENDING") {
+    state = "accepted";
   }
   return {
     executionId: response.executionId,
@@ -276,7 +284,7 @@ export async function getChatExecutionStatus(
   if (execution.status === "SUCCEEDED") {
     return {
       executionId,
-      state: "SUCCEEDED",
+      state: "succeeded",
       conversationId: execution.conversationId ?? conversationId,
       reply: execution.reply,
     };
@@ -284,7 +292,7 @@ export async function getChatExecutionStatus(
   if (execution.status === "FAILED") {
     return {
       executionId,
-      state: "FAILED",
+      state: "failed",
       conversationId: execution.conversationId ?? conversationId,
       failure: {
         code: execution.failureClass ?? "EXECUTION_ERROR",
@@ -295,7 +303,11 @@ export async function getChatExecutionStatus(
   }
   return {
     executionId,
-    state: execution.status === "RUNNING" ? "IN_PROGRESS" : "ACCEPTED",
+    state: execution.status === "RUNNING"
+      ? "running"
+      : execution.status === "PENDING"
+        ? "accepted"
+        : "queued",
     conversationId: execution.conversationId ?? conversationId,
   };
 }

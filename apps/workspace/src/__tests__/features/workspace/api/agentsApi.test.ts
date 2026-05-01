@@ -453,7 +453,7 @@ describe("agentsApi.chat", () => {
     expect(result).toEqual({
       executionId: "exec-1",
       conversationId: "conv-1",
-      status: "PENDING",
+      status: "QUEUED",
     });
   });
 
@@ -495,7 +495,7 @@ describe("agentsApi.chat", () => {
     expect(result).toEqual({
       executionId: "exec-1",
       conversationId: "conv-1",
-      status: "PENDING",
+      status: "QUEUED",
     });
   });
 
@@ -603,7 +603,7 @@ describe("agentsApi.chat execution wrappers", () => {
     vi.restoreAllMocks();
   });
 
-  it("maps queued submit response to accepted state", async () => {
+  it("maps queued submit response to queued state", async () => {
     (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-20",
       conversationId: "conv-20",
@@ -614,12 +614,12 @@ describe("agentsApi.chat execution wrappers", () => {
 
     expect(result).toEqual({
       executionId: "exec-20",
-      state: "ACCEPTED",
+      state: "queued",
       conversationId: "conv-20",
     });
   });
 
-  it("maps running submit response to in-progress state", async () => {
+  it("maps running submit response to running state", async () => {
     (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-21",
       conversationId: "conv-21",
@@ -628,7 +628,7 @@ describe("agentsApi.chat execution wrappers", () => {
 
     const result = await submitChatExecution("agent-20", { message: "hello" });
 
-    expect(result.state).toBe("IN_PROGRESS");
+    expect(result.state).toBe("running");
   });
 
   it("maps completed submit response to succeeded state", async () => {
@@ -640,7 +640,7 @@ describe("agentsApi.chat execution wrappers", () => {
 
     const result = await submitChatExecution("agent-20", { message: "hello" });
 
-    expect(result.state).toBe("SUCCEEDED");
+    expect(result.state).toBe("succeeded");
   });
 
   it("maps failed submit response to failed state", async () => {
@@ -652,7 +652,7 @@ describe("agentsApi.chat execution wrappers", () => {
 
     const result = await submitChatExecution("agent-20", { message: "hello" });
 
-    expect(result.state).toBe("FAILED");
+    expect(result.state).toBe("failed");
   });
 
   it("maps succeeded execution status and keeps reply", async () => {
@@ -667,7 +667,7 @@ describe("agentsApi.chat execution wrappers", () => {
 
     expect(result).toEqual({
       executionId: "exec-30",
-      state: "SUCCEEDED",
+      state: "succeeded",
       conversationId: "conv-30",
       reply: "Done",
     });
@@ -689,7 +689,7 @@ describe("agentsApi.chat execution wrappers", () => {
 
     expect(result).toEqual({
       executionId: "exec-31",
-      state: "FAILED",
+      state: "failed",
       conversationId: "conv-31",
       failure: {
         code: "BUSINESS_VALIDATION",
@@ -710,7 +710,7 @@ describe("agentsApi.chat execution wrappers", () => {
 
     expect(result).toEqual({
       executionId: "exec-32",
-      state: "FAILED",
+      state: "failed",
       conversationId: "conv-32",
       failure: {
         code: "EXECUTION_ERROR",
@@ -731,7 +731,7 @@ describe("agentsApi.chat execution wrappers", () => {
 
     expect(result).toEqual({
       executionId: "exec-33",
-      state: "IN_PROGRESS",
+      state: "running",
       conversationId: "conv-33",
     });
   });
@@ -746,7 +746,7 @@ describe("agentsApi.chat execution wrappers", () => {
 
     expect(result).toEqual({
       executionId: "exec-34",
-      state: "ACCEPTED",
+      state: "accepted",
       conversationId: "conv-fallback",
     });
   });
@@ -761,11 +761,11 @@ describe("agentsApi.rules", () => {
     const getRulesSpy = vi.fn().mockResolvedValue({ items: [{ id: "rule-1" }] });
     (AgentApi.prototype as any).getAgentRules = getRulesSpy;
 
-    const result = await getAgentRules("agent-1", { status: "PENDING", authorType: "AI" });
+    const result = await getAgentRules("agent-1", { status: "QUEUED", authorType: "AI" });
 
     expect(getRulesSpy).toHaveBeenCalledWith({
       agentId: "agent-1",
-      status: "PENDING",
+      status: "QUEUED",
       authorType: "AI",
     });
     expect(result).toEqual([{ id: "rule-1" }]);
