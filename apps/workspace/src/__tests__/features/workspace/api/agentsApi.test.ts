@@ -655,6 +655,37 @@ describe("agentsApi.chat execution wrappers", () => {
     expect(result.state).toBe("failed");
   });
 
+  it("maps submit response with missing status to accepted state", async () => {
+    (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
+      executionId: "exec-24",
+      conversationId: "conv-24",
+    });
+
+    const result = await submitChatExecution("agent-20", { message: "hello" });
+
+    expect(result).toEqual({
+      executionId: "exec-24",
+      state: "accepted",
+      conversationId: "conv-24",
+    });
+  });
+
+  it("maps submit response with null status to accepted state", async () => {
+    (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
+      executionId: "exec-25",
+      conversationId: "conv-25",
+      status: null,
+    });
+
+    const result = await submitChatExecution("agent-20", { message: "hello" });
+
+    expect(result).toEqual({
+      executionId: "exec-25",
+      state: "accepted",
+      conversationId: "conv-25",
+    });
+  });
+
   it("maps succeeded execution status and keeps reply", async () => {
     (AgentApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-30",
@@ -748,6 +779,37 @@ describe("agentsApi.chat execution wrappers", () => {
       executionId: "exec-34",
       state: "accepted",
       conversationId: "conv-fallback",
+    });
+  });
+
+  it("maps execution with missing status to accepted state", async () => {
+    (AgentApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
+      executionId: "exec-35",
+      conversationId: "conv-35",
+    });
+
+    const result = await getChatExecutionStatus("agent-30", "exec-35", "conv-fallback");
+
+    expect(result).toEqual({
+      executionId: "exec-35",
+      state: "accepted",
+      conversationId: "conv-35",
+    });
+  });
+
+  it("maps execution with null status to accepted state", async () => {
+    (AgentApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
+      executionId: "exec-36",
+      conversationId: "conv-36",
+      status: null,
+    });
+
+    const result = await getChatExecutionStatus("agent-30", "exec-36", "conv-fallback");
+
+    expect(result).toEqual({
+      executionId: "exec-36",
+      state: "accepted",
+      conversationId: "conv-36",
     });
   });
 });
