@@ -24,9 +24,48 @@ export type ChatAgentMessage = {
   createdAt: string;
 };
 
-export type ChatAgentResponse = {
+export type ChatExecutionLifecycleStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED";
+export type ChatExecutionFailureClass = "OWNERSHIP_VIOLATION" | "CONVERSATION_NOT_FOUND" | "INVALID_LIFECYCLE_STATE" | "IDEMPOTENCY_CONFLICT" | "EXECUTION_ERROR";
+
+export type ChatAgentAcceptedResponse = {
+  executionId: string;
+  conversationId?: string;
+  status: ChatExecutionLifecycleStatus;
+};
+
+export type ChatAgentResponse = ChatAgentAcceptedResponse;
+
+export type ChatExecutionResult = {
+  executionId: string;
+  conversationId?: string;
+  status: ChatExecutionLifecycleStatus;
+  reply?: ChatAgentMessage;
+  errorMessage?: string;
+  failureClass?: ChatExecutionFailureClass;
+  reason?: string;
+  retryable?: boolean;
+};
+
+export type ChatExecutionState = "ACCEPTED" | "IN_PROGRESS" | "SUCCEEDED" | "FAILED";
+
+export type ChatExecutionFailure = {
+  code: string;
+  message: string;
+  details?: string;
+};
+
+export type SubmitChatExecutionResponse = {
+  executionId: string;
+  state: ChatExecutionState;
   conversationId: string;
-  reply: ChatAgentMessage;
+};
+
+export type ChatExecutionStatusResponse = {
+  executionId: string;
+  state: ChatExecutionState;
+  conversationId: string;
+  reply?: ChatAgentMessage;
+  failure?: ChatExecutionFailure;
 };
 
 export type AgentRule = AgentRuleDTO;

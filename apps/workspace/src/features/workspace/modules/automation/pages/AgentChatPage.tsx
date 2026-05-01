@@ -2,14 +2,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Loader2, PencilLine, Plus, Send } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import {
-  chatAgent,
   getAgentById,
+  getChatExecutionStatus,
   getAgentConversation,
   getAgentConversations,
   getErrorHttpStatus,
+  submitChatExecution,
 } from "../api";
 import { toAutomationErrorMessage } from "../model/mappers";
-import type { AgentConversation, AutomationAgent, ChatAgentMessage } from "../model/types";
+import type {
+  AgentConversation,
+  AutomationAgent,
+  ChatAgentMessage,
+  ChatExecutionFailure,
+  ChatExecutionState,
+} from "../model/types";
 
 type AgentChatState = "loading" | "ready" | "not_found" | "error";
 
@@ -51,9 +58,18 @@ export function AgentChatPage() {
   const [isLoadingConversationDetails, setIsLoadingConversationDetails] = useState(false);
   const [draftMessage, setDraftMessage] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
-  const [isSending, setIsSending] = useState(false);
+  const [inFlightExecutionId, setInFlightExecutionId] = useState<string | null>(null);
+  const [executionState, setExecutionState] = useState<ChatExecutionState | null>(null);
+  const [terminalFailure, setTerminalFailure] = useState<ChatExecutionFailure | null>(null);
+  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
+  const [lastSubmitContext, setLastSubmitContext] = useState<{
+    message: string;
+    conversationId?: string;
+  } | null>(null);
 
   const isConversationPanelBusy = isLoadingConversations || isLoadingConversationDetails;
+  const isExecutionInFlight = executionState === "ACCEPTED" || executionState === "IN_PROGRESS";
+  const isSending = isExecutionInFlight;
 
   const loadConversationDetails = useCallback(async (conversationId: string) => {
     setIsLoadingConversationDetails(true);
@@ -77,7 +93,7 @@ export function AgentChatPage() {
     setIsLoadingConversations(true);
     try {
       const response = await getAgentConversations(agentIdValue);
-      const items = Array.isArray(response.items) ? response.items : [];
+      const items = Array.isArray(response?.items) ? response.items : [];
       setConversations(items);
 
       if (openMostRecent) {
@@ -131,11 +147,15 @@ export function AgentChatPage() {
   }, [agentId, loadConversationList]);
 
   const startNewChat = useCallback(() => {
+    if (isExecutionInFlight) {
+      return;
+    }
     setIsDraftChat(true);
     setActiveConversationId(null);
     setMessages([]);
     setSendError(null);
-  }, []);
+    setTerminalFailure(null);
+  }, [isExecutionInFlight]);
 
   const openConversation = useCallback(async (conversationId: string) => {
     if (!agentId || isSending) {
@@ -144,18 +164,14 @@ export function AgentChatPage() {
     await loadConversationDetails(conversationId);
   }, [agentId, isSending, loadConversationDetails]);
 
-  const sendMessage = useCallback(async () => {
+  const executeSend = useCallback(async (message: string, conversationId?: string) => {
     if (!agent || !agentId || isSending) {
       return;
     }
 
-    const message = draftMessage.trim();
-    if (!message) {
-      return;
-    }
-
     setSendError(null);
-    setIsSending(true);
+    setTerminalFailure(null);
+    setExecutionState("ACCEPTED");
     setDraftMessage("");
 
     const optimisticMessage: ChatAgentMessage = {
@@ -167,24 +183,110 @@ export function AgentChatPage() {
     };
 
     setMessages((current) => [...current, optimisticMessage]);
+    setPendingUserMessage(optimisticMessage.id);
 
     try {
-      const response = await chatAgent(agentId, {
-        conversationId: isDraftChat ? undefined : activeConversationId ?? undefined,
+      const submitResponse = await submitChatExecution(agentId, {
+        conversationId,
         message,
       });
-
-      setMessages((current) => [...current, response.reply]);
-      setActiveConversationId(response.conversationId);
+      setExecutionState(submitResponse.state);
+      setInFlightExecutionId(submitResponse.executionId);
+      setActiveConversationId(submitResponse.conversationId);
       setIsDraftChat(false);
+      setLastSubmitContext({
+        message,
+        conversationId,
+      });
       await loadConversationList(agentId, false);
     } catch (error) {
       setSendError(toAutomationErrorMessage(error));
       setMessages((current) => current.filter((item) => item.id !== optimisticMessage.id));
-    } finally {
-      setIsSending(false);
+      setPendingUserMessage(null);
+      setExecutionState(null);
+      setInFlightExecutionId(null);
     }
-  }, [activeConversationId, agent, agentId, draftMessage, isDraftChat, isSending, loadConversationList]);
+  }, [agent, agentId, isSending, loadConversationList]);
+
+  const sendMessage = useCallback(async () => {
+    const message = draftMessage.trim();
+    if (!message) {
+      return;
+    }
+    await executeSend(message, isDraftChat ? undefined : activeConversationId ?? undefined);
+  }, [activeConversationId, draftMessage, executeSend, isDraftChat]);
+
+  const retryLastSubmit = useCallback(async () => {
+    if (!lastSubmitContext || !agentId || isExecutionInFlight) {
+      return;
+    }
+    setTerminalFailure(null);
+    await executeSend(lastSubmitContext.message, lastSubmitContext.conversationId);
+  }, [agentId, executeSend, isExecutionInFlight, lastSubmitContext]);
+
+  useEffect(() => {
+    if (!agentId || !activeConversationId || !inFlightExecutionId || !isExecutionInFlight) {
+      return;
+    }
+
+    let cancelled = false;
+    const pollExecution = async () => {
+      try {
+        const statusResponse = await getChatExecutionStatus(agentId, inFlightExecutionId, activeConversationId);
+        if (cancelled) {
+          return;
+        }
+
+        setExecutionState(statusResponse.state);
+        if (statusResponse.state === "SUCCEEDED") {
+          if (statusResponse.reply) {
+            setMessages((current) => {
+              const withoutPending = pendingUserMessage
+                ? current.filter((item) => item.id !== pendingUserMessage)
+                : current;
+              const hasReply = withoutPending.some((item) => item.id === statusResponse.reply?.id);
+              if (hasReply) {
+                return withoutPending;
+              }
+              return [...withoutPending, statusResponse.reply];
+            });
+          }
+          setPendingUserMessage(null);
+          setInFlightExecutionId(null);
+          setTerminalFailure(null);
+          void loadConversationList(agentId, false);
+        } else if (statusResponse.state === "FAILED") {
+          setTerminalFailure(statusResponse.failure ?? {
+            code: "EXECUTION_FAILED",
+            message: "The assistant could not complete this request.",
+          });
+          setPendingUserMessage(null);
+          setInFlightExecutionId(null);
+        }
+      } catch {
+        if (cancelled) {
+          return;
+        }
+        setTerminalFailure({
+          code: "POLLING_FAILED",
+          message: "Unable to refresh assistant execution status.",
+        });
+        setPendingUserMessage(null);
+        setInFlightExecutionId(null);
+        setExecutionState("FAILED");
+      }
+    };
+
+    void pollExecution();
+    const intervalId = window.setInterval(() => {
+      void pollExecution();
+    }, 1500);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [activeConversationId, agentId, inFlightExecutionId, isExecutionInFlight, loadConversationList, pendingUserMessage]);
 
   const pageTitle = useMemo(() => {
     if (isDraftChat) {
@@ -360,7 +462,7 @@ export function AgentChatPage() {
               </div>
             ))}
 
-            {isSending ? (
+            {isExecutionInFlight ? (
               <div className="mt-auto flex justify-start pt-3" aria-live="polite" aria-label={`${agent.name} typing indicator`}>
                 <div className="inline-flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-2 text-[13px] font-medium leading-5 text-blue-800 shadow-sm">
                   <PencilLine className="h-3.5 w-3.5 animate-pulse text-blue-600" />
@@ -384,6 +486,20 @@ export function AgentChatPage() {
             />
             {sendError ? (
               <p className="mt-3 text-sm text-red-700">{sendError}</p>
+            ) : null}
+            {terminalFailure ? (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <p className="font-semibold">{terminalFailure.code}</p>
+                <p className="mt-1">{terminalFailure.message}</p>
+                <button
+                  type="button"
+                  onClick={() => void retryLastSubmit()}
+                  disabled={isExecutionInFlight}
+                  className="mt-3 inline-flex items-center rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Retry
+                </button>
+              </div>
             ) : null}
             <div className="mt-4 flex justify-end">
               <button

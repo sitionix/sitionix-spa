@@ -4,22 +4,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AgentChatPage } from "../../../../../features/workspace/modules/automation/pages/AgentChatPage";
 import {
-  chatAgent,
   getAgentById,
+  getChatExecutionStatus,
   getAgentConversation,
   getAgentConversations,
   getErrorHttpStatus,
+  submitChatExecution,
 } from "../../../../../features/workspace/modules/automation/api";
 
 vi.mock("../../../../../features/workspace/modules/automation/api", () => ({
-  chatAgent: vi.fn(),
+  submitChatExecution: vi.fn(),
+  getChatExecutionStatus: vi.fn(),
   getAgentById: vi.fn(),
   getAgentConversation: vi.fn(),
   getAgentConversations: vi.fn(),
   getErrorHttpStatus: vi.fn(),
 }));
 
-const chatAgentMock = vi.mocked(chatAgent);
+const submitChatExecutionMock = vi.mocked(submitChatExecution);
+const getChatExecutionStatusMock = vi.mocked(getChatExecutionStatus);
 const getAgentByIdMock = vi.mocked(getAgentById);
 const getAgentConversationMock = vi.mocked(getAgentConversation);
 const getAgentConversationsMock = vi.mocked(getAgentConversations);
@@ -49,7 +52,8 @@ const activeAgent = {
 
 describe("AgentChatPage", () => {
   beforeEach(() => {
-    chatAgentMock.mockReset();
+    submitChatExecutionMock.mockReset();
+    getChatExecutionStatusMock.mockReset();
     getAgentByIdMock.mockReset();
     getAgentConversationMock.mockReset();
     getAgentConversationsMock.mockReset();
@@ -165,7 +169,7 @@ describe("AgentChatPage", () => {
 
     expect(screen.getByRole("heading", { level: 2, name: "New chat" })).toBeInTheDocument();
     expect(screen.getByText("Start a new conversation with this agent.")).toBeInTheDocument();
-    expect(chatAgentMock).not.toHaveBeenCalled();
+    expect(submitChatExecutionMock).not.toHaveBeenCalled();
   });
 
   it("givenDraftChat_whenFirstMessageSent_thenCallsChatWithoutConversationId", async () => {
@@ -184,7 +188,14 @@ describe("AgentChatPage", () => {
           },
         ],
       });
-    chatAgentMock.mockResolvedValue({
+    submitChatExecutionMock.mockResolvedValue({
+      executionId: "exec-1",
+      state: "IN_PROGRESS",
+      conversationId: "conv-created",
+    });
+    getChatExecutionStatusMock.mockResolvedValue({
+      executionId: "exec-1",
+      state: "SUCCEEDED",
       conversationId: "conv-created",
       reply: {
         id: "msg-reply",
@@ -202,7 +213,7 @@ describe("AgentChatPage", () => {
     await user.type(screen.getByLabelText("Message"), "  Explain architecture  ");
     await user.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(chatAgentMock).toHaveBeenCalledWith("agent-1", {
+    expect(submitChatExecutionMock).toHaveBeenCalledWith("agent-1", {
       message: "Explain architecture",
     });
     expect(await screen.findByText("created")).toBeInTheDocument();
@@ -244,7 +255,14 @@ describe("AgentChatPage", () => {
       lastMessageAt: "2026-04-21T10:01:00.000Z",
       messages: [],
     });
-    chatAgentMock.mockResolvedValue({
+    submitChatExecutionMock.mockResolvedValue({
+      executionId: "exec-1",
+      state: "IN_PROGRESS",
+      conversationId: "conv-1",
+    });
+    getChatExecutionStatusMock.mockResolvedValue({
+      executionId: "exec-1",
+      state: "SUCCEEDED",
       conversationId: "conv-1",
       reply: {
         id: "msg-reply",
@@ -262,7 +280,7 @@ describe("AgentChatPage", () => {
     await user.type(screen.getByLabelText("Message"), "next");
     await user.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(chatAgentMock).toHaveBeenCalledWith("agent-1", {
+    expect(submitChatExecutionMock).toHaveBeenCalledWith("agent-1", {
       conversationId: "conv-1",
       message: "next",
     });
@@ -355,21 +373,16 @@ describe("AgentChatPage", () => {
         ],
       });
 
-    let resolveChat: ((value: {
+    let resolveSubmit: ((value: {
+      executionId: string;
+      state: "IN_PROGRESS";
       conversationId: string;
-      reply: {
-        id: string;
-        authorType: "AGENT";
-        authorId: string;
-        content: string;
-        createdAt: string;
-      };
     }) => void) | null = null;
 
-    chatAgentMock.mockImplementation(
+    submitChatExecutionMock.mockImplementation(
       () =>
         new Promise((resolve) => {
-          resolveChat = resolve;
+          resolveSubmit = resolve;
         })
     );
 
@@ -384,23 +397,29 @@ describe("AgentChatPage", () => {
     await user.click(sendButton);
     await user.click(sendButton);
 
-    expect(chatAgentMock).toHaveBeenCalledTimes(1);
+    expect(submitChatExecutionMock).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
     expect(screen.getByLabelText("Active Agent typing indicator")).toBeInTheDocument();
-
-    await act(async () => {
-      resolveChat?.({
-        conversationId: "conv-1",
-        reply: {
-          id: "reply-1",
-          authorType: "AGENT",
-          authorId: "agent-1",
-          content: "done",
-          createdAt: "2026-04-21T10:01:00.000Z",
-        },
-      });
+    getChatExecutionStatusMock.mockResolvedValue({
+      executionId: "exec-1",
+      state: "SUCCEEDED",
+      conversationId: "conv-1",
+      reply: {
+        id: "reply-1",
+        authorType: "AGENT",
+        authorId: "agent-1",
+        content: "done",
+        createdAt: "2026-04-21T10:01:00.000Z",
+      },
     });
 
+    await act(async () => {
+      resolveSubmit?.({
+        executionId: "exec-1",
+        state: "IN_PROGRESS",
+        conversationId: "conv-1",
+      });
+    });
     expect(await screen.findByText("done")).toBeInTheDocument();
   });
 
@@ -435,5 +454,71 @@ describe("AgentChatPage", () => {
 
     await screen.findByText("No conversations yet.");
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+  });
+
+  it("givenExecutionFailed_whenRetryClicked_thenRetriesSameMessage", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock
+      .mockResolvedValueOnce({ items: [] })
+      .mockResolvedValue({
+        items: [
+          {
+            id: "conv-1",
+            title: "Created",
+            type: "DIRECT",
+            createdAt: "2026-04-21T10:00:00.000Z",
+            updatedAt: "2026-04-21T10:01:00.000Z",
+            lastMessageAt: "2026-04-21T10:01:00.000Z",
+          },
+        ],
+      });
+    submitChatExecutionMock
+      .mockResolvedValueOnce({
+        executionId: "exec-failed",
+        state: "IN_PROGRESS",
+        conversationId: "conv-1",
+      })
+      .mockResolvedValueOnce({
+        executionId: "exec-retry",
+        state: "IN_PROGRESS",
+        conversationId: "conv-1",
+      });
+    getChatExecutionStatusMock
+      .mockResolvedValueOnce({
+        executionId: "exec-failed",
+        state: "FAILED",
+        conversationId: "conv-1",
+        failure: {
+          code: "AGENT_TIMEOUT",
+          message: "Execution timed out",
+        },
+      })
+      .mockResolvedValueOnce({
+        executionId: "exec-retry",
+        state: "SUCCEEDED",
+        conversationId: "conv-1",
+        reply: {
+          id: "reply-retry",
+          authorType: "AGENT",
+          authorId: "agent-1",
+          content: "retry ok",
+          createdAt: "2026-04-21T10:02:00.000Z",
+        },
+      });
+    const user = userEvent.setup();
+
+    renderChatPage();
+
+    await screen.findByText("No conversations yet.");
+    await user.type(screen.getByLabelText("Message"), "retry message");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(await screen.findByText("AGENT_TIMEOUT")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(submitChatExecutionMock).toHaveBeenNthCalledWith(2, "agent-1", {
+      message: "retry message",
+    });
+
+    expect(await screen.findByText("retry ok")).toBeInTheDocument();
   });
 });
