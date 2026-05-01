@@ -443,7 +443,7 @@ describe("AgentOverviewPage", () => {
     expect(await screen.findByRole("heading", { name: "Agent Overview" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add agent instruction" }));
-    await user.type(screen.getByRole("textbox"), longInstruction);
+    await user.paste(longInstruction);
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(patchAgentMock).toHaveBeenCalledWith("agent-1", { instruction: longInstruction });
