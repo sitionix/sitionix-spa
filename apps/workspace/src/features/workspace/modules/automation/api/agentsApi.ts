@@ -113,6 +113,26 @@ function normalizeLifecycleStatus(
   return "PENDING";
 }
 
+function generateUuidV4Fallback(): string {
+  const template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
+  return template.replace(/[xy]/g, (char) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = char === "x" ? random : ((random & 0x3) | 0x8);
+    return value.toString(16);
+  });
+}
+
+function resolveClientRequestId(provided?: string): string {
+  if (provided?.trim()) {
+    return provided.trim();
+  }
+  const maybeCrypto = globalThis.crypto as Crypto | undefined;
+  if (maybeCrypto?.randomUUID) {
+    return maybeCrypto.randomUUID();
+  }
+  return generateUuidV4Fallback();
+}
+
 export async function getAgents(): Promise<AutomationAgent[]> {
   const response = await agentApi.getAgents();
   return Array.isArray(response.items) ? response.items : [];
@@ -237,6 +257,7 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
   }
 
   const requestBody: ChatAgentRequest = {
+    clientRequestId: resolveClientRequestId(payload.clientRequestId),
     message: normalizedMessage,
   };
 
@@ -248,6 +269,7 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
     const response = await agentApiExtended.submitAgentChatExecution({
       agentId,
       chatAgentRequestDTO: requestBody,
+      idempotencyKey: requestBody.clientRequestId,
     });
     const normalizedStatus: ChatAgentAcceptedResponse["status"] = normalizeLifecycleStatus(response.status);
     return {
@@ -264,6 +286,7 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
   const response = await agentApiExtended.submitAgentChatExecutionByExecutionsPath({
     agentId,
     chatAgentRequestDTO: requestBody,
+    idempotencyKey: requestBody.clientRequestId,
   });
   const normalizedStatus: ChatAgentAcceptedResponse["status"] = normalizeLifecycleStatus(response.status);
   return {

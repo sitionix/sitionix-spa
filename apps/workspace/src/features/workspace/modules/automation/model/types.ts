@@ -12,6 +12,7 @@ export type CreateAgentRequest = CreateAgentRequestDTO;
 export type PatchAgentRequest = PatchAgentRequestDTO;
 
 export type ChatAgentRequest = {
+  clientRequestId?: string;
   conversationId?: string;
   message: string;
 };

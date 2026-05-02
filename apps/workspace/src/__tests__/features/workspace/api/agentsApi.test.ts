@@ -444,12 +444,12 @@ describe("agentsApi.chat", () => {
 
     const result = await chatAgent("agent-11", { message: "  Explain clean architecture  " });
 
-    expect(chatAgentSpy).toHaveBeenCalledWith({
-      agentId: "agent-11",
-      chatAgentRequestDTO: {
-        message: "Explain clean architecture",
-      },
-    });
+    expect(chatAgentSpy).toHaveBeenCalledTimes(1);
+    const firstSubmitCall = chatAgentSpy.mock.calls[0]?.[0];
+    expect(firstSubmitCall.agentId).toBe("agent-11");
+    expect(firstSubmitCall.chatAgentRequestDTO.message).toBe("Explain clean architecture");
+    expect(firstSubmitCall.chatAgentRequestDTO.clientRequestId).toEqual(expect.any(String));
+    expect(firstSubmitCall.idempotencyKey).toBe(firstSubmitCall.chatAgentRequestDTO.clientRequestId);
     expect(result).toEqual({
       executionId: "exec-1",
       conversationId: "conv-1",
@@ -470,13 +470,15 @@ describe("agentsApi.chat", () => {
       message: "next",
     });
 
-    expect(chatAgentSpy).toHaveBeenCalledWith({
-      agentId: "agent-11",
-      chatAgentRequestDTO: {
-        conversationId: "conv-1",
-        message: "next",
-      },
+    expect(chatAgentSpy).toHaveBeenCalledTimes(1);
+    const continueSubmitCall = chatAgentSpy.mock.calls[0]?.[0];
+    expect(continueSubmitCall.agentId).toBe("agent-11");
+    expect(continueSubmitCall.chatAgentRequestDTO).toMatchObject({
+      conversationId: "conv-1",
+      message: "next",
     });
+    expect(continueSubmitCall.chatAgentRequestDTO.clientRequestId).toEqual(expect.any(String));
+    expect(continueSubmitCall.idempotencyKey).toBe(continueSubmitCall.chatAgentRequestDTO.clientRequestId);
   });
 
   it("returns async accepted lifecycle response when backend replies with execution payload", async () => {
@@ -527,12 +529,12 @@ describe("agentsApi.chat", () => {
 
     const result = await chatAgent("agent-11", { message: "hello" });
 
-    expect(chatAgentByExecutionsPathSpy).toHaveBeenCalledWith({
-      agentId: "agent-11",
-      chatAgentRequestDTO: {
-        message: "hello",
-      },
-    });
+    expect(chatAgentByExecutionsPathSpy).toHaveBeenCalledTimes(1);
+    const executionsPathCall = chatAgentByExecutionsPathSpy.mock.calls[0]?.[0];
+    expect(executionsPathCall.agentId).toBe("agent-11");
+    expect(executionsPathCall.chatAgentRequestDTO.message).toBe("hello");
+    expect(executionsPathCall.chatAgentRequestDTO.clientRequestId).toEqual(expect.any(String));
+    expect(executionsPathCall.idempotencyKey).toBe(executionsPathCall.chatAgentRequestDTO.clientRequestId);
     expect(result).toEqual({
       executionId: "exec-3",
       conversationId: "conv-3",
@@ -559,6 +561,29 @@ describe("agentsApi.chat", () => {
       executionId: "exec-ctx",
       conversationId: "conv-ctx",
       status: "PENDING",
+    });
+  });
+
+  it("reuses provided clientRequestId as idempotency key", async () => {
+    const submitSpy = vi.fn().mockResolvedValue({
+      executionId: "exec-idem",
+      conversationId: "conv-idem",
+      status: "QUEUED",
+    });
+    (AgentApi.prototype as any).submitAgentChatExecution = submitSpy;
+
+    await chatAgent("agent-11", {
+      message: "hello",
+      clientRequestId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(submitSpy).toHaveBeenCalledWith({
+      agentId: "agent-11",
+      chatAgentRequestDTO: {
+        message: "hello",
+        clientRequestId: "11111111-1111-4111-8111-111111111111",
+      },
+      idempotencyKey: "11111111-1111-4111-8111-111111111111",
     });
   });
 
