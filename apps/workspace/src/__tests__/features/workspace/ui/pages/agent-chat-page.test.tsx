@@ -572,6 +572,85 @@ describe("AgentChatPage", () => {
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
   });
 
+  it("givenCompletedConversation_whenSwitchingToPendingConversation_thenRestoresTypingFromBackendState", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock.mockResolvedValue({
+      items: [
+        {
+          id: "conv-1",
+          title: "Pending chat",
+          type: "DIRECT",
+          createdAt: "2026-04-21T10:00:00.000Z",
+          updatedAt: "2026-04-21T10:01:00.000Z",
+          lastMessageAt: "2026-04-21T09:01:00.000Z",
+        },
+        {
+          id: "conv-2",
+          title: "Completed chat",
+          type: "DIRECT",
+          createdAt: "2026-04-21T09:00:00.000Z",
+          updatedAt: "2026-04-21T09:01:00.000Z",
+          lastMessageAt: "2026-04-21T10:01:00.000Z",
+        },
+      ],
+    });
+    getAgentConversationMock
+      .mockResolvedValueOnce({
+        id: "conv-2",
+        title: "Completed chat",
+        type: "DIRECT",
+        createdAt: "2026-04-21T09:00:00.000Z",
+        updatedAt: "2026-04-21T09:01:00.000Z",
+        lastMessageAt: "2026-04-21T09:01:00.000Z",
+        messages: [
+          {
+            id: "msg-agent-2",
+            authorType: "AGENT",
+            authorId: "agent-1",
+            content: "done",
+            createdAt: "2026-04-21T09:01:00.000Z",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        id: "conv-1",
+        title: "Pending chat",
+        type: "DIRECT",
+        createdAt: "2026-04-21T10:00:00.000Z",
+        updatedAt: "2026-04-21T10:01:00.000Z",
+        lastMessageAt: "2026-04-21T10:01:00.000Z",
+        messages: [
+          {
+            id: "msg-user-1",
+            authorType: "USER",
+            authorId: "user-1",
+            content: "waiting",
+            createdAt: "2026-04-21T10:01:00.000Z",
+          },
+        ],
+        latestExecution: {
+          executionId: "exec-pending",
+          status: "RUNNING",
+        },
+      });
+    getChatExecutionStatusMock.mockResolvedValue({
+      executionId: "exec-pending",
+      state: "running",
+      conversationId: "conv-1",
+    });
+    const user = userEvent.setup();
+
+    renderChatPage();
+
+    expect(await screen.findByText("done")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Active Agent typing indicator")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Pending chat/ }));
+    expect(await screen.findByText("waiting")).toBeInTheDocument();
+    expect(screen.getByLabelText("Active Agent typing indicator")).toBeInTheDocument();
+    expect(getChatExecutionStatusMock).toHaveBeenCalledWith("agent-1", "exec-pending", "conv-1");
+  });
+
   it("givenPollingFails_whenExecutionTracked_thenShowsDeterministicPollingError", async () => {
     getAgentByIdMock.mockResolvedValue(activeAgent);
     getAgentConversationsMock
