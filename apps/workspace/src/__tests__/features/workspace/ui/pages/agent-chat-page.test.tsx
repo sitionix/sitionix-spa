@@ -521,4 +521,93 @@ describe("AgentChatPage", () => {
 
     expect(await screen.findByText("retry ok")).toBeInTheDocument();
   });
+
+  it("givenConversationWithPendingExecution_whenPageLoaded_thenShowsTypingFromBackendState", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock.mockResolvedValue({
+      items: [
+        {
+          id: "conv-pending",
+          title: "Pending conversation",
+          type: "DIRECT",
+          createdAt: "2026-04-21T10:00:00.000Z",
+          updatedAt: "2026-04-21T10:01:00.000Z",
+          lastMessageAt: "2026-04-21T10:01:00.000Z",
+        },
+      ],
+    });
+    getAgentConversationMock.mockResolvedValue({
+      id: "conv-pending",
+      title: "Pending conversation",
+      type: "DIRECT",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:01:00.000Z",
+      lastMessageAt: "2026-04-21T10:01:00.000Z",
+      messages: [
+        {
+          id: "msg-user",
+          authorType: "USER",
+          authorId: "user-1",
+          content: "need details",
+          createdAt: "2026-04-21T10:01:00.000Z",
+        },
+      ],
+      latestExecution: {
+        executionId: "exec-pending",
+        status: "RUNNING",
+      },
+      assistantPending: true,
+    });
+
+    renderChatPage();
+
+    expect(await screen.findByText("need details")).toBeInTheDocument();
+    expect(screen.getByLabelText("Active Agent typing indicator")).toBeInTheDocument();
+  });
+
+  it("givenConversationWithFailedExecution_whenPageLoaded_thenShowsSafeFailureAndKeepsUserMessage", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock.mockResolvedValue({
+      items: [
+        {
+          id: "conv-failed",
+          title: "Failed conversation",
+          type: "DIRECT",
+          createdAt: "2026-04-21T10:00:00.000Z",
+          updatedAt: "2026-04-21T10:01:00.000Z",
+          lastMessageAt: "2026-04-21T10:01:00.000Z",
+        },
+      ],
+    });
+    getAgentConversationMock.mockResolvedValue({
+      id: "conv-failed",
+      title: "Failed conversation",
+      type: "DIRECT",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:01:00.000Z",
+      lastMessageAt: "2026-04-21T10:01:00.000Z",
+      messages: [
+        {
+          id: "msg-user",
+          authorType: "USER",
+          authorId: "user-1",
+          content: "need details",
+          createdAt: "2026-04-21T10:01:00.000Z",
+        },
+      ],
+      latestExecution: {
+        executionId: "exec-failed",
+        status: "FAILED",
+        errorCode: "EXECUTION_FAILED",
+        errorMessage: "Agent failed to respond. Try again.",
+      },
+      assistantPending: false,
+    });
+
+    renderChatPage();
+
+    expect(await screen.findByText("need details")).toBeInTheDocument();
+    expect(screen.getByText("EXECUTION_FAILED")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Active Agent typing indicator")).not.toBeInTheDocument();
+  });
 });

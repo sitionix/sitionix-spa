@@ -12,9 +12,11 @@ import {
 import { toAutomationErrorMessage } from "../model/mappers";
 import type {
   AgentConversation,
+  AgentConversationDetails,
   AutomationAgent,
   ChatAgentMessage,
   ChatExecutionFailure,
+  ChatExecutionLifecycleStatus,
   ChatExecutionState,
 } from "../model/types";
 
@@ -61,33 +63,84 @@ export function AgentChatPage() {
   const [inFlightExecutionId, setInFlightExecutionId] = useState<string | null>(null);
   const [executionState, setExecutionState] = useState<ChatExecutionState | null>(null);
   const [terminalFailure, setTerminalFailure] = useState<ChatExecutionFailure | null>(null);
-  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
+  const [latestExecutionStatus, setLatestExecutionStatus] = useState<ChatExecutionLifecycleStatus | null>(null);
   const [lastSubmitContext, setLastSubmitContext] = useState<{
     message: string;
     conversationId?: string;
   } | null>(null);
 
   const isConversationPanelBusy = isLoadingConversations || isLoadingConversationDetails;
-  const isExecutionInFlight = executionState === "ACCEPTED" || executionState === "IN_PROGRESS";
+  const isLocalExecutionInFlight = executionState === "ACCEPTED" || executionState === "IN_PROGRESS";
+  const isBackendExecutionInFlight = latestExecutionStatus === "PENDING" || latestExecutionStatus === "RUNNING";
+  const isExecutionInFlight = isLocalExecutionInFlight || isBackendExecutionInFlight;
   const isSending = isExecutionInFlight;
 
-  const loadConversationDetails = useCallback(async (conversationId: string) => {
-    setIsLoadingConversationDetails(true);
-    setSendError(null);
+  const applyConversationDetailsState = useCallback((
+    details: AgentConversationDetails,
+    options?: { preserveExecutionWhenMissing?: boolean },
+  ) => {
+    setMessages(details.messages);
+    setActiveConversationId(details.id);
+    setIsDraftChat(false);
+    const execution = details.latestExecution;
+    setLatestExecutionStatus(execution?.status ?? null);
+    if (execution?.status === "FAILED") {
+      setTerminalFailure({
+        code: execution.errorCode ?? "EXECUTION_FAILED",
+        message: execution.errorMessage ?? "Agent failed to respond. Try again.",
+      });
+      setExecutionState("FAILED");
+      setInFlightExecutionId(null);
+      return;
+    }
+    if (execution?.status === "SUCCEEDED") {
+      setExecutionState("SUCCEEDED");
+      setInFlightExecutionId(null);
+      setTerminalFailure(null);
+      return;
+    }
+    if (execution?.status === "RUNNING" || execution?.status === "PENDING" || details.assistantPending) {
+      setExecutionState(execution?.status === "RUNNING" ? "IN_PROGRESS" : "ACCEPTED");
+      setInFlightExecutionId(execution?.executionId ?? null);
+      setTerminalFailure(null);
+      return;
+    }
+    if (options?.preserveExecutionWhenMissing && !execution && typeof details.assistantPending !== "boolean") {
+      return;
+    }
+    setExecutionState(null);
+    setInFlightExecutionId(null);
+    setTerminalFailure(null);
+  }, []);
+
+  const loadConversationDetails = useCallback(async (
+    conversationId: string,
+    options?: { silent?: boolean },
+  ): Promise<AgentConversationDetails | null> => {
+    if (!options?.silent) {
+      setIsLoadingConversationDetails(true);
+      setSendError(null);
+    }
     try {
       const details = await getAgentConversation(conversationId);
-      setMessages(details.messages);
-      setActiveConversationId(details.id);
-      setIsDraftChat(false);
+      applyConversationDetailsState(details, {
+        preserveExecutionWhenMissing: Boolean(options?.silent),
+      });
+      return details;
     } catch (error) {
-      setSendError(toAutomationErrorMessage(error));
-      setMessages([]);
-      setActiveConversationId(null);
-      setIsDraftChat(true);
+      if (!options?.silent) {
+        setSendError(toAutomationErrorMessage(error));
+        setMessages([]);
+        setActiveConversationId(null);
+        setIsDraftChat(true);
+      }
+      return null;
     } finally {
-      setIsLoadingConversationDetails(false);
+      if (!options?.silent) {
+        setIsLoadingConversationDetails(false);
+      }
     }
-  }, []);
+  }, [applyConversationDetailsState]);
 
   const loadConversationList = useCallback(async (agentIdValue: string, openMostRecent: boolean) => {
     setIsLoadingConversations(true);
@@ -172,6 +225,7 @@ export function AgentChatPage() {
     setSendError(null);
     setTerminalFailure(null);
     setExecutionState("ACCEPTED");
+    setLatestExecutionStatus("PENDING");
     setDraftMessage("");
 
     const optimisticMessage: ChatAgentMessage = {
@@ -183,7 +237,6 @@ export function AgentChatPage() {
     };
 
     setMessages((current) => [...current, optimisticMessage]);
-    setPendingUserMessage(optimisticMessage.id);
 
     try {
       const submitResponse = await submitChatExecution(agentId, {
@@ -193,20 +246,22 @@ export function AgentChatPage() {
       setExecutionState(submitResponse.state);
       setInFlightExecutionId(submitResponse.executionId);
       setActiveConversationId(submitResponse.conversationId);
+      setLatestExecutionStatus(submitResponse.state === "IN_PROGRESS" ? "RUNNING" : "PENDING");
       setIsDraftChat(false);
       setLastSubmitContext({
         message,
         conversationId,
       });
       await loadConversationList(agentId, false);
+      await loadConversationDetails(submitResponse.conversationId, { silent: true });
     } catch (error) {
       setSendError(toAutomationErrorMessage(error));
       setMessages((current) => current.filter((item) => item.id !== optimisticMessage.id));
-      setPendingUserMessage(null);
       setExecutionState(null);
       setInFlightExecutionId(null);
+      setLatestExecutionStatus(null);
     }
-  }, [agent, agentId, isSending, loadConversationList]);
+  }, [agent, agentId, isSending, loadConversationDetails, loadConversationList]);
 
   const sendMessage = useCallback(async () => {
     const message = draftMessage.trim();
@@ -225,55 +280,74 @@ export function AgentChatPage() {
   }, [agentId, executeSend, isExecutionInFlight, lastSubmitContext]);
 
   useEffect(() => {
-    if (!agentId || !activeConversationId || !inFlightExecutionId || !isExecutionInFlight) {
+    if (!agentId || !activeConversationId || !isExecutionInFlight) {
       return;
     }
 
     let cancelled = false;
     const pollExecution = async () => {
       try {
+        const details = await loadConversationDetails(activeConversationId, { silent: true });
+        if (cancelled) {
+          return;
+        }
+        const hasExecutionMetadata = Boolean(details?.latestExecution) || typeof details?.assistantPending === "boolean";
+        if (hasExecutionMetadata || !inFlightExecutionId) {
+          return;
+        }
         const statusResponse = await getChatExecutionStatus(agentId, inFlightExecutionId, activeConversationId);
         if (cancelled) {
           return;
         }
-
         setExecutionState(statusResponse.state);
-        if (statusResponse.state === "SUCCEEDED") {
-          if (statusResponse.reply) {
-            setMessages((current) => {
-              const withoutPending = pendingUserMessage
-                ? current.filter((item) => item.id !== pendingUserMessage)
-                : current;
-              const hasReply = withoutPending.some((item) => item.id === statusResponse.reply?.id);
-              if (hasReply) {
-                return withoutPending;
-              }
-              return [...withoutPending, statusResponse.reply];
-            });
-          }
-          setPendingUserMessage(null);
-          setInFlightExecutionId(null);
-          setTerminalFailure(null);
-          void loadConversationList(agentId, false);
-        } else if (statusResponse.state === "FAILED") {
+        if (statusResponse.state === "FAILED") {
           setTerminalFailure(statusResponse.failure ?? {
             code: "EXECUTION_FAILED",
             message: "The assistant could not complete this request.",
           });
-          setPendingUserMessage(null);
           setInFlightExecutionId(null);
+          setLatestExecutionStatus("FAILED");
+        }
+        if (statusResponse.state === "SUCCEEDED") {
+          setInFlightExecutionId(null);
+          setLatestExecutionStatus("SUCCEEDED");
+          setTerminalFailure(null);
+          if (statusResponse.reply) {
+            setMessages((current) => {
+              if (current.some((item) => item.id === statusResponse.reply?.id)) {
+                return current;
+              }
+              return [...current, statusResponse.reply];
+            });
+          }
         }
       } catch {
         if (cancelled) {
           return;
         }
-        setTerminalFailure({
-          code: "POLLING_FAILED",
-          message: "Unable to refresh assistant execution status.",
-        });
-        setPendingUserMessage(null);
-        setInFlightExecutionId(null);
-        setExecutionState("FAILED");
+        if (inFlightExecutionId) {
+          const statusResponse = await getChatExecutionStatus(agentId, inFlightExecutionId, activeConversationId);
+          if (cancelled) {
+            return;
+          }
+          setExecutionState(statusResponse.state);
+          if (statusResponse.state === "FAILED") {
+            setTerminalFailure(statusResponse.failure ?? {
+              code: "EXECUTION_FAILED",
+              message: "The assistant could not complete this request.",
+            });
+            setInFlightExecutionId(null);
+            setLatestExecutionStatus("FAILED");
+          }
+          if (statusResponse.state === "SUCCEEDED") {
+            setInFlightExecutionId(null);
+            setLatestExecutionStatus("SUCCEEDED");
+            setTerminalFailure(null);
+            await loadConversationDetails(activeConversationId, { silent: true });
+          }
+          return;
+        }
+        setTerminalFailure({ code: "POLLING_FAILED", message: "Unable to refresh assistant execution status." });
       }
     };
 
@@ -286,7 +360,7 @@ export function AgentChatPage() {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [activeConversationId, agentId, inFlightExecutionId, isExecutionInFlight, loadConversationList, pendingUserMessage]);
+  }, [activeConversationId, agentId, inFlightExecutionId, isExecutionInFlight, loadConversationDetails]);
 
   const pageTitle = useMemo(() => {
     if (isDraftChat) {

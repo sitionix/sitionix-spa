@@ -88,6 +88,21 @@ function getOptionalTrimmedField(
   return getRequiredTrimmed(payload[field], errorMessage);
 }
 
+function normalizeLifecycleStatus(
+  status: string | undefined,
+): "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" {
+  if (status === "RUNNING") {
+    return "RUNNING";
+  }
+  if (status === "COMPLETED") {
+    return "SUCCEEDED";
+  }
+  if (status === "FAILED") {
+    return "FAILED";
+  }
+  return "PENDING";
+}
+
 export async function getAgents(): Promise<AutomationAgent[]> {
   const response = await agentApi.getAgents();
   return Array.isArray(response.items) ? response.items : [];
@@ -187,9 +202,21 @@ export async function getAgentConversations(agentId: string): Promise<AgentConve
 
 export async function getAgentConversation(conversationId: string): Promise<AgentConversationDetails> {
   const response = await agentApiExtended.getAgentConversation({ conversationId });
+  const latestExecution = (response as AgentConversationDetails).latestExecution;
   return {
     ...response,
     messages: Array.isArray(response.messages) ? response.messages : [],
+    latestExecution: latestExecution
+      ? {
+        executionId: latestExecution.executionId,
+        status: normalizeLifecycleStatus(latestExecution.status),
+        errorCode: latestExecution.errorCode,
+        errorMessage: latestExecution.errorMessage,
+      }
+      : undefined,
+    assistantPending: typeof (response as AgentConversationDetails).assistantPending === "boolean"
+      ? (response as AgentConversationDetails).assistantPending
+      : undefined,
   };
 }
 
@@ -212,14 +239,7 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
     chatAgentRequestDTO: requestBody,
   });
 
-  let normalizedStatus: ChatAgentAcceptedResponse["status"] = "PENDING";
-  if (response.status === "RUNNING") {
-    normalizedStatus = "RUNNING";
-  } else if (response.status === "COMPLETED") {
-    normalizedStatus = "SUCCEEDED";
-  } else if (response.status === "FAILED") {
-    normalizedStatus = "FAILED";
-  }
+  const normalizedStatus: ChatAgentAcceptedResponse["status"] = normalizeLifecycleStatus(response.status);
 
   return {
     executionId: response.executionId,
@@ -230,14 +250,7 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
 
 export async function getChatAgentExecution(agentId: string, executionId: string, conversationId?: string): Promise<ChatExecutionResult> {
   const response = await agentApiExtended.getAgentChatExecution({ agentId, executionId, conversationId });
-  let normalizedStatus: ChatExecutionResult["status"] = "PENDING";
-  if (response.status === "RUNNING") {
-    normalizedStatus = "RUNNING";
-  } else if (response.status === "COMPLETED") {
-    normalizedStatus = "SUCCEEDED";
-  } else if (response.status === "FAILED") {
-    normalizedStatus = "FAILED";
-  }
+  const normalizedStatus: ChatExecutionResult["status"] = normalizeLifecycleStatus(response.status);
   return {
     executionId: response.executionId,
     conversationId: response.conversationId,
