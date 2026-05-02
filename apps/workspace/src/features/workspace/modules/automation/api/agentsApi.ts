@@ -244,13 +244,24 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
     requestBody.conversationId = payload.conversationId;
   }
 
-  const submitExecution = agentApiExtended.submitAgentChatExecution
-    ?? agentApiExtended.submitAgentChatExecutionByExecutionsPath;
-  if (!submitExecution) {
+  if (typeof agentApiExtended.submitAgentChatExecution === "function") {
+    const response = await agentApiExtended.submitAgentChatExecution({
+      agentId,
+      chatAgentRequestDTO: requestBody,
+    });
+    const normalizedStatus: ChatAgentAcceptedResponse["status"] = normalizeLifecycleStatus(response.status);
+    return {
+      executionId: response.executionId,
+      conversationId: response.conversationId,
+      status: normalizedStatus,
+    } satisfies ChatAgentAcceptedResponse;
+  }
+
+  if (typeof agentApiExtended.submitAgentChatExecutionByExecutionsPath !== "function") {
     throw new Error("Async chat execution endpoint is not available in current API package.");
   }
 
-  const response = await submitExecution({
+  const response = await agentApiExtended.submitAgentChatExecutionByExecutionsPath({
     agentId,
     chatAgentRequestDTO: requestBody,
   });

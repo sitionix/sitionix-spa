@@ -540,6 +540,28 @@ describe("agentsApi.chat", () => {
     });
   });
 
+  it("calls submit execution endpoint with bound api context", async () => {
+    const submitSpy = vi.fn(function submit(this: unknown) {
+      if (!this) {
+        throw new Error("UNBOUND_THIS");
+      }
+      return Promise.resolve({
+        executionId: "exec-ctx",
+        conversationId: "conv-ctx",
+        status: "QUEUED",
+      });
+    });
+    (AgentApi.prototype as any).submitAgentChatExecution = submitSpy;
+
+    const result = await chatAgent("agent-11", { message: "context" });
+
+    expect(result).toEqual({
+      executionId: "exec-ctx",
+      conversationId: "conv-ctx",
+      status: "PENDING",
+    });
+  });
+
   it("throws when message is blank", async () => {
     const chatAgentSpy = vi.fn();
     (AgentApi.prototype as any).chatAgent = chatAgentSpy;
