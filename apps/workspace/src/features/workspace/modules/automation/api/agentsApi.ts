@@ -34,14 +34,17 @@ type ExtendedAgentApi = {
   deleteAgent(request: { agentId: string }): Promise<AutomationAgent>;
   getAgentConversations(request: { agentId: string }): Promise<AgentConversationsResponse>;
   getAgentConversation(request: { conversationId: string }): Promise<AgentConversationDetails>;
-  chatAgent(request: {
+  submitAgentChatExecution?(request: {
     agentId: string;
     chatAgentRequestDTO: ChatAgentRequest;
+    idempotencyKey?: string;
   }): Promise<{
+    executionId: string;
     conversationId: string;
-    reply?: ChatExecutionResult["reply"];
+    status: "ACCEPTED" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+    error?: { failureClass: ChatExecutionResult["failureClass"]; reason: string; retryable: boolean } | null;
   }>;
-  submitAgentChatExecution?(request: {
+  submitAgentChatExecutionByExecutionsPath?(request: {
     agentId: string;
     chatAgentRequestDTO: ChatAgentRequest;
     idempotencyKey?: string;
@@ -241,29 +244,21 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
     requestBody.conversationId = payload.conversationId;
   }
 
-  if (typeof agentApiExtended.submitAgentChatExecution === "function") {
-    const response = await agentApiExtended.submitAgentChatExecution({
-      agentId,
-      chatAgentRequestDTO: requestBody,
-    });
-
-    const normalizedStatus: ChatAgentAcceptedResponse["status"] = normalizeLifecycleStatus(response.status);
-
-    return {
-      executionId: response.executionId,
-      conversationId: response.conversationId,
-      status: normalizedStatus,
-    } satisfies ChatAgentAcceptedResponse;
+  const submitExecution = agentApiExtended.submitAgentChatExecution
+    ?? agentApiExtended.submitAgentChatExecutionByExecutionsPath;
+  if (!submitExecution) {
+    throw new Error("Async chat execution endpoint is not available in current API package.");
   }
 
-  const response = await agentApiExtended.chatAgent({
+  const response = await submitExecution({
     agentId,
     chatAgentRequestDTO: requestBody,
   });
+  const normalizedStatus: ChatAgentAcceptedResponse["status"] = normalizeLifecycleStatus(response.status);
   return {
-    executionId: `sync-${Date.now()}`,
+    executionId: response.executionId,
     conversationId: response.conversationId,
-    status: "SUCCEEDED",
+    status: normalizedStatus,
   } satisfies ChatAgentAcceptedResponse;
 }
 

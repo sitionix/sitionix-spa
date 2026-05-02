@@ -516,6 +516,30 @@ describe("agentsApi.chat", () => {
     });
   });
 
+  it("uses executions-path submit endpoint when default submit endpoint is unavailable", async () => {
+    (AgentApi.prototype as any).submitAgentChatExecution = undefined;
+    const chatAgentByExecutionsPathSpy = vi.fn().mockResolvedValue({
+      executionId: "exec-3",
+      conversationId: "conv-3",
+      status: "QUEUED",
+    });
+    (AgentApi.prototype as any).submitAgentChatExecutionByExecutionsPath = chatAgentByExecutionsPathSpy;
+
+    const result = await chatAgent("agent-11", { message: "hello" });
+
+    expect(chatAgentByExecutionsPathSpy).toHaveBeenCalledWith({
+      agentId: "agent-11",
+      chatAgentRequestDTO: {
+        message: "hello",
+      },
+    });
+    expect(result).toEqual({
+      executionId: "exec-3",
+      conversationId: "conv-3",
+      status: "PENDING",
+    });
+  });
+
   it("throws when message is blank", async () => {
     const chatAgentSpy = vi.fn();
     (AgentApi.prototype as any).chatAgent = chatAgentSpy;
