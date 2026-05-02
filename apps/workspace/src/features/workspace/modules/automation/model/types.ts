@@ -100,13 +100,16 @@ export type AgentConversationDetails = {
   updatedAt: string;
   lastMessageAt: string;
   messages: ChatAgentMessage[];
-  latestExecution?: {
+  executions: Array<{
     executionId: string;
     status: ChatExecutionLifecycleStatus;
+    acceptedAt: string;
+    startedAt?: string | null;
+    completedAt?: string | null;
     errorCode?: string;
     errorMessage?: string;
-  };
-  assistantPending?: boolean;
+    assistantMessage?: ChatAgentMessage;
+  }>;
 };
 
 export type AutomationPageStatus = "idle" | "loading" | "ready" | "error";

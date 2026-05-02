@@ -101,10 +101,10 @@ function getOptionalTrimmedField(
 function normalizeLifecycleStatus(
   status: string | undefined,
 ): "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" {
-  if (status === "RUNNING") {
+  if (status === "RUNNING" || status === "IN_PROGRESS") {
     return "RUNNING";
   }
-  if (status === "COMPLETED") {
+  if (status === "COMPLETED" || status === "SUCCEEDED") {
     return "SUCCEEDED";
   }
   if (status === "FAILED") {
@@ -222,21 +222,30 @@ export async function getAgentConversations(agentId: string): Promise<AgentConve
 
 export async function getAgentConversation(conversationId: string): Promise<AgentConversationDetails> {
   const response = await agentApiExtended.getAgentConversation({ conversationId });
-  const latestExecution = (response as AgentConversationDetails).latestExecution;
+  const rawExecutions = Array.isArray((response as { executions?: unknown[] }).executions)
+    ? (response as { executions: Array<{
+      executionId: string;
+      status: string;
+      acceptedAt: string;
+      startedAt?: string | null;
+      completedAt?: string | null;
+      error?: { code?: string; message?: string } | null;
+      assistantMessage?: AgentConversationDetails["messages"][number] | null;
+    }> }).executions
+    : [];
   return {
     ...response,
     messages: Array.isArray(response.messages) ? response.messages : [],
-    latestExecution: latestExecution
-      ? {
-        executionId: latestExecution.executionId,
-        status: normalizeLifecycleStatus(latestExecution.status),
-        errorCode: latestExecution.errorCode,
-        errorMessage: latestExecution.errorMessage,
-      }
-      : undefined,
-    assistantPending: typeof (response as AgentConversationDetails).assistantPending === "boolean"
-      ? (response as AgentConversationDetails).assistantPending
-      : undefined,
+    executions: rawExecutions.map((execution) => ({
+      executionId: execution.executionId,
+      status: normalizeLifecycleStatus(execution.status),
+      acceptedAt: execution.acceptedAt,
+      startedAt: execution.startedAt ?? null,
+      completedAt: execution.completedAt ?? null,
+      errorCode: execution.error?.code,
+      errorMessage: execution.error?.message,
+      assistantMessage: execution.assistantMessage ?? undefined,
+    })),
   };
 }
 

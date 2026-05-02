@@ -52,6 +52,7 @@ const activeAgent = {
 
 describe("AgentChatPage", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     submitChatExecutionMock.mockReset();
     getChatExecutionStatusMock.mockReset();
     getAgentByIdMock.mockReset();
@@ -219,7 +220,7 @@ describe("AgentChatPage", () => {
     expect(await screen.findByText("created")).toBeInTheDocument();
   });
 
-  it("givenPersistedConversation_whenMessageSent_thenCallsChatWithConversationId", async () => {
+  it("givenPersistedConversation_whenMessageSent_thenCallsChatWithConversationIdAndKeepsOptimisticMessage", async () => {
     getAgentByIdMock.mockResolvedValue(activeAgent);
     getAgentConversationsMock
       .mockResolvedValueOnce({
@@ -246,15 +247,35 @@ describe("AgentChatPage", () => {
           },
         ],
       });
-    getAgentConversationMock.mockResolvedValue({
-      id: "conv-1",
-      title: "Existing",
-      type: "DIRECT",
-      createdAt: "2026-04-21T10:00:00.000Z",
-      updatedAt: "2026-04-21T10:01:00.000Z",
-      lastMessageAt: "2026-04-21T10:01:00.000Z",
-      messages: [],
-    });
+    getAgentConversationMock
+      .mockResolvedValueOnce({
+        id: "conv-1",
+        title: "Existing",
+        type: "DIRECT",
+        createdAt: "2026-04-21T10:00:00.000Z",
+        updatedAt: "2026-04-21T10:01:00.000Z",
+        lastMessageAt: "2026-04-21T10:01:00.000Z",
+        messages: [],
+        executions: [],
+      })
+      .mockResolvedValue({
+        id: "conv-1",
+        title: "Existing",
+        type: "DIRECT",
+        createdAt: "2026-04-21T10:00:00.000Z",
+        updatedAt: "2026-04-21T10:02:00.000Z",
+        lastMessageAt: "2026-04-21T10:02:00.000Z",
+        messages: [],
+        executions: [
+          {
+            executionId: "exec-1",
+            status: "RUNNING",
+            acceptedAt: "2026-04-21T10:01:01.000Z",
+            startedAt: "2026-04-21T10:01:02.000Z",
+            completedAt: null,
+          },
+        ],
+      });
     submitChatExecutionMock.mockResolvedValue({
       executionId: "exec-1",
       state: "IN_PROGRESS",
@@ -284,7 +305,8 @@ describe("AgentChatPage", () => {
       conversationId: "conv-1",
       message: "next",
     });
-    expect(await screen.findByText("continued")).toBeInTheDocument();
+    expect(await screen.findByText("next")).toBeInTheDocument();
+    expect(screen.getByLabelText("Active Agent typing indicator")).toBeInTheDocument();
   });
 
   it("givenExistingConversationClicked_whenConversationOpened_thenLoadsAndRendersItsHistory", async () => {
@@ -552,11 +574,15 @@ describe("AgentChatPage", () => {
           createdAt: "2026-04-21T10:01:00.000Z",
         },
       ],
-      latestExecution: {
-        executionId: "exec-pending",
-        status: "RUNNING",
-      },
-      assistantPending: true,
+      executions: [
+        {
+          executionId: "exec-pending",
+          status: "RUNNING",
+          acceptedAt: "2026-04-21T10:01:00.000Z",
+          startedAt: "2026-04-21T10:01:02.000Z",
+          completedAt: null,
+        },
+      ],
     });
 
     renderChatPage();
@@ -595,13 +621,17 @@ describe("AgentChatPage", () => {
           createdAt: "2026-04-21T10:01:00.000Z",
         },
       ],
-      latestExecution: {
-        executionId: "exec-failed",
-        status: "FAILED",
-        errorCode: "EXECUTION_FAILED",
-        errorMessage: "Agent failed to respond. Try again.",
-      },
-      assistantPending: false,
+      executions: [
+        {
+          executionId: "exec-failed",
+          status: "FAILED",
+          acceptedAt: "2026-04-21T10:01:00.000Z",
+          startedAt: "2026-04-21T10:01:02.000Z",
+          completedAt: "2026-04-21T10:01:30.000Z",
+          errorCode: "EXECUTION_FAILED",
+          errorMessage: "Agent failed to respond. Try again.",
+        },
+      ],
     });
 
     renderChatPage();
@@ -609,5 +639,98 @@ describe("AgentChatPage", () => {
     expect(await screen.findByText("need details")).toBeInTheDocument();
     expect(screen.getByText("EXECUTION_FAILED")).toBeInTheDocument();
     expect(screen.queryByLabelText("Active Agent typing indicator")).not.toBeInTheDocument();
+  });
+
+  it("givenPendingExecutionAndSlowPolling_whenIntervalTicks_thenSkipsOverlappingPollCalls", async () => {
+    vi.useFakeTimers();
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock.mockResolvedValue({
+      items: [
+        {
+          id: "conv-pending",
+          title: "Pending conversation",
+          type: "DIRECT",
+          createdAt: "2026-04-21T10:00:00.000Z",
+          updatedAt: "2026-04-21T10:01:00.000Z",
+          lastMessageAt: "2026-04-21T10:01:00.000Z",
+        },
+      ],
+    });
+
+    let resolveConversation: ((value: {
+      id: string;
+      title: string;
+      type: "DIRECT";
+      createdAt: string;
+      updatedAt: string;
+      lastMessageAt: string;
+      messages: Array<{
+        id: string;
+        authorType: "USER";
+        authorId: string;
+        content: string;
+        createdAt: string;
+      }>;
+      executions: Array<{
+        executionId: string;
+        status: "RUNNING";
+        acceptedAt: string;
+      }>;
+    }) => void) | null = null;
+
+    getAgentConversationMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveConversation = resolve as typeof resolveConversation;
+        }),
+    );
+
+    renderChatPage();
+
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+
+    expect(getAgentConversationMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      vi.advanceTimersByTime(4500);
+    });
+
+    expect(getAgentConversationMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveConversation?.({
+        id: "conv-pending",
+        title: "Pending conversation",
+        type: "DIRECT",
+        createdAt: "2026-04-21T10:00:00.000Z",
+        updatedAt: "2026-04-21T10:01:00.000Z",
+        lastMessageAt: "2026-04-21T10:01:00.000Z",
+        messages: [
+          {
+            id: "msg-user",
+            authorType: "USER",
+            authorId: "user-1",
+            content: "need details",
+            createdAt: "2026-04-21T10:01:00.000Z",
+          },
+        ],
+        executions: [
+          {
+            executionId: "exec-pending",
+            status: "RUNNING",
+            acceptedAt: "2026-04-21T10:01:00.000Z",
+          },
+        ],
+      });
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(1500);
+    });
+
+    expect(getAgentConversationMock).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
   });
 });
