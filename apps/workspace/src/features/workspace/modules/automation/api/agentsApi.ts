@@ -34,7 +34,14 @@ type ExtendedAgentApi = {
   deleteAgent(request: { agentId: string }): Promise<AutomationAgent>;
   getAgentConversations(request: { agentId: string }): Promise<AgentConversationsResponse>;
   getAgentConversation(request: { conversationId: string }): Promise<AgentConversationDetails>;
-  submitAgentChatExecution(request: {
+  chatAgent(request: {
+    agentId: string;
+    chatAgentRequestDTO: ChatAgentRequest;
+  }): Promise<{
+    conversationId: string;
+    reply?: ChatExecutionResult["reply"];
+  }>;
+  submitAgentChatExecution?(request: {
     agentId: string;
     chatAgentRequestDTO: ChatAgentRequest;
     idempotencyKey?: string;
@@ -44,7 +51,7 @@ type ExtendedAgentApi = {
     status: "ACCEPTED" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
     error?: { failureClass: ChatExecutionResult["failureClass"]; reason: string; retryable: boolean } | null;
   }>;
-  getAgentChatExecution(request: {
+  getAgentChatExecution?(request: {
     agentId: string;
     executionId: string;
     conversationId?: string;
@@ -234,21 +241,36 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
     requestBody.conversationId = payload.conversationId;
   }
 
-  const response = await agentApiExtended.submitAgentChatExecution({
+  if (typeof agentApiExtended.submitAgentChatExecution === "function") {
+    const response = await agentApiExtended.submitAgentChatExecution({
+      agentId,
+      chatAgentRequestDTO: requestBody,
+    });
+
+    const normalizedStatus: ChatAgentAcceptedResponse["status"] = normalizeLifecycleStatus(response.status);
+
+    return {
+      executionId: response.executionId,
+      conversationId: response.conversationId,
+      status: normalizedStatus,
+    } satisfies ChatAgentAcceptedResponse;
+  }
+
+  const response = await agentApiExtended.chatAgent({
     agentId,
     chatAgentRequestDTO: requestBody,
   });
-
-  const normalizedStatus: ChatAgentAcceptedResponse["status"] = normalizeLifecycleStatus(response.status);
-
   return {
-    executionId: response.executionId,
+    executionId: `sync-${Date.now()}`,
     conversationId: response.conversationId,
-    status: normalizedStatus,
+    status: "SUCCEEDED",
   } satisfies ChatAgentAcceptedResponse;
 }
 
 export async function getChatAgentExecution(agentId: string, executionId: string, conversationId?: string): Promise<ChatExecutionResult> {
+  if (typeof agentApiExtended.getAgentChatExecution !== "function") {
+    throw new Error("Chat execution status endpoint is not available in current API package.");
+  }
   const response = await agentApiExtended.getAgentChatExecution({ agentId, executionId, conversationId });
   const normalizedStatus: ChatExecutionResult["status"] = normalizeLifecycleStatus(response.status);
   return {
