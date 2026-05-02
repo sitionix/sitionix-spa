@@ -434,6 +434,32 @@ describe("agentsApi.chat", () => {
     expect(result.messages).toEqual([]);
   });
 
+  it("returns normalized latest execution metadata from conversation details", async () => {
+    const getAgentConversationSpy = vi.fn().mockResolvedValue({
+      id: "conv-2",
+      title: "Pending",
+      type: "DIRECT",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:01:00.000Z",
+      lastMessageAt: "2026-04-21T10:01:00.000Z",
+      messages: [],
+      assistantPending: true,
+      latestExecution: {
+        executionId: "exec-2",
+        status: "COMPLETED",
+      },
+    });
+    (AgentApi.prototype as any).getAgentConversation = getAgentConversationSpy;
+
+    const result = await getAgentConversation("conv-2");
+
+    expect(result.assistantPending).toBe(true);
+    expect(result.latestExecution).toEqual({
+      executionId: "exec-2",
+      status: "SUCCEEDED",
+    });
+  });
+
   it("trims message and calls chat endpoint without conversationId for first send", async () => {
     const chatAgentSpy = vi.fn().mockResolvedValue({
       executionId: "exec-1",

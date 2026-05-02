@@ -88,6 +88,24 @@ function getOptionalTrimmedField(
   return getRequiredTrimmed(payload[field], errorMessage);
 }
 
+function normalizeExecutionStatus(
+  status: "ACCEPTED" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" | null | undefined,
+): ChatExecutionResult["status"] {
+  if (status === "QUEUED") {
+    return "QUEUED";
+  }
+  if (status === "RUNNING") {
+    return "RUNNING";
+  }
+  if (status === "COMPLETED") {
+    return "SUCCEEDED";
+  }
+  if (status === "FAILED") {
+    return "FAILED";
+  }
+  return "PENDING";
+}
+
 export async function getAgents(): Promise<AutomationAgent[]> {
   const response = await agentApi.getAgents();
   return Array.isArray(response.items) ? response.items : [];
@@ -187,9 +205,26 @@ export async function getAgentConversations(agentId: string): Promise<AgentConve
 
 export async function getAgentConversation(conversationId: string): Promise<AgentConversationDetails> {
   const response = await agentApiExtended.getAgentConversation({ conversationId });
+  const executionEnvelope = response as AgentConversationDetails & {
+    assistantPending?: boolean;
+    latestExecution?: {
+      executionId: string;
+      status: "ACCEPTED" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+    };
+  };
+  const normalizedExecution = executionEnvelope.latestExecution
+    ? {
+      executionId: executionEnvelope.latestExecution.executionId,
+      status: normalizeExecutionStatus(executionEnvelope.latestExecution.status),
+    }
+    : undefined;
   return {
     ...response,
     messages: Array.isArray(response.messages) ? response.messages : [],
+    assistantPending: executionEnvelope.assistantPending ?? (normalizedExecution?.status === "PENDING"
+      || normalizedExecution?.status === "QUEUED"
+      || normalizedExecution?.status === "RUNNING"),
+    latestExecution: normalizedExecution,
   };
 }
 
@@ -212,40 +247,19 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
     chatAgentRequestDTO: requestBody,
   });
 
-  let normalizedStatus: ChatAgentAcceptedResponse["status"] = "PENDING";
-  if (response.status === "QUEUED") {
-    normalizedStatus = "QUEUED";
-  } else if (response.status === "RUNNING") {
-    normalizedStatus = "RUNNING";
-  } else if (response.status === "COMPLETED") {
-    normalizedStatus = "SUCCEEDED";
-  } else if (response.status === "FAILED") {
-    normalizedStatus = "FAILED";
-  }
-
   return {
     executionId: response.executionId,
     conversationId: response.conversationId,
-    status: normalizedStatus,
+    status: normalizeExecutionStatus(response.status),
   } satisfies ChatAgentAcceptedResponse;
 }
 
 export async function getChatAgentExecution(agentId: string, executionId: string, conversationId?: string): Promise<ChatExecutionResult> {
   const response = await agentApiExtended.getAgentChatExecution({ agentId, executionId, conversationId });
-  let normalizedStatus: ChatExecutionResult["status"] = "PENDING";
-  if (response.status === "QUEUED") {
-    normalizedStatus = "QUEUED";
-  } else if (response.status === "RUNNING") {
-    normalizedStatus = "RUNNING";
-  } else if (response.status === "COMPLETED") {
-    normalizedStatus = "SUCCEEDED";
-  } else if (response.status === "FAILED") {
-    normalizedStatus = "FAILED";
-  }
   return {
     executionId: response.executionId,
     conversationId: response.conversationId,
-    status: normalizedStatus,
+    status: normalizeExecutionStatus(response.status),
     reply: response.assistantMessage ?? undefined,
     errorMessage: response.error?.reason,
     failureClass: response.error?.failureClass,
@@ -256,18 +270,14 @@ export async function getChatAgentExecution(agentId: string, executionId: string
 
 export async function submitChatExecution(agentId: string, payload: ChatAgentRequest): Promise<SubmitChatExecutionResponse> {
   const response = await chatAgent(agentId, payload);
-  let state: SubmitChatExecutionResponse["state"] = "queued";
-  if (response.status === "RUNNING") {
-    state = "running";
-  } else if (response.status === "QUEUED") {
-    state = "queued";
-  } else if (response.status === "SUCCEEDED") {
-    state = "succeeded";
-  } else if (response.status === "FAILED") {
-    state = "failed";
-  } else if (response.status === "PENDING") {
-    state = "accepted";
-  }
+  const stateByStatus: Record<ChatExecutionResult["status"], SubmitChatExecutionResponse["state"]> = {
+    PENDING: "accepted",
+    QUEUED: "queued",
+    RUNNING: "running",
+    SUCCEEDED: "succeeded",
+    FAILED: "failed",
+  };
+  const state = stateByStatus[response.status];
   return {
     executionId: response.executionId,
     state,
@@ -303,11 +313,7 @@ export async function getChatExecutionStatus(
   }
   return {
     executionId,
-    state: execution.status === "RUNNING"
-      ? "running"
-      : execution.status === "PENDING"
-        ? "accepted"
-        : "queued",
+    state: execution.status === "RUNNING" ? "running" : execution.status === "PENDING" ? "accepted" : "queued",
     conversationId: execution.conversationId ?? conversationId,
   };
 }

@@ -99,6 +99,11 @@ export type AgentConversationDetails = {
   updatedAt: string;
   lastMessageAt: string;
   messages: ChatAgentMessage[];
+  assistantPending?: boolean;
+  latestExecution?: {
+    executionId: string;
+    status: ChatExecutionLifecycleStatus;
+  };
 };
 
 export type AutomationPageStatus = "idle" | "loading" | "ready" | "error";

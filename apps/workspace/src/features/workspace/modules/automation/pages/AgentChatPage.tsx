@@ -43,6 +43,22 @@ function formatConversationDate(value: string): string {
   }).format(date);
 }
 
+function toExecutionState(status: "PENDING" | "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED"): ChatExecutionState {
+  if (status === "PENDING") {
+    return "accepted";
+  }
+  if (status === "QUEUED") {
+    return "queued";
+  }
+  if (status === "RUNNING") {
+    return "running";
+  }
+  if (status === "SUCCEEDED") {
+    return "succeeded";
+  }
+  return "failed";
+}
+
 export function AgentChatPage() {
   const { agentId } = useParams<{ agentId: string }>();
   const [agent, setAgent] = useState<AutomationAgent | null>(null);
@@ -79,11 +95,26 @@ export function AgentChatPage() {
       setMessages(details.messages);
       setActiveConversationId(details.id);
       setIsDraftChat(false);
+      if (details.latestExecution) {
+        const nextState = toExecutionState(details.latestExecution.status);
+        setExecutionState(nextState);
+        if (nextState === "accepted" || nextState === "queued" || nextState === "running") {
+          setInFlightExecutionId(details.latestExecution.executionId);
+          setTerminalFailure(null);
+        } else {
+          setInFlightExecutionId(null);
+        }
+      } else {
+        setExecutionState(null);
+        setInFlightExecutionId(null);
+      }
     } catch (error) {
       setSendError(toAutomationErrorMessage(error));
       setMessages([]);
       setActiveConversationId(null);
       setIsDraftChat(true);
+      setExecutionState(null);
+      setInFlightExecutionId(null);
     } finally {
       setIsLoadingConversationDetails(false);
     }

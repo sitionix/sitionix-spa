@@ -523,6 +523,55 @@ describe("AgentChatPage", () => {
     expect(await screen.findByText("retry ok")).toBeInTheDocument();
   });
 
+  it("givenConversationHasPendingExecution_whenPageLoaded_thenRestoresTypingAndPollsUntilCompletion", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock.mockResolvedValue({
+      items: [
+        {
+          id: "conv-1",
+          title: "Existing",
+          type: "DIRECT",
+          createdAt: "2026-04-21T10:00:00.000Z",
+          updatedAt: "2026-04-21T10:01:00.000Z",
+          lastMessageAt: "2026-04-21T10:01:00.000Z",
+        },
+      ],
+    });
+    getAgentConversationMock.mockResolvedValue({
+      id: "conv-1",
+      title: "Existing",
+      type: "DIRECT",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:01:00.000Z",
+      lastMessageAt: "2026-04-21T10:01:00.000Z",
+      messages: [
+        {
+          id: "msg-user-1",
+          authorType: "USER",
+          authorId: "user-1",
+          content: "in progress",
+          createdAt: "2026-04-21T10:01:00.000Z",
+        },
+      ],
+      latestExecution: {
+        executionId: "exec-restore",
+        status: "RUNNING",
+      },
+    });
+    getChatExecutionStatusMock.mockResolvedValue({
+        executionId: "exec-restore",
+        state: "running",
+        conversationId: "conv-1",
+      });
+
+    renderChatPage();
+
+    expect(await screen.findByText("in progress")).toBeInTheDocument();
+    expect(screen.getByLabelText("Active Agent typing indicator")).toBeInTheDocument();
+    expect(getChatExecutionStatusMock).toHaveBeenCalledWith("agent-1", "exec-restore", "conv-1");
+    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+  });
+
   it("givenPollingFails_whenExecutionTracked_thenShowsDeterministicPollingError", async () => {
     getAgentByIdMock.mockResolvedValue(activeAgent);
     getAgentConversationsMock
