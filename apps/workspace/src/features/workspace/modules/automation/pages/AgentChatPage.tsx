@@ -169,6 +169,8 @@ export function AgentChatPage() {
   const latestExecutionStatusRef = useRef<ChatExecutionLifecycleStatus | null>(null);
   const inFlightExecutionIdRef = useRef<string | null>(null);
   const activeConversationIdRef = useRef<string | null>(null);
+  const detailsRequestVersionRef = useRef(0);
+  const authoritativeConversationIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     latestExecutionStatusRef.current = latestExecutionStatus;
@@ -260,6 +262,11 @@ export function AgentChatPage() {
     conversationId: string,
     options?: { silent?: boolean; preserveLocalOptimistic?: boolean; syncSelection?: boolean },
   ): Promise<AgentConversationDetails | null> => {
+    const shouldSyncSelection = options?.syncSelection !== false;
+    const requestVersion = shouldSyncSelection
+      ? ++detailsRequestVersionRef.current
+      : detailsRequestVersionRef.current;
+
     if (!options?.silent) {
       setIsLoadingConversationDetails(true);
       setSendError(null);
@@ -267,6 +274,14 @@ export function AgentChatPage() {
 
     try {
       const details = await getAgentConversation(conversationId);
+      if (shouldSyncSelection && requestVersion !== detailsRequestVersionRef.current) {
+        return details;
+      }
+      if (shouldSyncSelection
+        && authoritativeConversationIdRef.current
+        && authoritativeConversationIdRef.current !== conversationId) {
+        return details;
+      }
       applyConversationDetailsState(details, {
         preserveLocalOptimistic: options?.preserveLocalOptimistic,
         syncSelection: options?.syncSelection,
@@ -332,6 +347,8 @@ export function AgentChatPage() {
       setConversations([]);
       setMessages([]);
       setActiveConversationId(null);
+      authoritativeConversationIdRef.current = null;
+      detailsRequestVersionRef.current += 1;
       setIsDraftChat(false);
       setLatestExecutionStatus(null);
       setInFlightExecutionId(null);
@@ -363,6 +380,8 @@ export function AgentChatPage() {
     if (isSending || isExecutionInFlight) {
       return;
     }
+    authoritativeConversationIdRef.current = null;
+    detailsRequestVersionRef.current += 1;
     setIsDraftChat(true);
     setActiveConversationId(null);
     setMessages([]);
@@ -377,6 +396,7 @@ export function AgentChatPage() {
     if (!agentId || isSending) {
       return;
     }
+    authoritativeConversationIdRef.current = conversationId;
     await loadConversationDetails(conversationId);
   }, [agentId, isSending, loadConversationDetails]);
 
@@ -410,6 +430,8 @@ export function AgentChatPage() {
       setExecutionState(submitResponse.state);
       setInFlightExecutionId(submitResponse.executionId);
       setActiveConversationId(submitResponse.conversationId);
+      authoritativeConversationIdRef.current = submitResponse.conversationId;
+      detailsRequestVersionRef.current += 1;
       setLatestExecutionStatus(submitResponse.lifecycleStatus);
       inFlightExecutionIdRef.current = submitResponse.executionId;
       latestExecutionStatusRef.current = submitResponse.lifecycleStatus;

@@ -1137,4 +1137,138 @@ describe("AgentChatPage", () => {
     expect(getAgentConversationMock).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
   });
+
+  it("givenLateInitialDetailsResponse_whenSubmitCreatesConversation_thenDoesNotOverrideActiveConversation", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "conv-old",
+            title: "Old",
+            type: "DIRECT",
+            createdAt: "2026-04-21T10:00:00.000Z",
+            updatedAt: "2026-04-21T10:01:00.000Z",
+            lastMessageAt: "2026-04-21T10:01:00.000Z",
+          },
+        ],
+      })
+      .mockResolvedValue({
+        items: [
+          {
+            id: "conv-new",
+            title: "New",
+            type: "DIRECT",
+            createdAt: "2026-04-21T10:02:00.000Z",
+            updatedAt: "2026-04-21T10:03:00.000Z",
+            lastMessageAt: "2026-04-21T10:03:00.000Z",
+          },
+        ],
+      });
+
+    let resolveOldDetails: ((value: {
+      id: string;
+      title: string;
+      type: "DIRECT";
+      createdAt: string;
+      updatedAt: string;
+      lastMessageAt: string;
+      messages: ChatMessageDto[];
+      executions: ExecutionDto[];
+    }) => void) | null = null;
+
+    type ChatMessageDto = {
+      id: string;
+      authorType: "USER" | "AGENT";
+      authorId: string;
+      content: string;
+      createdAt: string;
+    };
+    type ExecutionDto = {
+      executionId: string;
+      status: "QUEUED" | "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+      acceptedAt: string;
+      startedAt?: string | null;
+      completedAt?: string | null;
+    };
+
+    getAgentConversationMock.mockImplementation((conversationId: string) => {
+      if (conversationId === "conv-old") {
+        return new Promise((resolve) => {
+          resolveOldDetails = resolve as typeof resolveOldDetails;
+        });
+      }
+      return Promise.resolve({
+        id: "conv-new",
+        title: "New",
+        type: "DIRECT",
+        createdAt: "2026-04-21T10:02:00.000Z",
+        updatedAt: "2026-04-21T10:03:00.000Z",
+        lastMessageAt: "2026-04-21T10:03:00.000Z",
+        messages: [
+          {
+            id: "msg-user-new",
+            authorType: "USER",
+            authorId: "user-1",
+            content: "Привіт",
+            createdAt: "2026-04-21T10:02:10.000Z",
+          },
+          {
+            id: "msg-agent-new",
+            authorType: "AGENT",
+            authorId: "agent-1",
+            content: "reply",
+            createdAt: "2026-04-21T10:03:00.000Z",
+          },
+        ],
+        executions: [
+          {
+            executionId: "exec-new",
+            status: "COMPLETED",
+            acceptedAt: "2026-04-21T10:02:10.000Z",
+            completedAt: "2026-04-21T10:03:00.000Z",
+          },
+        ],
+      });
+    });
+
+    submitChatExecutionMock.mockResolvedValue({
+      executionId: "exec-new",
+      state: "ACCEPTED",
+      conversationId: "conv-new",
+      inputMessageId: "msg-user-new",
+      lifecycleStatus: "QUEUED",
+    });
+
+    const user = userEvent.setup();
+    renderChatPage();
+
+    await user.type(await screen.findByLabelText("Message"), "Привіт");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    await act(async () => {
+      resolveOldDetails?.({
+        id: "conv-old",
+        title: "Old",
+        type: "DIRECT",
+        createdAt: "2026-04-21T10:00:00.000Z",
+        updatedAt: "2026-04-21T10:01:00.000Z",
+        lastMessageAt: "2026-04-21T10:01:00.000Z",
+        messages: [
+          {
+            id: "msg-old",
+            authorType: "AGENT",
+            authorId: "agent-1",
+            content: "stale old",
+            createdAt: "2026-04-21T10:01:00.000Z",
+          },
+        ],
+        executions: [],
+      });
+    });
+
+    expect(await screen.findByRole("heading", { level: 2, name: "New" })).toBeInTheDocument();
+    expect(screen.queryByText("stale old")).not.toBeInTheDocument();
+    expect(screen.getByText("Привіт")).toBeInTheDocument();
+  });
 });
