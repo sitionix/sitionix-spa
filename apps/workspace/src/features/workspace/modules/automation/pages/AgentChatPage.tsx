@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Loader2, PencilLine, Plus, Send } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import {
@@ -12,13 +12,27 @@ import {
 import { toAutomationErrorMessage } from "../model/mappers";
 import type {
   AgentConversation,
+  AgentConversationDetails,
   AutomationAgent,
   ChatAgentMessage,
   ChatExecutionFailure,
+  ChatExecutionLifecycleStatus,
   ChatExecutionState,
 } from "../model/types";
 
 type AgentChatState = "loading" | "ready" | "not_found" | "error";
+
+type LatestExecution = {
+  executionId: string;
+  status: ChatExecutionLifecycleStatus;
+  errorCode?: string;
+  errorMessage?: string;
+  assistantMessage?: ChatAgentMessage;
+} | null;
+
+function isLifecycleInFlight(status: ChatExecutionLifecycleStatus | null | undefined): boolean {
+  return status === "QUEUED" || status === "PENDING" || status === "RUNNING";
+}
 
 function getStatusBadgeClass(status: AutomationAgent["status"]): string {
   if (status === "ACTIVE") {
@@ -43,6 +57,90 @@ function formatConversationDate(value: string): string {
   }).format(date);
 }
 
+function getLatestExecution(details: AgentConversationDetails): LatestExecution {
+  if (!Array.isArray(details.executions) || details.executions.length === 0) {
+    return null;
+  }
+  const withTimestamp = details.executions.map((execution) => {
+    const timestamp = execution.completedAt ?? execution.startedAt ?? execution.acceptedAt;
+    const numeric = new Date(timestamp).getTime();
+    return {
+      execution,
+      numeric: Number.isNaN(numeric) ? Number.MIN_SAFE_INTEGER : numeric,
+    };
+  });
+  withTimestamp.sort((left, right) => right.numeric - left.numeric);
+  const latest = withTimestamp[0]?.execution;
+  if (!latest) {
+    return null;
+  }
+  return {
+    executionId: latest.executionId,
+    status: latest.status,
+    errorCode: latest.errorCode,
+    errorMessage: latest.errorMessage,
+    assistantMessage: latest.assistantMessage,
+  };
+}
+
+function getMessageTimestamp(message: ChatAgentMessage): number {
+  const numeric = new Date(message.createdAt).getTime();
+  return Number.isNaN(numeric) ? Number.MAX_SAFE_INTEGER : numeric;
+}
+
+function dedupeAndSortMessages(messages: ChatAgentMessage[]): ChatAgentMessage[] {
+  const byId = new Map<string, ChatAgentMessage>();
+  for (const message of messages) {
+    byId.set(message.id, message);
+  }
+  return Array.from(byId.values()).sort((left, right) => {
+    const timeDiff = getMessageTimestamp(left) - getMessageTimestamp(right);
+    if (timeDiff !== 0) {
+      return timeDiff;
+    }
+    return left.id.localeCompare(right.id);
+  });
+}
+
+function mergeMessages(current: ChatAgentMessage[], backend: ChatAgentMessage[], preserveLocalUserMessages: boolean): ChatAgentMessage[] {
+  const backendMessages = dedupeAndSortMessages(Array.isArray(backend) ? backend : []);
+  if (!preserveLocalUserMessages) {
+    return backendMessages;
+  }
+
+  const mergedById = new Map<string, ChatAgentMessage>(backendMessages.map((message) => [message.id, message]));
+  const backendUserContents = new Set(
+    backendMessages
+      .filter((message) => message.authorType === "USER")
+      .map((message) => message.content),
+  );
+
+  for (const message of current) {
+    if (message.authorType !== "USER") {
+      continue;
+    }
+    if (!mergedById.has(message.id)) {
+      mergedById.set(message.id, message);
+    }
+  }
+
+  for (const message of current) {
+    if (!message.id.startsWith("temp-user-")) {
+      continue;
+    }
+    const hasPersistedEquivalent = backendUserContents.has(message.content);
+    if (!hasPersistedEquivalent && !mergedById.has(message.id)) {
+      mergedById.set(message.id, message);
+    }
+  }
+
+  return dedupeAndSortMessages(Array.from(mergedById.values()));
+}
+
+function getSelectedConversationStorageKey(agentIdValue: string): string {
+  return `automation:selectedConversation:${agentIdValue}`;
+}
+
 export function AgentChatPage() {
   const { agentId } = useParams<{ agentId: string }>();
   const [agent, setAgent] = useState<AutomationAgent | null>(null);
@@ -61,54 +159,193 @@ export function AgentChatPage() {
   const [inFlightExecutionId, setInFlightExecutionId] = useState<string | null>(null);
   const [executionState, setExecutionState] = useState<ChatExecutionState | null>(null);
   const [terminalFailure, setTerminalFailure] = useState<ChatExecutionFailure | null>(null);
-  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
+  const [latestExecutionStatus, setLatestExecutionStatus] = useState<ChatExecutionLifecycleStatus | null>(null);
   const [lastSubmitContext, setLastSubmitContext] = useState<{
     message: string;
     conversationId?: string;
   } | null>(null);
 
-  const isConversationPanelBusy = isLoadingConversations || isLoadingConversationDetails;
-  const isExecutionInFlight = executionState === "ACCEPTED" || executionState === "IN_PROGRESS";
-  const isSending = isExecutionInFlight;
+  const pollInFlightRef = useRef(false);
+  const pollIntervalIdRef = useRef<number | null>(null);
+  const pollingConversationIdRef = useRef<string | null>(null);
+  const statusFallbackKeyRef = useRef<string | null>(null);
+  const latestExecutionStatusRef = useRef<ChatExecutionLifecycleStatus | null>(null);
+  const inFlightExecutionIdRef = useRef<string | null>(null);
+  const activeConversationIdRef = useRef<string | null>(null);
+  const detailsRequestVersionRef = useRef(0);
+  const authoritativeConversationIdRef = useRef<string | null>(null);
 
-  const loadConversationDetails = useCallback(async (conversationId: string) => {
-    setIsLoadingConversationDetails(true);
-    setSendError(null);
-    try {
-      const details = await getAgentConversation(conversationId);
-      setMessages(details.messages);
-      setActiveConversationId(details.id);
-      setIsDraftChat(false);
-    } catch (error) {
-      setSendError(toAutomationErrorMessage(error));
-      setMessages([]);
-      setActiveConversationId(null);
-      setIsDraftChat(true);
-    } finally {
-      setIsLoadingConversationDetails(false);
+  useEffect(() => {
+    latestExecutionStatusRef.current = latestExecutionStatus;
+  }, [latestExecutionStatus]);
+
+  useEffect(() => {
+    inFlightExecutionIdRef.current = inFlightExecutionId;
+  }, [inFlightExecutionId]);
+
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId;
+  }, [activeConversationId]);
+
+  const isConversationPanelBusy = isLoadingConversations || isLoadingConversationDetails;
+  const isExecutionInFlight = isLifecycleInFlight(latestExecutionStatus);
+  const isSending = executionState === "ACCEPTED" || executionState === "IN_PROGRESS";
+
+  const stopPolling = useCallback(() => {
+    if (pollIntervalIdRef.current !== null) {
+      window.clearInterval(pollIntervalIdRef.current);
+      pollIntervalIdRef.current = null;
     }
+    pollingConversationIdRef.current = null;
+    statusFallbackKeyRef.current = null;
+    pollInFlightRef.current = false;
   }, []);
 
-  const loadConversationList = useCallback(async (agentIdValue: string, openMostRecent: boolean) => {
+  const saveSelectedConversationId = useCallback((conversationId: string | null) => {
+    if (!agentId) {
+      return;
+    }
+    const storageKey = getSelectedConversationStorageKey(agentId);
+    if (!conversationId) {
+      window.localStorage.removeItem(storageKey);
+      return;
+    }
+    window.localStorage.setItem(storageKey, conversationId);
+  }, [agentId]);
+
+  const getStoredSelectedConversationId = useCallback((): string | null => {
+    if (!agentId) {
+      return null;
+    }
+    return window.localStorage.getItem(getSelectedConversationStorageKey(agentId));
+  }, [agentId]);
+
+  const applyConversationDetailsState = useCallback((details: AgentConversationDetails, options?: { preserveLocalOptimistic?: boolean; syncSelection?: boolean }) => {
+    const latestExecution = getLatestExecution(details);
+    const pendingOrRunning = isLifecycleInFlight(latestExecution?.status);
+    const preserveLocalExecution = Boolean(options?.preserveLocalOptimistic
+      && !latestExecution
+      && isLifecycleInFlight(latestExecutionStatusRef.current));
+    const preserveLocalUserMessages = Boolean(options?.preserveLocalOptimistic);
+
+    setMessages((current) => mergeMessages(
+      current,
+      Array.isArray(details.messages) ? details.messages : [],
+      preserveLocalUserMessages,
+    ));
+    if (options?.syncSelection !== false) {
+      setActiveConversationId(details.id);
+      setIsDraftChat(false);
+      saveSelectedConversationId(details.id);
+    }
+
+    if (preserveLocalExecution) {
+      return;
+    }
+
+    setLatestExecutionStatus(latestExecution?.status ?? null);
+    setInFlightExecutionId(latestExecution?.executionId ?? null);
+
+    if (latestExecution?.status === "FAILED") {
+      setExecutionState("FAILED");
+      setTerminalFailure({
+        code: latestExecution.errorCode ?? "EXECUTION_FAILED",
+        message: latestExecution.errorMessage ?? "Agent failed to respond. Try again.",
+      });
+      return;
+    }
+
+    if (latestExecution?.status === "COMPLETED") {
+      setExecutionState("COMPLETED");
+      setTerminalFailure(null);
+      return;
+    }
+
+    if (pendingOrRunning) {
+      setExecutionState(latestExecution.status === "RUNNING" ? "IN_PROGRESS" : "ACCEPTED");
+      setTerminalFailure(null);
+      return;
+    }
+
+    setExecutionState(null);
+    setTerminalFailure(null);
+  }, [saveSelectedConversationId]);
+
+  const loadConversationDetails = useCallback(async (
+    conversationId: string,
+    options?: { silent?: boolean; preserveLocalOptimistic?: boolean; syncSelection?: boolean },
+  ): Promise<AgentConversationDetails | null> => {
+    const shouldSyncSelection = options?.syncSelection !== false;
+    const requestVersion = shouldSyncSelection
+      ? ++detailsRequestVersionRef.current
+      : detailsRequestVersionRef.current;
+
+    if (!options?.silent) {
+      setIsLoadingConversationDetails(true);
+      setSendError(null);
+    }
+
+    try {
+      const details = await getAgentConversation(conversationId);
+      if (shouldSyncSelection && requestVersion !== detailsRequestVersionRef.current) {
+        return details;
+      }
+      if (shouldSyncSelection
+        && authoritativeConversationIdRef.current
+        && authoritativeConversationIdRef.current !== conversationId) {
+        return details;
+      }
+      applyConversationDetailsState(details, {
+        preserveLocalOptimistic: options?.preserveLocalOptimistic,
+        syncSelection: options?.syncSelection,
+      });
+      return details;
+    } catch (error) {
+      if (!options?.silent) {
+        setSendError(toAutomationErrorMessage(error));
+        setMessages([]);
+        setActiveConversationId(null);
+        setIsDraftChat(true);
+      }
+      return null;
+    } finally {
+      if (!options?.silent) {
+        setIsLoadingConversationDetails(false);
+      }
+    }
+  }, [applyConversationDetailsState]);
+
+  const loadConversationList = useCallback(async (agentIdValue: string, options?: { openInitial?: boolean; preferredConversationId?: string | null }) => {
     setIsLoadingConversations(true);
     try {
       const response = await getAgentConversations(agentIdValue);
       const items = Array.isArray(response?.items) ? response.items : [];
       setConversations(items);
 
-      if (openMostRecent) {
-        if (items.length > 0) {
-          await loadConversationDetails(items[0].id);
-        } else {
-          setActiveConversationId(null);
-          setMessages([]);
-          setIsDraftChat(true);
-        }
+      if (!options?.openInitial) {
+        return;
+      }
+
+      const preferred = options.preferredConversationId
+        ?? getStoredSelectedConversationId();
+
+      if (preferred && items.some((item) => item.id === preferred)) {
+        await loadConversationDetails(preferred);
+        return;
+      }
+
+      if (items.length > 0) {
+        await loadConversationDetails(items[0].id);
+      } else {
+        setActiveConversationId(null);
+        setMessages([]);
+        setIsDraftChat(true);
+        saveSelectedConversationId(null);
       }
     } finally {
       setIsLoadingConversations(false);
     }
-  }, [loadConversationDetails]);
+  }, [getStoredSelectedConversationId, loadConversationDetails, saveSelectedConversationId]);
 
   useEffect(() => {
     if (!agentId) {
@@ -123,14 +360,20 @@ export function AgentChatPage() {
       setConversations([]);
       setMessages([]);
       setActiveConversationId(null);
+      authoritativeConversationIdRef.current = null;
+      detailsRequestVersionRef.current += 1;
       setIsDraftChat(false);
+      setLatestExecutionStatus(null);
+      setInFlightExecutionId(null);
+      setTerminalFailure(null);
+      stopPolling();
       try {
         const loadedAgent = await getAgentById(agentId);
         setAgent(loadedAgent);
         setStatus("ready");
 
         if (loadedAgent.status === "ACTIVE") {
-          await loadConversationList(agentId, true);
+          await loadConversationList(agentId, { openInitial: true });
         }
       } catch (error) {
         if (getErrorHttpStatus(error) === 404) {
@@ -144,23 +387,29 @@ export function AgentChatPage() {
     };
 
     void load();
-  }, [agentId, loadConversationList]);
+  }, [agentId, loadConversationList, stopPolling]);
 
   const startNewChat = useCallback(() => {
-    if (isExecutionInFlight) {
+    if (isSending || isExecutionInFlight) {
       return;
     }
+    authoritativeConversationIdRef.current = null;
+    detailsRequestVersionRef.current += 1;
     setIsDraftChat(true);
     setActiveConversationId(null);
     setMessages([]);
     setSendError(null);
     setTerminalFailure(null);
-  }, [isExecutionInFlight]);
+    setLatestExecutionStatus(null);
+    setInFlightExecutionId(null);
+    saveSelectedConversationId(null);
+  }, [isExecutionInFlight, isSending, saveSelectedConversationId]);
 
   const openConversation = useCallback(async (conversationId: string) => {
     if (!agentId || isSending) {
       return;
     }
+    authoritativeConversationIdRef.current = conversationId;
     await loadConversationDetails(conversationId);
   }, [agentId, isSending, loadConversationDetails]);
 
@@ -172,6 +421,7 @@ export function AgentChatPage() {
     setSendError(null);
     setTerminalFailure(null);
     setExecutionState("ACCEPTED");
+    setLatestExecutionStatus("PENDING");
     setDraftMessage("");
 
     const optimisticMessage: ChatAgentMessage = {
@@ -183,30 +433,50 @@ export function AgentChatPage() {
     };
 
     setMessages((current) => [...current, optimisticMessage]);
-    setPendingUserMessage(optimisticMessage.id);
 
     try {
       const submitResponse = await submitChatExecution(agentId, {
         conversationId,
         message,
       });
+
       setExecutionState(submitResponse.state);
       setInFlightExecutionId(submitResponse.executionId);
       setActiveConversationId(submitResponse.conversationId);
+      authoritativeConversationIdRef.current = submitResponse.conversationId;
+      detailsRequestVersionRef.current += 1;
+      setLatestExecutionStatus(submitResponse.lifecycleStatus);
+      inFlightExecutionIdRef.current = submitResponse.executionId;
+      latestExecutionStatusRef.current = submitResponse.lifecycleStatus;
+      const persistedUserMessageId = submitResponse.inputMessageId;
+      if (persistedUserMessageId) {
+        setMessages((current) => dedupeAndSortMessages(current.map((item) => {
+          if (item.id !== optimisticMessage.id) {
+            return item;
+          }
+          return {
+            ...item,
+            id: persistedUserMessageId,
+          };
+        })));
+      }
       setIsDraftChat(false);
-      setLastSubmitContext({
-        message,
-        conversationId,
+      setLastSubmitContext({ message, conversationId });
+      saveSelectedConversationId(submitResponse.conversationId);
+
+      await loadConversationList(agentId, { openInitial: false });
+      await loadConversationDetails(submitResponse.conversationId, {
+        silent: true,
+        preserveLocalOptimistic: true,
       });
-      await loadConversationList(agentId, false);
     } catch (error) {
       setSendError(toAutomationErrorMessage(error));
       setMessages((current) => current.filter((item) => item.id !== optimisticMessage.id));
-      setPendingUserMessage(null);
       setExecutionState(null);
       setInFlightExecutionId(null);
+      setLatestExecutionStatus(null);
     }
-  }, [agent, agentId, isSending, loadConversationList]);
+  }, [agent, agentId, isSending, loadConversationDetails, loadConversationList, saveSelectedConversationId]);
 
   const sendMessage = useCallback(async () => {
     const message = draftMessage.trim();
@@ -217,51 +487,83 @@ export function AgentChatPage() {
   }, [activeConversationId, draftMessage, executeSend, isDraftChat]);
 
   const retryLastSubmit = useCallback(async () => {
-    if (!lastSubmitContext || !agentId || isExecutionInFlight) {
+    if (!lastSubmitContext || !agentId || isSending || isExecutionInFlight) {
       return;
     }
     setTerminalFailure(null);
     await executeSend(lastSubmitContext.message, lastSubmitContext.conversationId);
-  }, [agentId, executeSend, isExecutionInFlight, lastSubmitContext]);
+  }, [agentId, executeSend, isExecutionInFlight, isSending, lastSubmitContext]);
 
   useEffect(() => {
-    if (!agentId || !activeConversationId || !inFlightExecutionId || !isExecutionInFlight) {
+    stopPolling();
+
+    if (!agentId || !activeConversationId || !isExecutionInFlight) {
       return;
     }
 
     let cancelled = false;
+    pollingConversationIdRef.current = activeConversationId;
+    statusFallbackKeyRef.current = null;
+
     const pollExecution = async () => {
+      if (pollInFlightRef.current) {
+        return;
+      }
+      const conversationIdForTick = pollingConversationIdRef.current;
+      if (!conversationIdForTick || conversationIdForTick !== activeConversationIdRef.current) {
+        stopPolling();
+        return;
+      }
+      pollInFlightRef.current = true;
       try {
-        const statusResponse = await getChatExecutionStatus(agentId, inFlightExecutionId, activeConversationId);
-        if (cancelled) {
+        const details = await loadConversationDetails(conversationIdForTick, {
+          silent: true,
+          preserveLocalOptimistic: true,
+          syncSelection: false,
+        });
+        if (cancelled || activeConversationIdRef.current !== conversationIdForTick) {
           return;
         }
 
-        setExecutionState(statusResponse.state);
-        if (statusResponse.state === "SUCCEEDED") {
-          if (statusResponse.reply) {
-            setMessages((current) => {
-              const withoutPending = pendingUserMessage
-                ? current.filter((item) => item.id !== pendingUserMessage)
-                : current;
-              const hasReply = withoutPending.some((item) => item.id === statusResponse.reply?.id);
-              if (hasReply) {
-                return withoutPending;
-              }
-              return [...withoutPending, statusResponse.reply];
-            });
+        const latestExecution = details ? getLatestExecution(details) : null;
+        const executionIdForStatus = inFlightExecutionIdRef.current;
+        if (latestExecution) {
+          statusFallbackKeyRef.current = null;
+        }
+        const shouldUseStatusFallback = Boolean(
+          !latestExecution
+          && executionIdForStatus
+          && statusFallbackKeyRef.current !== `${conversationIdForTick}:${executionIdForStatus}`,
+        );
+        if (shouldUseStatusFallback && executionIdForStatus) {
+          statusFallbackKeyRef.current = `${conversationIdForTick}:${executionIdForStatus}`;
+          const statusResponse = await getChatExecutionStatus(agentId, executionIdForStatus, conversationIdForTick);
+          if (cancelled) {
+            return;
           }
-          setPendingUserMessage(null);
-          setInFlightExecutionId(null);
-          setTerminalFailure(null);
-          void loadConversationList(agentId, false);
-        } else if (statusResponse.state === "FAILED") {
-          setTerminalFailure(statusResponse.failure ?? {
-            code: "EXECUTION_FAILED",
-            message: "The assistant could not complete this request.",
-          });
-          setPendingUserMessage(null);
-          setInFlightExecutionId(null);
+          if (statusResponse.state === "FAILED") {
+            setExecutionState("FAILED");
+            setLatestExecutionStatus("FAILED");
+            setInFlightExecutionId(null);
+            setTerminalFailure(statusResponse.failure ?? {
+              code: "EXECUTION_FAILED",
+              message: "The assistant could not complete this request.",
+            });
+          } else if (statusResponse.state === "COMPLETED") {
+            setExecutionState("COMPLETED");
+            setLatestExecutionStatus("COMPLETED");
+            setInFlightExecutionId(null);
+            setTerminalFailure(null);
+            if (statusResponse.reply) {
+              setMessages((current) => mergeMessages(current, [statusResponse.reply], true));
+            }
+            stopPolling();
+          } else {
+            setExecutionState(statusResponse.state);
+            setLatestExecutionStatus(statusResponse.state === "IN_PROGRESS" ? "RUNNING" : "PENDING");
+          }
+        } else if (latestExecution?.status === "COMPLETED" || latestExecution?.status === "FAILED") {
+          stopPolling();
         }
       } catch {
         if (cancelled) {
@@ -271,22 +573,21 @@ export function AgentChatPage() {
           code: "POLLING_FAILED",
           message: "Unable to refresh assistant execution status.",
         });
-        setPendingUserMessage(null);
-        setInFlightExecutionId(null);
-        setExecutionState("FAILED");
+      } finally {
+        pollInFlightRef.current = false;
       }
     };
 
     void pollExecution();
-    const intervalId = window.setInterval(() => {
+    pollIntervalIdRef.current = window.setInterval(() => {
       void pollExecution();
     }, 1500);
 
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
+      stopPolling();
     };
-  }, [activeConversationId, agentId, inFlightExecutionId, isExecutionInFlight, loadConversationList, pendingUserMessage]);
+  }, [activeConversationId, agentId, inFlightExecutionId, isExecutionInFlight, loadConversationDetails, stopPolling]);
 
   const pageTitle = useMemo(() => {
     if (isDraftChat) {
@@ -296,6 +597,15 @@ export function AgentChatPage() {
     const activeConversation = conversations.find((conversation) => conversation.id === activeConversationId);
     return activeConversation?.title ?? "Conversation";
   }, [activeConversationId, conversations, isDraftChat]);
+
+  const showDraftEmptyState = !isConversationPanelBusy
+    && messages.length === 0
+    && isDraftChat;
+
+  const showConversationEmptyState = !isConversationPanelBusy
+    && messages.length === 0
+    && !isDraftChat
+    && !isExecutionInFlight;
 
   if (status === "loading") {
     return (
@@ -437,11 +747,11 @@ export function AgentChatPage() {
               </div>
             ) : null}
 
-            {!isConversationPanelBusy && messages.length === 0 && isDraftChat ? (
+            {showDraftEmptyState ? (
               <p className="text-sm text-zinc-500">Start a new conversation with this agent.</p>
             ) : null}
 
-            {!isConversationPanelBusy && messages.length === 0 && !isDraftChat ? (
+            {showConversationEmptyState ? (
               <p className="text-sm text-zinc-500">No messages in this conversation yet.</p>
             ) : null}
 

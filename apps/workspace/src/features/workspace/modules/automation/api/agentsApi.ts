@@ -34,17 +34,29 @@ type ExtendedAgentApi = {
   deleteAgent(request: { agentId: string }): Promise<AutomationAgent>;
   getAgentConversations(request: { agentId: string }): Promise<AgentConversationsResponse>;
   getAgentConversation(request: { conversationId: string }): Promise<AgentConversationDetails>;
-  submitAgentChatExecution(request: {
+  submitAgentChatExecution?(request: {
     agentId: string;
     chatAgentRequestDTO: ChatAgentRequest;
     idempotencyKey?: string;
   }): Promise<{
     executionId: string;
     conversationId: string;
+    inputMessageId?: string;
     status: "ACCEPTED" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
     error?: { failureClass: ChatExecutionResult["failureClass"]; reason: string; retryable: boolean } | null;
   }>;
-  getAgentChatExecution(request: {
+  submitAgentChatExecutionByExecutionsPath?(request: {
+    agentId: string;
+    chatAgentRequestDTO: ChatAgentRequest;
+    idempotencyKey?: string;
+  }): Promise<{
+    executionId: string;
+    conversationId: string;
+    inputMessageId?: string;
+    status: "ACCEPTED" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+    error?: { failureClass: ChatExecutionResult["failureClass"]; reason: string; retryable: boolean } | null;
+  }>;
+  getAgentChatExecution?(request: {
     agentId: string;
     executionId: string;
     conversationId?: string;
@@ -86,6 +98,41 @@ function getOptionalTrimmedField(
     return undefined;
   }
   return getRequiredTrimmed(payload[field], errorMessage);
+}
+
+function normalizeLifecycleStatus(
+  status: string | undefined,
+): "QUEUED" | "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" {
+  if (status === "QUEUED") {
+    return "QUEUED";
+  }
+  if (status === "RUNNING" || status === "IN_PROGRESS") {
+    return "RUNNING";
+  }
+  if (status === "COMPLETED" || status === "SUCCEEDED") {
+    return "COMPLETED";
+  }
+  if (status === "FAILED") {
+    return "FAILED";
+  }
+  return "PENDING";
+}
+
+function resolveInputMessageId(source: { inputMessageId?: string }): string | undefined {
+  if (typeof source.inputMessageId === "string" && source.inputMessageId.trim()) {
+    return source.inputMessageId;
+  }
+  return undefined;
+}
+
+function resolveClientRequestId(provided?: string): string {
+  if (provided?.trim()) {
+    return provided.trim();
+  }
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  throw new Error("crypto.randomUUID is unavailable. Unable to generate clientRequestId.");
 }
 
 export async function getAgents(): Promise<AutomationAgent[]> {
@@ -187,9 +234,30 @@ export async function getAgentConversations(agentId: string): Promise<AgentConve
 
 export async function getAgentConversation(conversationId: string): Promise<AgentConversationDetails> {
   const response = await agentApiExtended.getAgentConversation({ conversationId });
+  const rawExecutions = Array.isArray((response as { executions?: unknown[] }).executions)
+    ? (response as { executions: Array<{
+      executionId: string;
+      status: string;
+      acceptedAt: string;
+      startedAt?: string | null;
+      completedAt?: string | null;
+      error?: { code?: string; message?: string } | null;
+      assistantMessage?: AgentConversationDetails["messages"][number] | null;
+    }> }).executions
+    : [];
   return {
     ...response,
     messages: Array.isArray(response.messages) ? response.messages : [],
+    executions: rawExecutions.map((execution) => ({
+      executionId: execution.executionId,
+      status: normalizeLifecycleStatus(execution.status),
+      acceptedAt: execution.acceptedAt,
+      startedAt: execution.startedAt ?? null,
+      completedAt: execution.completedAt ?? null,
+      errorCode: execution.error?.code,
+      errorMessage: execution.error?.message,
+      assistantMessage: execution.assistantMessage ?? undefined,
+    })),
   };
 }
 
@@ -200,6 +268,7 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
   }
 
   const requestBody: ChatAgentRequest = {
+    clientRequestId: resolveClientRequestId(payload.clientRequestId),
     message: normalizedMessage,
   };
 
@@ -207,37 +276,45 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
     requestBody.conversationId = payload.conversationId;
   }
 
-  const response = await agentApiExtended.submitAgentChatExecution({
-    agentId,
-    chatAgentRequestDTO: requestBody,
-  });
-
-  let normalizedStatus: ChatAgentAcceptedResponse["status"] = "PENDING";
-  if (response.status === "RUNNING") {
-    normalizedStatus = "RUNNING";
-  } else if (response.status === "COMPLETED") {
-    normalizedStatus = "SUCCEEDED";
-  } else if (response.status === "FAILED") {
-    normalizedStatus = "FAILED";
+  if (typeof agentApiExtended.submitAgentChatExecution === "function") {
+    const response = await agentApiExtended.submitAgentChatExecution({
+      agentId,
+      chatAgentRequestDTO: requestBody,
+      idempotencyKey: requestBody.clientRequestId,
+    });
+    const normalizedStatus: ChatAgentAcceptedResponse["status"] = normalizeLifecycleStatus(response.status);
+    return {
+      executionId: response.executionId,
+      conversationId: response.conversationId,
+      inputMessageId: resolveInputMessageId(response),
+      status: normalizedStatus,
+    } satisfies ChatAgentAcceptedResponse;
   }
 
+  if (typeof agentApiExtended.submitAgentChatExecutionByExecutionsPath !== "function") {
+    throw new Error("Async chat execution endpoint is not available in current API package.");
+  }
+
+  const response = await agentApiExtended.submitAgentChatExecutionByExecutionsPath({
+    agentId,
+    chatAgentRequestDTO: requestBody,
+    idempotencyKey: requestBody.clientRequestId,
+  });
+  const normalizedStatus: ChatAgentAcceptedResponse["status"] = normalizeLifecycleStatus(response.status);
   return {
     executionId: response.executionId,
     conversationId: response.conversationId,
+    inputMessageId: resolveInputMessageId(response),
     status: normalizedStatus,
   } satisfies ChatAgentAcceptedResponse;
 }
 
 export async function getChatAgentExecution(agentId: string, executionId: string, conversationId?: string): Promise<ChatExecutionResult> {
-  const response = await agentApiExtended.getAgentChatExecution({ agentId, executionId, conversationId });
-  let normalizedStatus: ChatExecutionResult["status"] = "PENDING";
-  if (response.status === "RUNNING") {
-    normalizedStatus = "RUNNING";
-  } else if (response.status === "COMPLETED") {
-    normalizedStatus = "SUCCEEDED";
-  } else if (response.status === "FAILED") {
-    normalizedStatus = "FAILED";
+  if (typeof agentApiExtended.getAgentChatExecution !== "function") {
+    throw new Error("Chat execution status endpoint is not available in current API package.");
   }
+  const response = await agentApiExtended.getAgentChatExecution({ agentId, executionId, conversationId });
+  const normalizedStatus: ChatExecutionResult["status"] = normalizeLifecycleStatus(response.status);
   return {
     executionId: response.executionId,
     conversationId: response.conversationId,
@@ -255,8 +332,8 @@ export async function submitChatExecution(agentId: string, payload: ChatAgentReq
   let state: SubmitChatExecutionResponse["state"] = "ACCEPTED";
   if (response.status === "RUNNING") {
     state = "IN_PROGRESS";
-  } else if (response.status === "SUCCEEDED") {
-    state = "SUCCEEDED";
+  } else if (response.status === "COMPLETED") {
+    state = "COMPLETED";
   } else if (response.status === "FAILED") {
     state = "FAILED";
   }
@@ -264,6 +341,8 @@ export async function submitChatExecution(agentId: string, payload: ChatAgentReq
     executionId: response.executionId,
     state,
     conversationId: response.conversationId ?? "",
+    inputMessageId: response.inputMessageId,
+    lifecycleStatus: response.status,
   };
 }
 
@@ -273,10 +352,10 @@ export async function getChatExecutionStatus(
   conversationId: string,
 ): Promise<ChatExecutionStatusResponse> {
   const execution = await getChatAgentExecution(agentId, executionId, conversationId);
-  if (execution.status === "SUCCEEDED") {
+  if (execution.status === "COMPLETED") {
     return {
       executionId,
-      state: "SUCCEEDED",
+      state: "COMPLETED",
       conversationId: execution.conversationId ?? conversationId,
       reply: execution.reply,
     };

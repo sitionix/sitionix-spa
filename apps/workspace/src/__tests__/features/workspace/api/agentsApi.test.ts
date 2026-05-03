@@ -444,16 +444,16 @@ describe("agentsApi.chat", () => {
 
     const result = await chatAgent("agent-11", { message: "  Explain clean architecture  " });
 
-    expect(chatAgentSpy).toHaveBeenCalledWith({
-      agentId: "agent-11",
-      chatAgentRequestDTO: {
-        message: "Explain clean architecture",
-      },
-    });
+    expect(chatAgentSpy).toHaveBeenCalledTimes(1);
+    const firstSubmitCall = chatAgentSpy.mock.calls[0]?.[0];
+    expect(firstSubmitCall.agentId).toBe("agent-11");
+    expect(firstSubmitCall.chatAgentRequestDTO.message).toBe("Explain clean architecture");
+    expect(firstSubmitCall.chatAgentRequestDTO.clientRequestId).toEqual(expect.any(String));
+    expect(firstSubmitCall.idempotencyKey).toBe(firstSubmitCall.chatAgentRequestDTO.clientRequestId);
     expect(result).toEqual({
       executionId: "exec-1",
       conversationId: "conv-1",
-      status: "PENDING",
+      status: "QUEUED",
     });
   });
 
@@ -470,13 +470,15 @@ describe("agentsApi.chat", () => {
       message: "next",
     });
 
-    expect(chatAgentSpy).toHaveBeenCalledWith({
-      agentId: "agent-11",
-      chatAgentRequestDTO: {
-        conversationId: "conv-1",
-        message: "next",
-      },
+    expect(chatAgentSpy).toHaveBeenCalledTimes(1);
+    const continueSubmitCall = chatAgentSpy.mock.calls[0]?.[0];
+    expect(continueSubmitCall.agentId).toBe("agent-11");
+    expect(continueSubmitCall.chatAgentRequestDTO).toMatchObject({
+      conversationId: "conv-1",
+      message: "next",
     });
+    expect(continueSubmitCall.chatAgentRequestDTO.clientRequestId).toEqual(expect.any(String));
+    expect(continueSubmitCall.idempotencyKey).toBe(continueSubmitCall.chatAgentRequestDTO.clientRequestId);
   });
 
   it("returns async accepted lifecycle response when backend replies with execution payload", async () => {
@@ -495,7 +497,7 @@ describe("agentsApi.chat", () => {
     expect(result).toEqual({
       executionId: "exec-1",
       conversationId: "conv-1",
-      status: "PENDING",
+      status: "QUEUED",
     });
   });
 
@@ -513,6 +515,75 @@ describe("agentsApi.chat", () => {
       executionId: "exec-2",
       conversationId: "conv-2",
       status: "PENDING",
+    });
+  });
+
+  it("uses executions-path submit endpoint when default submit endpoint is unavailable", async () => {
+    (AgentApi.prototype as any).submitAgentChatExecution = undefined;
+    const chatAgentByExecutionsPathSpy = vi.fn().mockResolvedValue({
+      executionId: "exec-3",
+      conversationId: "conv-3",
+      status: "QUEUED",
+    });
+    (AgentApi.prototype as any).submitAgentChatExecutionByExecutionsPath = chatAgentByExecutionsPathSpy;
+
+    const result = await chatAgent("agent-11", { message: "hello" });
+
+    expect(chatAgentByExecutionsPathSpy).toHaveBeenCalledTimes(1);
+    const executionsPathCall = chatAgentByExecutionsPathSpy.mock.calls[0]?.[0];
+    expect(executionsPathCall.agentId).toBe("agent-11");
+    expect(executionsPathCall.chatAgentRequestDTO.message).toBe("hello");
+    expect(executionsPathCall.chatAgentRequestDTO.clientRequestId).toEqual(expect.any(String));
+    expect(executionsPathCall.idempotencyKey).toBe(executionsPathCall.chatAgentRequestDTO.clientRequestId);
+    expect(result).toEqual({
+      executionId: "exec-3",
+      conversationId: "conv-3",
+      status: "QUEUED",
+    });
+  });
+
+  it("calls submit execution endpoint with bound api context", async () => {
+    const submitSpy = vi.fn(function submit(this: unknown) {
+      if (!this) {
+        throw new Error("UNBOUND_THIS");
+      }
+      return Promise.resolve({
+        executionId: "exec-ctx",
+        conversationId: "conv-ctx",
+        status: "QUEUED",
+      });
+    });
+    (AgentApi.prototype as any).submitAgentChatExecution = submitSpy;
+
+    const result = await chatAgent("agent-11", { message: "context" });
+
+    expect(result).toEqual({
+      executionId: "exec-ctx",
+      conversationId: "conv-ctx",
+      status: "QUEUED",
+    });
+  });
+
+  it("reuses provided clientRequestId as idempotency key", async () => {
+    const submitSpy = vi.fn().mockResolvedValue({
+      executionId: "exec-idem",
+      conversationId: "conv-idem",
+      status: "QUEUED",
+    });
+    (AgentApi.prototype as any).submitAgentChatExecution = submitSpy;
+
+    await chatAgent("agent-11", {
+      message: "hello",
+      clientRequestId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(submitSpy).toHaveBeenCalledWith({
+      agentId: "agent-11",
+      chatAgentRequestDTO: {
+        message: "hello",
+        clientRequestId: "11111111-1111-4111-8111-111111111111",
+      },
+      idempotencyKey: "11111111-1111-4111-8111-111111111111",
     });
   });
 
@@ -547,7 +618,7 @@ describe("agentsApi.chat", () => {
     });
   });
 
-  it("maps completed lifecycle response to succeeded with reply", async () => {
+  it("maps completed lifecycle response to completed with reply", async () => {
     const getExecutionSpy = vi.fn().mockResolvedValue({
       executionId: "exec-11",
       conversationId: "conv-11",
@@ -561,7 +632,7 @@ describe("agentsApi.chat", () => {
     expect(result).toEqual({
       executionId: "exec-11",
       conversationId: "conv-11",
-      status: "SUCCEEDED",
+      status: "COMPLETED",
       reply: "Ready",
       errorMessage: undefined,
       failureClass: undefined,
@@ -607,6 +678,7 @@ describe("agentsApi.chat execution wrappers", () => {
     (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-20",
       conversationId: "conv-20",
+      inputMessageId: "msg-user-20",
       status: "QUEUED",
     });
 
@@ -616,6 +688,26 @@ describe("agentsApi.chat execution wrappers", () => {
       executionId: "exec-20",
       state: "ACCEPTED",
       conversationId: "conv-20",
+      inputMessageId: "msg-user-20",
+      lifecycleStatus: "QUEUED",
+    });
+  });
+
+  it("keeps inputMessageId undefined when inputMessageId is absent", async () => {
+    (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
+      executionId: "exec-20b",
+      conversationId: "conv-20b",
+      status: "QUEUED",
+    });
+
+    const result = await submitChatExecution("agent-20", { message: "hello" });
+
+    expect(result).toEqual({
+      executionId: "exec-20b",
+      state: "ACCEPTED",
+      conversationId: "conv-20b",
+      inputMessageId: undefined,
+      lifecycleStatus: "QUEUED",
     });
   });
 
@@ -631,7 +723,7 @@ describe("agentsApi.chat execution wrappers", () => {
     expect(result.state).toBe("IN_PROGRESS");
   });
 
-  it("maps completed submit response to succeeded state", async () => {
+  it("maps completed submit response to completed state", async () => {
     (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-22",
       conversationId: "conv-22",
@@ -640,7 +732,7 @@ describe("agentsApi.chat execution wrappers", () => {
 
     const result = await submitChatExecution("agent-20", { message: "hello" });
 
-    expect(result.state).toBe("SUCCEEDED");
+    expect(result.state).toBe("COMPLETED");
   });
 
   it("maps failed submit response to failed state", async () => {
@@ -655,7 +747,7 @@ describe("agentsApi.chat execution wrappers", () => {
     expect(result.state).toBe("FAILED");
   });
 
-  it("maps succeeded execution status and keeps reply", async () => {
+  it("maps completed execution status and keeps reply", async () => {
     (AgentApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-30",
       conversationId: "conv-30",
@@ -667,7 +759,7 @@ describe("agentsApi.chat execution wrappers", () => {
 
     expect(result).toEqual({
       executionId: "exec-30",
-      state: "SUCCEEDED",
+      state: "COMPLETED",
       conversationId: "conv-30",
       reply: "Done",
     });
