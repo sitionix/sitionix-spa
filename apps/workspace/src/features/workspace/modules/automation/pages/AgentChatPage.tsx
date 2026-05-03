@@ -30,6 +30,10 @@ type LatestExecution = {
   assistantMessage?: ChatAgentMessage;
 } | null;
 
+function isLifecycleInFlight(status: ChatExecutionLifecycleStatus | null | undefined): boolean {
+  return status === "QUEUED" || status === "PENDING" || status === "RUNNING";
+}
+
 function getStatusBadgeClass(status: AutomationAgent["status"]): string {
   if (status === "ACTIVE") {
     return "bg-emerald-50 text-emerald-700";
@@ -131,9 +135,19 @@ export function AgentChatPage() {
   } | null>(null);
 
   const pollInFlightRef = useRef(false);
+  const latestExecutionStatusRef = useRef<ChatExecutionLifecycleStatus | null>(null);
+  const inFlightExecutionIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    latestExecutionStatusRef.current = latestExecutionStatus;
+  }, [latestExecutionStatus]);
+
+  useEffect(() => {
+    inFlightExecutionIdRef.current = inFlightExecutionId;
+  }, [inFlightExecutionId]);
 
   const isConversationPanelBusy = isLoadingConversations || isLoadingConversationDetails;
-  const isExecutionInFlight = latestExecutionStatus === "PENDING" || latestExecutionStatus === "RUNNING";
+  const isExecutionInFlight = isLifecycleInFlight(latestExecutionStatus);
   const isSending = executionState === "ACCEPTED" || executionState === "IN_PROGRESS";
 
   const saveSelectedConversationId = useCallback((conversationId: string | null) => {
@@ -157,12 +171,23 @@ export function AgentChatPage() {
 
   const applyConversationDetailsState = useCallback((details: AgentConversationDetails, options?: { preserveLocalOptimistic?: boolean }) => {
     const latestExecution = getLatestExecution(details);
-    const pendingOrRunning = latestExecution?.status === "PENDING" || latestExecution?.status === "RUNNING";
+    const pendingOrRunning = isLifecycleInFlight(latestExecution?.status);
+    const preserveLocalExecution = Boolean(options?.preserveLocalOptimistic
+      && !latestExecution
+      && isLifecycleInFlight(latestExecutionStatusRef.current));
 
-    setMessages((current) => mergeMessages(current, Array.isArray(details.messages) ? details.messages : [], Boolean(options?.preserveLocalOptimistic && pendingOrRunning)));
+    setMessages((current) => mergeMessages(
+      current,
+      Array.isArray(details.messages) ? details.messages : [],
+      Boolean(options?.preserveLocalOptimistic && (pendingOrRunning || preserveLocalExecution)),
+    ));
     setActiveConversationId(details.id);
     setIsDraftChat(false);
     saveSelectedConversationId(details.id);
+
+    if (preserveLocalExecution) {
+      return;
+    }
 
     setLatestExecutionStatus(latestExecution?.status ?? null);
     setInFlightExecutionId(latestExecution?.executionId ?? null);
@@ -176,8 +201,8 @@ export function AgentChatPage() {
       return;
     }
 
-    if (latestExecution?.status === "SUCCEEDED") {
-      setExecutionState("SUCCEEDED");
+    if (latestExecution?.status === "COMPLETED") {
+      setExecutionState("COMPLETED");
       setTerminalFailure(null);
       return;
     }
@@ -343,7 +368,9 @@ export function AgentChatPage() {
       setExecutionState(submitResponse.state);
       setInFlightExecutionId(submitResponse.executionId);
       setActiveConversationId(submitResponse.conversationId);
-      setLatestExecutionStatus(submitResponse.state === "IN_PROGRESS" ? "RUNNING" : "PENDING");
+      setLatestExecutionStatus(submitResponse.lifecycleStatus);
+      inFlightExecutionIdRef.current = submitResponse.executionId;
+      latestExecutionStatusRef.current = submitResponse.lifecycleStatus;
       setIsDraftChat(false);
       setLastSubmitContext({ message, conversationId });
       saveSelectedConversationId(submitResponse.conversationId);
@@ -400,8 +427,9 @@ export function AgentChatPage() {
         }
 
         const latestExecution = details ? getLatestExecution(details) : null;
-        if (!latestExecution && inFlightExecutionId) {
-          const statusResponse = await getChatExecutionStatus(agentId, inFlightExecutionId, activeConversationId);
+        const executionIdForStatus = inFlightExecutionIdRef.current;
+        if (!latestExecution && executionIdForStatus) {
+          const statusResponse = await getChatExecutionStatus(agentId, executionIdForStatus, activeConversationId);
           if (cancelled) {
             return;
           }
@@ -413,9 +441,9 @@ export function AgentChatPage() {
               code: "EXECUTION_FAILED",
               message: "The assistant could not complete this request.",
             });
-          } else if (statusResponse.state === "SUCCEEDED") {
-            setExecutionState("SUCCEEDED");
-            setLatestExecutionStatus("SUCCEEDED");
+          } else if (statusResponse.state === "COMPLETED") {
+            setExecutionState("COMPLETED");
+            setLatestExecutionStatus("COMPLETED");
             setInFlightExecutionId(null);
             setTerminalFailure(null);
             if (statusResponse.reply) {

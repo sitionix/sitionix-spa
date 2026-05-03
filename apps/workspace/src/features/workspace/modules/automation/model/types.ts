@@ -25,7 +25,7 @@ export type ChatAgentMessage = {
   createdAt: string;
 };
 
-export type ChatExecutionLifecycleStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED";
+export type ChatExecutionLifecycleStatus = "QUEUED" | "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
 export type ChatExecutionFailureClass = "OWNERSHIP_VIOLATION" | "CONVERSATION_NOT_FOUND" | "INVALID_LIFECYCLE_STATE" | "IDEMPOTENCY_CONFLICT" | "EXECUTION_ERROR";
 
 export type ChatAgentAcceptedResponse = {
@@ -47,7 +47,7 @@ export type ChatExecutionResult = {
   retryable?: boolean;
 };
 
-export type ChatExecutionState = "ACCEPTED" | "IN_PROGRESS" | "SUCCEEDED" | "FAILED";
+export type ChatExecutionState = "ACCEPTED" | "IN_PROGRESS" | "COMPLETED" | "FAILED";
 
 export type ChatExecutionFailure = {
   code: string;
@@ -59,6 +59,7 @@ export type SubmitChatExecutionResponse = {
   executionId: string;
   state: ChatExecutionState;
   conversationId: string;
+  lifecycleStatus: ChatExecutionLifecycleStatus;
 };
 
 export type ChatExecutionStatusResponse = {

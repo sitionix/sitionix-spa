@@ -193,10 +193,11 @@ describe("AgentChatPage", () => {
       executionId: "exec-1",
       state: "IN_PROGRESS",
       conversationId: "conv-created",
+      lifecycleStatus: "RUNNING",
     });
     getChatExecutionStatusMock.mockResolvedValue({
       executionId: "exec-1",
-      state: "SUCCEEDED",
+      state: "COMPLETED",
       conversationId: "conv-created",
       reply: {
         id: "msg-reply",
@@ -280,10 +281,11 @@ describe("AgentChatPage", () => {
       executionId: "exec-1",
       state: "IN_PROGRESS",
       conversationId: "conv-1",
+      lifecycleStatus: "RUNNING",
     });
     getChatExecutionStatusMock.mockResolvedValue({
       executionId: "exec-1",
-      state: "SUCCEEDED",
+      state: "COMPLETED",
       conversationId: "conv-1",
       reply: {
         id: "msg-reply",
@@ -399,6 +401,7 @@ describe("AgentChatPage", () => {
       executionId: string;
       state: "IN_PROGRESS";
       conversationId: string;
+      lifecycleStatus: "RUNNING";
     }) => void) | null = null;
 
     submitChatExecutionMock.mockImplementation(
@@ -424,7 +427,7 @@ describe("AgentChatPage", () => {
     expect(screen.getByLabelText("Active Agent typing indicator")).toBeInTheDocument();
     getChatExecutionStatusMock.mockResolvedValue({
       executionId: "exec-1",
-      state: "SUCCEEDED",
+      state: "COMPLETED",
       conversationId: "conv-1",
       reply: {
         id: "reply-1",
@@ -440,6 +443,7 @@ describe("AgentChatPage", () => {
         executionId: "exec-1",
         state: "IN_PROGRESS",
         conversationId: "conv-1",
+        lifecycleStatus: "RUNNING",
       });
     });
     expect(await screen.findByText("done")).toBeInTheDocument();
@@ -499,11 +503,13 @@ describe("AgentChatPage", () => {
         executionId: "exec-failed",
         state: "IN_PROGRESS",
         conversationId: "conv-1",
+        lifecycleStatus: "RUNNING",
       })
       .mockResolvedValueOnce({
         executionId: "exec-retry",
         state: "IN_PROGRESS",
         conversationId: "conv-1",
+        lifecycleStatus: "RUNNING",
       });
     getChatExecutionStatusMock
       .mockResolvedValueOnce({
@@ -517,7 +523,7 @@ describe("AgentChatPage", () => {
       })
       .mockResolvedValueOnce({
         executionId: "exec-retry",
-        state: "SUCCEEDED",
+        state: "COMPLETED",
         conversationId: "conv-1",
         reply: {
           id: "reply-retry",
@@ -639,6 +645,180 @@ describe("AgentChatPage", () => {
     expect(await screen.findByText("need details")).toBeInTheDocument();
     expect(screen.getByText("EXECUTION_FAILED")).toBeInTheDocument();
     expect(screen.queryByLabelText("Active Agent typing indicator")).not.toBeInTheDocument();
+  });
+
+  it("givenSendAcceptedWithQueuedStatus_whenMessageSent_thenShowsTypingImmediately", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock
+      .mockResolvedValueOnce({ items: [] })
+      .mockResolvedValue({ items: [] });
+    submitChatExecutionMock.mockResolvedValue({
+      executionId: "exec-queued",
+      state: "ACCEPTED",
+      conversationId: "conv-queued",
+      lifecycleStatus: "QUEUED",
+    });
+    getAgentConversationMock.mockResolvedValue({
+      id: "conv-queued",
+      title: "Queued",
+      type: "DIRECT",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:01:00.000Z",
+      lastMessageAt: "2026-04-21T10:01:00.000Z",
+      messages: [],
+      executions: [],
+    });
+    const user = userEvent.setup();
+
+    renderChatPage();
+
+    await screen.findByText("No conversations yet.");
+    await user.type(screen.getByLabelText("Message"), "hello");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(screen.getByLabelText("Active Agent typing indicator")).toBeInTheDocument();
+  });
+
+  it("givenSendAcceptedWithPendingStatus_whenMessageSent_thenShowsTypingImmediately", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock
+      .mockResolvedValueOnce({ items: [] })
+      .mockResolvedValue({ items: [] });
+    submitChatExecutionMock.mockResolvedValue({
+      executionId: "exec-pending",
+      state: "ACCEPTED",
+      conversationId: "conv-pending",
+      lifecycleStatus: "PENDING",
+    });
+    getAgentConversationMock.mockResolvedValue({
+      id: "conv-pending",
+      title: "Pending",
+      type: "DIRECT",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:01:00.000Z",
+      lastMessageAt: "2026-04-21T10:01:00.000Z",
+      messages: [],
+      executions: [],
+    });
+    const user = userEvent.setup();
+
+    renderChatPage();
+
+    await screen.findByText("No conversations yet.");
+    await user.type(screen.getByLabelText("Message"), "hello");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(screen.getByLabelText("Active Agent typing indicator")).toBeInTheDocument();
+  });
+
+  it("givenQueuedExecution_whenPollingReturnsCompletedWithAssistantMessage_thenUpdatesUiAndStopsTyping", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock
+      .mockResolvedValueOnce({ items: [] })
+      .mockResolvedValue({
+        items: [
+          {
+            id: "conv-live",
+            title: "Live",
+            type: "DIRECT",
+            createdAt: "2026-04-21T10:00:00.000Z",
+            updatedAt: "2026-04-21T10:01:00.000Z",
+            lastMessageAt: "2026-04-21T10:01:00.000Z",
+          },
+        ],
+      });
+    submitChatExecutionMock.mockResolvedValue({
+      executionId: "exec-live",
+      state: "ACCEPTED",
+      conversationId: "conv-live",
+      lifecycleStatus: "QUEUED",
+    });
+    getAgentConversationMock
+      .mockResolvedValueOnce({
+        id: "conv-live",
+        title: "Live",
+        type: "DIRECT",
+        createdAt: "2026-04-21T10:00:00.000Z",
+        updatedAt: "2026-04-21T10:01:00.000Z",
+        lastMessageAt: "2026-04-21T10:01:00.000Z",
+        messages: [],
+        executions: [],
+      })
+      .mockResolvedValueOnce({
+        id: "conv-live",
+        title: "Live",
+        type: "DIRECT",
+        createdAt: "2026-04-21T10:00:00.000Z",
+        updatedAt: "2026-04-21T10:02:00.000Z",
+        lastMessageAt: "2026-04-21T10:02:00.000Z",
+        messages: [
+          {
+            id: "msg-user-live",
+            authorType: "USER",
+            authorId: "user-1",
+            content: "live",
+            createdAt: "2026-04-21T10:01:00.000Z",
+          },
+          {
+            id: "msg-agent-live",
+            authorType: "AGENT",
+            authorId: "agent-1",
+            content: "live reply",
+            createdAt: "2026-04-21T10:02:00.000Z",
+          },
+        ],
+        executions: [
+          {
+            executionId: "exec-live",
+            status: "COMPLETED",
+            acceptedAt: "2026-04-21T10:01:00.000Z",
+            completedAt: "2026-04-21T10:02:00.000Z",
+          },
+        ],
+      })
+      .mockResolvedValue({
+        id: "conv-live",
+        title: "Live",
+        type: "DIRECT",
+        createdAt: "2026-04-21T10:00:00.000Z",
+        updatedAt: "2026-04-21T10:02:00.000Z",
+        lastMessageAt: "2026-04-21T10:02:00.000Z",
+        messages: [
+          {
+            id: "msg-user-live",
+            authorType: "USER",
+            authorId: "user-1",
+            content: "live",
+            createdAt: "2026-04-21T10:01:00.000Z",
+          },
+          {
+            id: "msg-agent-live",
+            authorType: "AGENT",
+            authorId: "agent-1",
+            content: "live reply",
+            createdAt: "2026-04-21T10:02:00.000Z",
+          },
+        ],
+        executions: [
+          {
+            executionId: "exec-live",
+            status: "COMPLETED",
+            acceptedAt: "2026-04-21T10:01:00.000Z",
+            completedAt: "2026-04-21T10:02:00.000Z",
+          },
+        ],
+      });
+    const user = userEvent.setup();
+
+    renderChatPage();
+
+    await screen.findByText("No conversations yet.");
+    await user.type(screen.getByLabelText("Message"), "live");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(await screen.findByText("live reply", {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Active Agent typing indicator")).not.toBeInTheDocument();
+    expect(screen.getAllByText("live reply")).toHaveLength(1);
   });
 
   it("givenPendingExecutionAndSlowPolling_whenIntervalTicks_thenSkipsOverlappingPollCalls", async () => {

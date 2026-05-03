@@ -100,12 +100,15 @@ function getOptionalTrimmedField(
 
 function normalizeLifecycleStatus(
   status: string | undefined,
-): "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" {
+): "QUEUED" | "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" {
+  if (status === "QUEUED") {
+    return "QUEUED";
+  }
   if (status === "RUNNING" || status === "IN_PROGRESS") {
     return "RUNNING";
   }
   if (status === "COMPLETED" || status === "SUCCEEDED") {
-    return "SUCCEEDED";
+    return "COMPLETED";
   }
   if (status === "FAILED") {
     return "FAILED";
@@ -318,8 +321,8 @@ export async function submitChatExecution(agentId: string, payload: ChatAgentReq
   let state: SubmitChatExecutionResponse["state"] = "ACCEPTED";
   if (response.status === "RUNNING") {
     state = "IN_PROGRESS";
-  } else if (response.status === "SUCCEEDED") {
-    state = "SUCCEEDED";
+  } else if (response.status === "COMPLETED") {
+    state = "COMPLETED";
   } else if (response.status === "FAILED") {
     state = "FAILED";
   }
@@ -327,6 +330,7 @@ export async function submitChatExecution(agentId: string, payload: ChatAgentReq
     executionId: response.executionId,
     state,
     conversationId: response.conversationId ?? "",
+    lifecycleStatus: response.status,
   };
 }
 
@@ -336,10 +340,10 @@ export async function getChatExecutionStatus(
   conversationId: string,
 ): Promise<ChatExecutionStatusResponse> {
   const execution = await getChatAgentExecution(agentId, executionId, conversationId);
-  if (execution.status === "SUCCEEDED") {
+  if (execution.status === "COMPLETED") {
     return {
       executionId,
-      state: "SUCCEEDED",
+      state: "COMPLETED",
       conversationId: execution.conversationId ?? conversationId,
       reply: execution.reply,
     };
