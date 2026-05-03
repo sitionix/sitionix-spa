@@ -800,6 +800,107 @@ describe("AgentChatPage", () => {
     expect(screen.getByLabelText("Active Agent typing indicator")).toBeInTheDocument();
   });
 
+  it("givenPollingDetailsContainExecutionMetadata_whenExecutionPending_thenDoesNotCallExecutionStatusFallback", async () => {
+    vi.useFakeTimers();
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock.mockResolvedValue({
+      items: [
+        {
+          id: "conv-meta",
+          title: "Meta",
+          type: "DIRECT",
+          createdAt: "2026-04-21T10:00:00.000Z",
+          updatedAt: "2026-04-21T10:01:00.000Z",
+          lastMessageAt: "2026-04-21T10:01:00.000Z",
+        },
+      ],
+    });
+    getAgentConversationMock.mockResolvedValue({
+      id: "conv-meta",
+      title: "Meta",
+      type: "DIRECT",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:01:00.000Z",
+      lastMessageAt: "2026-04-21T10:01:00.000Z",
+      messages: [],
+      executions: [
+        {
+          executionId: "exec-meta",
+          status: "RUNNING",
+          acceptedAt: "2026-04-21T10:01:00.000Z",
+          startedAt: "2026-04-21T10:01:02.000Z",
+          completedAt: null,
+        },
+      ],
+    });
+
+    renderChatPage();
+
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      vi.advanceTimersByTime(4500);
+    });
+
+    expect(getChatExecutionStatusMock).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("givenPollingDetailsMissingExecutionMetadata_whenExecutionPending_thenCallsExecutionStatusFallbackOnlyOnce", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock
+      .mockResolvedValueOnce({ items: [] })
+      .mockResolvedValue({
+        items: [
+          {
+            id: "conv-fallback",
+            title: "Fallback",
+            type: "DIRECT",
+            createdAt: "2026-04-21T10:00:00.000Z",
+            updatedAt: "2026-04-21T10:01:00.000Z",
+            lastMessageAt: "2026-04-21T10:01:00.000Z",
+          },
+        ],
+      });
+    submitChatExecutionMock.mockResolvedValue({
+      executionId: "exec-fallback",
+      state: "ACCEPTED",
+      conversationId: "conv-fallback",
+      inputMessageId: "msg-fallback",
+      lifecycleStatus: "QUEUED",
+    });
+    getAgentConversationMock.mockResolvedValue({
+      id: "conv-fallback",
+      title: "Fallback",
+      type: "DIRECT",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:01:00.000Z",
+      lastMessageAt: "2026-04-21T10:01:00.000Z",
+      messages: [],
+      executions: [],
+    });
+    getChatExecutionStatusMock.mockResolvedValue({
+      executionId: "exec-fallback",
+      state: "IN_PROGRESS",
+      conversationId: "conv-fallback",
+    });
+    const user = userEvent.setup();
+
+    renderChatPage();
+
+    await screen.findByText("No conversations yet.");
+    await user.type(screen.getByLabelText("Message"), "hi");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    await waitFor(() => {
+      expect(getChatExecutionStatusMock).toHaveBeenCalledTimes(1);
+    }, { timeout: 5000 });
+
+    await new Promise((resolve) => {
+      window.setTimeout(resolve, 2000);
+    });
+    expect(getChatExecutionStatusMock).toHaveBeenCalledTimes(1);
+  });
+
   it("givenQueuedExecution_whenPollingReturnsCompletedWithAssistantMessage_thenUpdatesUiAndStopsTyping", async () => {
     getAgentByIdMock.mockResolvedValue(activeAgent);
     getAgentConversationsMock

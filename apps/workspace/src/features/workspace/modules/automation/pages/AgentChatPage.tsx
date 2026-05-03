@@ -168,6 +168,7 @@ export function AgentChatPage() {
   const pollInFlightRef = useRef(false);
   const pollIntervalIdRef = useRef<number | null>(null);
   const pollingConversationIdRef = useRef<string | null>(null);
+  const statusFallbackKeyRef = useRef<string | null>(null);
   const latestExecutionStatusRef = useRef<ChatExecutionLifecycleStatus | null>(null);
   const inFlightExecutionIdRef = useRef<string | null>(null);
   const activeConversationIdRef = useRef<string | null>(null);
@@ -196,6 +197,7 @@ export function AgentChatPage() {
       pollIntervalIdRef.current = null;
     }
     pollingConversationIdRef.current = null;
+    statusFallbackKeyRef.current = null;
     pollInFlightRef.current = false;
   }, []);
 
@@ -501,6 +503,7 @@ export function AgentChatPage() {
 
     let cancelled = false;
     pollingConversationIdRef.current = activeConversationId;
+    statusFallbackKeyRef.current = null;
 
     const pollExecution = async () => {
       if (pollInFlightRef.current) {
@@ -524,7 +527,16 @@ export function AgentChatPage() {
 
         const latestExecution = details ? getLatestExecution(details) : null;
         const executionIdForStatus = inFlightExecutionIdRef.current;
-        if (!latestExecution && executionIdForStatus) {
+        if (latestExecution) {
+          statusFallbackKeyRef.current = null;
+        }
+        const shouldUseStatusFallback = Boolean(
+          !latestExecution
+          && executionIdForStatus
+          && statusFallbackKeyRef.current !== `${conversationIdForTick}:${executionIdForStatus}`,
+        );
+        if (shouldUseStatusFallback && executionIdForStatus) {
+          statusFallbackKeyRef.current = `${conversationIdForTick}:${executionIdForStatus}`;
           const statusResponse = await getChatExecutionStatus(agentId, executionIdForStatus, conversationIdForTick);
           if (cancelled) {
             return;
