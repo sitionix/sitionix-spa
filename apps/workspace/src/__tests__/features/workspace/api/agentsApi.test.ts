@@ -453,7 +453,7 @@ describe("agentsApi.chat", () => {
     expect(result).toEqual({
       executionId: "exec-1",
       conversationId: "conv-1",
-      status: "PENDING",
+      status: "QUEUED",
     });
   });
 
@@ -497,7 +497,7 @@ describe("agentsApi.chat", () => {
     expect(result).toEqual({
       executionId: "exec-1",
       conversationId: "conv-1",
-      status: "PENDING",
+      status: "QUEUED",
     });
   });
 
@@ -538,7 +538,7 @@ describe("agentsApi.chat", () => {
     expect(result).toEqual({
       executionId: "exec-3",
       conversationId: "conv-3",
-      status: "PENDING",
+      status: "QUEUED",
     });
   });
 
@@ -560,7 +560,7 @@ describe("agentsApi.chat", () => {
     expect(result).toEqual({
       executionId: "exec-ctx",
       conversationId: "conv-ctx",
-      status: "PENDING",
+      status: "QUEUED",
     });
   });
 
@@ -618,7 +618,7 @@ describe("agentsApi.chat", () => {
     });
   });
 
-  it("maps completed lifecycle response to succeeded with reply", async () => {
+  it("maps completed lifecycle response to completed with reply", async () => {
     const getExecutionSpy = vi.fn().mockResolvedValue({
       executionId: "exec-11",
       conversationId: "conv-11",
@@ -632,7 +632,7 @@ describe("agentsApi.chat", () => {
     expect(result).toEqual({
       executionId: "exec-11",
       conversationId: "conv-11",
-      status: "SUCCEEDED",
+      status: "COMPLETED",
       reply: "Ready",
       errorMessage: undefined,
       failureClass: undefined,
@@ -687,6 +687,7 @@ describe("agentsApi.chat execution wrappers", () => {
       executionId: "exec-20",
       state: "ACCEPTED",
       conversationId: "conv-20",
+      lifecycleStatus: "QUEUED",
     });
   });
 
@@ -702,7 +703,7 @@ describe("agentsApi.chat execution wrappers", () => {
     expect(result.state).toBe("IN_PROGRESS");
   });
 
-  it("maps completed submit response to succeeded state", async () => {
+  it("maps completed submit response to completed state", async () => {
     (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-22",
       conversationId: "conv-22",
@@ -711,7 +712,7 @@ describe("agentsApi.chat execution wrappers", () => {
 
     const result = await submitChatExecution("agent-20", { message: "hello" });
 
-    expect(result.state).toBe("SUCCEEDED");
+    expect(result.state).toBe("COMPLETED");
   });
 
   it("maps failed submit response to failed state", async () => {
@@ -726,7 +727,7 @@ describe("agentsApi.chat execution wrappers", () => {
     expect(result.state).toBe("FAILED");
   });
 
-  it("maps succeeded execution status and keeps reply", async () => {
+  it("maps completed execution status and keeps reply", async () => {
     (AgentApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-30",
       conversationId: "conv-30",
@@ -738,7 +739,7 @@ describe("agentsApi.chat execution wrappers", () => {
 
     expect(result).toEqual({
       executionId: "exec-30",
-      state: "SUCCEEDED",
+      state: "COMPLETED",
       conversationId: "conv-30",
       reply: "Done",
     });
