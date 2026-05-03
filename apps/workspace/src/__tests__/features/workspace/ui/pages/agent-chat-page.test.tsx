@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -819,6 +819,141 @@ describe("AgentChatPage", () => {
     expect(await screen.findByText("live reply", {}, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.queryByLabelText("Active Agent typing indicator")).not.toBeInTheDocument();
     expect(screen.getAllByText("live reply")).toHaveLength(1);
+  });
+
+  it("givenPollingReturnsAssistantOnly_whenExecutionInFlight_thenKeepsExistingUserMessageVisible", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock.mockResolvedValue({
+      items: [
+        {
+          id: "conv-1",
+          title: "Existing",
+          type: "DIRECT",
+          createdAt: "2026-04-21T10:00:00.000Z",
+          updatedAt: "2026-04-21T10:01:00.000Z",
+          lastMessageAt: "2026-04-21T10:01:00.000Z",
+        },
+      ],
+    });
+    getAgentConversationMock
+      .mockResolvedValueOnce({
+        id: "conv-1",
+        title: "Existing",
+        type: "DIRECT",
+        createdAt: "2026-04-21T10:00:00.000Z",
+        updatedAt: "2026-04-21T10:01:00.000Z",
+        lastMessageAt: "2026-04-21T10:01:00.000Z",
+        messages: [
+          {
+            id: "msg-user-1",
+            authorType: "USER",
+            authorId: "user-1",
+            content: "привіт",
+            createdAt: "2026-04-21T10:01:00.000Z",
+          },
+        ],
+        executions: [
+          {
+            executionId: "exec-1",
+            status: "RUNNING",
+            acceptedAt: "2026-04-21T10:01:00.000Z",
+            startedAt: "2026-04-21T10:01:02.000Z",
+            completedAt: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        id: "conv-1",
+        title: "Existing",
+        type: "DIRECT",
+        createdAt: "2026-04-21T10:00:00.000Z",
+        updatedAt: "2026-04-21T10:02:00.000Z",
+        lastMessageAt: "2026-04-21T10:02:00.000Z",
+        messages: [
+          {
+            id: "msg-assistant-1",
+            authorType: "AGENT",
+            authorId: "agent-1",
+            content: "reply",
+            createdAt: "2026-04-21T10:02:00.000Z",
+          },
+        ],
+        executions: [
+          {
+            executionId: "exec-1",
+            status: "COMPLETED",
+            acceptedAt: "2026-04-21T10:01:00.000Z",
+            completedAt: "2026-04-21T10:02:00.000Z",
+          },
+        ],
+      });
+
+    renderChatPage();
+
+    expect(await screen.findByText("привіт")).toBeInTheDocument();
+    expect(await screen.findByText("reply", {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(screen.getByText("привіт")).toBeInTheDocument();
+  });
+
+  it("givenRunningExecutionWithMultipleConversations_whenPolling_thenRequestsOnlyActiveConversationDetails", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock.mockResolvedValue({
+      items: [
+        {
+          id: "conv-active",
+          title: "Active",
+          type: "DIRECT",
+          createdAt: "2026-04-21T10:00:00.000Z",
+          updatedAt: "2026-04-21T10:01:00.000Z",
+          lastMessageAt: "2026-04-21T10:01:00.000Z",
+        },
+        {
+          id: "conv-other",
+          title: "Other",
+          type: "DIRECT",
+          createdAt: "2026-04-21T11:00:00.000Z",
+          updatedAt: "2026-04-21T11:01:00.000Z",
+          lastMessageAt: "2026-04-21T11:01:00.000Z",
+        },
+      ],
+    });
+    getAgentConversationMock.mockResolvedValue({
+      id: "conv-active",
+      title: "Active",
+      type: "DIRECT",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:01:00.000Z",
+      lastMessageAt: "2026-04-21T10:01:00.000Z",
+      messages: [
+        {
+          id: "msg-user",
+          authorType: "USER",
+          authorId: "user-1",
+          content: "pending",
+          createdAt: "2026-04-21T10:01:00.000Z",
+        },
+      ],
+      executions: [
+        {
+          executionId: "exec-active",
+          status: "RUNNING",
+          acceptedAt: "2026-04-21T10:01:00.000Z",
+          startedAt: "2026-04-21T10:01:02.000Z",
+          completedAt: null,
+        },
+      ],
+    });
+
+    renderChatPage();
+    expect(await screen.findByText("pending")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(getAgentConversationMock.mock.calls.length).toBeGreaterThan(1);
+    }, { timeout: 4500 });
+
+    const requestedConversationIds = getAgentConversationMock.mock.calls.map(([conversationId]) => conversationId);
+    expect(requestedConversationIds).toEqual(expect.arrayContaining(["conv-active"]));
+    expect(requestedConversationIds).not.toEqual(expect.arrayContaining(["conv-other"]));
   });
 
   it("givenPendingExecutionAndSlowPolling_whenIntervalTicks_thenSkipsOverlappingPollCalls", async () => {

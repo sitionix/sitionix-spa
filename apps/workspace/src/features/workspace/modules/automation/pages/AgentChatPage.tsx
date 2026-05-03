@@ -83,27 +83,58 @@ function getLatestExecution(details: AgentConversationDetails): LatestExecution 
   };
 }
 
-function mergeMessages(current: ChatAgentMessage[], backend: ChatAgentMessage[], preserveLocalWhenBackendEmpty: boolean): ChatAgentMessage[] {
-  if (!Array.isArray(backend) || backend.length === 0) {
-    return preserveLocalWhenBackendEmpty ? current : [];
+function getMessageTimestamp(message: ChatAgentMessage): number {
+  const numeric = new Date(message.createdAt).getTime();
+  return Number.isNaN(numeric) ? Number.MAX_SAFE_INTEGER : numeric;
+}
+
+function dedupeAndSortMessages(messages: ChatAgentMessage[]): ChatAgentMessage[] {
+  const byId = new Map<string, ChatAgentMessage>();
+  for (const message of messages) {
+    byId.set(message.id, message);
+  }
+  return Array.from(byId.values()).sort((left, right) => {
+    const timeDiff = getMessageTimestamp(left) - getMessageTimestamp(right);
+    if (timeDiff !== 0) {
+      return timeDiff;
+    }
+    return left.id.localeCompare(right.id);
+  });
+}
+
+function mergeMessages(current: ChatAgentMessage[], backend: ChatAgentMessage[], preserveLocalUserMessages: boolean): ChatAgentMessage[] {
+  const backendMessages = dedupeAndSortMessages(Array.isArray(backend) ? backend : []);
+  if (!preserveLocalUserMessages) {
+    return backendMessages;
   }
 
-  const merged = [...backend];
-  const mergedIds = new Set(backend.map((message) => message.id));
-  const tempCandidates = current.filter((message) => message.id.startsWith("temp-user-"));
+  const mergedById = new Map<string, ChatAgentMessage>(backendMessages.map((message) => [message.id, message]));
+  const backendUserContents = new Set(
+    backendMessages
+      .filter((message) => message.authorType === "USER")
+      .map((message) => message.content),
+  );
 
-  for (const temp of tempCandidates) {
-    const hasPersistedEquivalent = backend.some((item) => (
-      item.authorType === "USER"
-      && item.content === temp.content
-    ));
-    if (!hasPersistedEquivalent && !mergedIds.has(temp.id)) {
-      merged.push(temp);
-      mergedIds.add(temp.id);
+  for (const message of current) {
+    if (message.authorType !== "USER") {
+      continue;
+    }
+    if (!mergedById.has(message.id)) {
+      mergedById.set(message.id, message);
     }
   }
 
-  return merged;
+  for (const message of current) {
+    if (!message.id.startsWith("temp-user-")) {
+      continue;
+    }
+    const hasPersistedEquivalent = backendUserContents.has(message.content);
+    if (!hasPersistedEquivalent && !mergedById.has(message.id)) {
+      mergedById.set(message.id, message);
+    }
+  }
+
+  return dedupeAndSortMessages(Array.from(mergedById.values()));
 }
 
 function getSelectedConversationStorageKey(agentIdValue: string): string {
@@ -137,6 +168,7 @@ export function AgentChatPage() {
   const pollInFlightRef = useRef(false);
   const latestExecutionStatusRef = useRef<ChatExecutionLifecycleStatus | null>(null);
   const inFlightExecutionIdRef = useRef<string | null>(null);
+  const activeConversationIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     latestExecutionStatusRef.current = latestExecutionStatus;
@@ -145,6 +177,10 @@ export function AgentChatPage() {
   useEffect(() => {
     inFlightExecutionIdRef.current = inFlightExecutionId;
   }, [inFlightExecutionId]);
+
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId;
+  }, [activeConversationId]);
 
   const isConversationPanelBusy = isLoadingConversations || isLoadingConversationDetails;
   const isExecutionInFlight = isLifecycleInFlight(latestExecutionStatus);
@@ -169,21 +205,24 @@ export function AgentChatPage() {
     return window.localStorage.getItem(getSelectedConversationStorageKey(agentId));
   }, [agentId]);
 
-  const applyConversationDetailsState = useCallback((details: AgentConversationDetails, options?: { preserveLocalOptimistic?: boolean }) => {
+  const applyConversationDetailsState = useCallback((details: AgentConversationDetails, options?: { preserveLocalOptimistic?: boolean; syncSelection?: boolean }) => {
     const latestExecution = getLatestExecution(details);
     const pendingOrRunning = isLifecycleInFlight(latestExecution?.status);
     const preserveLocalExecution = Boolean(options?.preserveLocalOptimistic
       && !latestExecution
       && isLifecycleInFlight(latestExecutionStatusRef.current));
+    const preserveLocalUserMessages = Boolean(options?.preserveLocalOptimistic);
 
     setMessages((current) => mergeMessages(
       current,
       Array.isArray(details.messages) ? details.messages : [],
-      Boolean(options?.preserveLocalOptimistic && (pendingOrRunning || preserveLocalExecution)),
+      preserveLocalUserMessages,
     ));
-    setActiveConversationId(details.id);
-    setIsDraftChat(false);
-    saveSelectedConversationId(details.id);
+    if (options?.syncSelection !== false) {
+      setActiveConversationId(details.id);
+      setIsDraftChat(false);
+      saveSelectedConversationId(details.id);
+    }
 
     if (preserveLocalExecution) {
       return;
@@ -219,7 +258,7 @@ export function AgentChatPage() {
 
   const loadConversationDetails = useCallback(async (
     conversationId: string,
-    options?: { silent?: boolean; preserveLocalOptimistic?: boolean },
+    options?: { silent?: boolean; preserveLocalOptimistic?: boolean; syncSelection?: boolean },
   ): Promise<AgentConversationDetails | null> => {
     if (!options?.silent) {
       setIsLoadingConversationDetails(true);
@@ -228,7 +267,10 @@ export function AgentChatPage() {
 
     try {
       const details = await getAgentConversation(conversationId);
-      applyConversationDetailsState(details, { preserveLocalOptimistic: options?.preserveLocalOptimistic });
+      applyConversationDetailsState(details, {
+        preserveLocalOptimistic: options?.preserveLocalOptimistic,
+        syncSelection: options?.syncSelection,
+      });
       return details;
     } catch (error) {
       if (!options?.silent) {
@@ -421,8 +463,9 @@ export function AgentChatPage() {
         const details = await loadConversationDetails(activeConversationId, {
           silent: true,
           preserveLocalOptimistic: true,
+          syncSelection: false,
         });
-        if (cancelled) {
+        if (cancelled || activeConversationIdRef.current !== activeConversationId) {
           return;
         }
 
