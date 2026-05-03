@@ -385,7 +385,7 @@ describe("AgentChatPage", () => {
       executionId: "exec-1",
       state: "ACCEPTED",
       conversationId: "conv-1",
-      userMessageId: "msg-user-1",
+      inputMessageId: "msg-user-1",
       lifecycleStatus: "QUEUED",
     });
     const user = userEvent.setup();

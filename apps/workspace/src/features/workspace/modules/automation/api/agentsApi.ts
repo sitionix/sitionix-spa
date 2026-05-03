@@ -41,7 +41,7 @@ type ExtendedAgentApi = {
   }): Promise<{
     executionId: string;
     conversationId: string;
-    userMessageId?: string;
+    inputMessageId?: string;
     status: "ACCEPTED" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
     error?: { failureClass: ChatExecutionResult["failureClass"]; reason: string; retryable: boolean } | null;
   }>;
@@ -52,7 +52,7 @@ type ExtendedAgentApi = {
   }): Promise<{
     executionId: string;
     conversationId: string;
-    userMessageId?: string;
+    inputMessageId?: string;
     status: "ACCEPTED" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
     error?: { failureClass: ChatExecutionResult["failureClass"]; reason: string; retryable: boolean } | null;
   }>;
@@ -118,12 +118,9 @@ function normalizeLifecycleStatus(
   return "PENDING";
 }
 
-function resolveUserMessageId(source: { userMessageId?: string; messageId?: string }): string | undefined {
-  if (typeof source.userMessageId === "string" && source.userMessageId.trim()) {
-    return source.userMessageId;
-  }
-  if (typeof source.messageId === "string" && source.messageId.trim()) {
-    return source.messageId;
+function resolveInputMessageId(source: { inputMessageId?: string }): string | undefined {
+  if (typeof source.inputMessageId === "string" && source.inputMessageId.trim()) {
+    return source.inputMessageId;
   }
   return undefined;
 }
@@ -289,7 +286,7 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
     return {
       executionId: response.executionId,
       conversationId: response.conversationId,
-      userMessageId: resolveUserMessageId(response),
+      inputMessageId: resolveInputMessageId(response),
       status: normalizedStatus,
     } satisfies ChatAgentAcceptedResponse;
   }
@@ -307,7 +304,7 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
   return {
     executionId: response.executionId,
     conversationId: response.conversationId,
-    userMessageId: resolveUserMessageId(response),
+    inputMessageId: resolveInputMessageId(response),
     status: normalizedStatus,
   } satisfies ChatAgentAcceptedResponse;
 }
@@ -344,7 +341,7 @@ export async function submitChatExecution(agentId: string, payload: ChatAgentReq
     executionId: response.executionId,
     state,
     conversationId: response.conversationId ?? "",
-    userMessageId: response.userMessageId,
+    inputMessageId: response.inputMessageId,
     lifecycleStatus: response.status,
   };
 }

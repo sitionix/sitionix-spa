@@ -678,7 +678,7 @@ describe("agentsApi.chat execution wrappers", () => {
     (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-20",
       conversationId: "conv-20",
-      userMessageId: "msg-user-20",
+      inputMessageId: "msg-user-20",
       status: "QUEUED",
     });
 
@@ -688,16 +688,15 @@ describe("agentsApi.chat execution wrappers", () => {
       executionId: "exec-20",
       state: "ACCEPTED",
       conversationId: "conv-20",
-      userMessageId: "msg-user-20",
+      inputMessageId: "msg-user-20",
       lifecycleStatus: "QUEUED",
     });
   });
 
-  it("maps queued submit response with legacy messageId field", async () => {
+  it("keeps inputMessageId undefined when inputMessageId is absent", async () => {
     (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-20b",
       conversationId: "conv-20b",
-      messageId: "msg-user-20b",
       status: "QUEUED",
     });
 
@@ -707,7 +706,7 @@ describe("agentsApi.chat execution wrappers", () => {
       executionId: "exec-20b",
       state: "ACCEPTED",
       conversationId: "conv-20b",
-      userMessageId: "msg-user-20b",
+      inputMessageId: undefined,
       lifecycleStatus: "QUEUED",
     });
   });

@@ -413,7 +413,7 @@ export function AgentChatPage() {
       setLatestExecutionStatus(submitResponse.lifecycleStatus);
       inFlightExecutionIdRef.current = submitResponse.executionId;
       latestExecutionStatusRef.current = submitResponse.lifecycleStatus;
-      const persistedUserMessageId = submitResponse.userMessageId;
+      const persistedUserMessageId = submitResponse.inputMessageId;
       if (persistedUserMessageId) {
         setMessages((current) => dedupeAndSortMessages(current.map((item) => {
           if (item.id !== optimisticMessage.id) {

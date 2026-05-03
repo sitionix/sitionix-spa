@@ -31,7 +31,7 @@ export type ChatExecutionFailureClass = "OWNERSHIP_VIOLATION" | "CONVERSATION_NO
 export type ChatAgentAcceptedResponse = {
   executionId: string;
   conversationId?: string;
-  userMessageId?: string;
+  inputMessageId?: string;
   status: ChatExecutionLifecycleStatus;
 };
 
@@ -60,7 +60,7 @@ export type SubmitChatExecutionResponse = {
   executionId: string;
   state: ChatExecutionState;
   conversationId: string;
-  userMessageId?: string;
+  inputMessageId?: string;
   lifecycleStatus: ChatExecutionLifecycleStatus;
 };
 
