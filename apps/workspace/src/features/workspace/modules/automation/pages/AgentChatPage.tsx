@@ -413,6 +413,18 @@ export function AgentChatPage() {
       setLatestExecutionStatus(submitResponse.lifecycleStatus);
       inFlightExecutionIdRef.current = submitResponse.executionId;
       latestExecutionStatusRef.current = submitResponse.lifecycleStatus;
+      const persistedUserMessageId = submitResponse.userMessageId;
+      if (persistedUserMessageId) {
+        setMessages((current) => dedupeAndSortMessages(current.map((item) => {
+          if (item.id !== optimisticMessage.id) {
+            return item;
+          }
+          return {
+            ...item,
+            id: persistedUserMessageId,
+          };
+        })));
+      }
       setIsDraftChat(false);
       setLastSubmitContext({ message, conversationId });
       saveSelectedConversationId(submitResponse.conversationId);

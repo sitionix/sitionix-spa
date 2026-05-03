@@ -41,6 +41,7 @@ type ExtendedAgentApi = {
   }): Promise<{
     executionId: string;
     conversationId: string;
+    userMessageId?: string;
     status: "ACCEPTED" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
     error?: { failureClass: ChatExecutionResult["failureClass"]; reason: string; retryable: boolean } | null;
   }>;
@@ -51,6 +52,7 @@ type ExtendedAgentApi = {
   }): Promise<{
     executionId: string;
     conversationId: string;
+    userMessageId?: string;
     status: "ACCEPTED" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
     error?: { failureClass: ChatExecutionResult["failureClass"]; reason: string; retryable: boolean } | null;
   }>;
@@ -114,6 +116,16 @@ function normalizeLifecycleStatus(
     return "FAILED";
   }
   return "PENDING";
+}
+
+function resolveUserMessageId(source: { userMessageId?: string; messageId?: string }): string | undefined {
+  if (typeof source.userMessageId === "string" && source.userMessageId.trim()) {
+    return source.userMessageId;
+  }
+  if (typeof source.messageId === "string" && source.messageId.trim()) {
+    return source.messageId;
+  }
+  return undefined;
 }
 
 function resolveClientRequestId(provided?: string): string {
@@ -277,6 +289,7 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
     return {
       executionId: response.executionId,
       conversationId: response.conversationId,
+      userMessageId: resolveUserMessageId(response),
       status: normalizedStatus,
     } satisfies ChatAgentAcceptedResponse;
   }
@@ -294,6 +307,7 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
   return {
     executionId: response.executionId,
     conversationId: response.conversationId,
+    userMessageId: resolveUserMessageId(response),
     status: normalizedStatus,
   } satisfies ChatAgentAcceptedResponse;
 }
@@ -330,6 +344,7 @@ export async function submitChatExecution(agentId: string, payload: ChatAgentReq
     executionId: response.executionId,
     state,
     conversationId: response.conversationId ?? "",
+    userMessageId: response.userMessageId,
     lifecycleStatus: response.status,
   };
 }

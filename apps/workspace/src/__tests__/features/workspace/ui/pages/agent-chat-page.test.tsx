@@ -311,6 +311,95 @@ describe("AgentChatPage", () => {
     expect(screen.getByLabelText("Active Agent typing indicator")).toBeInTheDocument();
   });
 
+  it("givenSubmitReturnsUserMessageId_whenBackendMessagesArrive_thenRendersSingleUserMessage", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "conv-1",
+            title: "Existing",
+            type: "DIRECT",
+            createdAt: "2026-04-21T10:00:00.000Z",
+            updatedAt: "2026-04-21T10:01:00.000Z",
+            lastMessageAt: "2026-04-21T10:01:00.000Z",
+          },
+        ],
+      })
+      .mockResolvedValue({
+        items: [
+          {
+            id: "conv-1",
+            title: "Existing",
+            type: "DIRECT",
+            createdAt: "2026-04-21T10:00:00.000Z",
+            updatedAt: "2026-04-21T10:02:00.000Z",
+            lastMessageAt: "2026-04-21T10:02:00.000Z",
+          },
+        ],
+      });
+    getAgentConversationMock
+      .mockResolvedValueOnce({
+        id: "conv-1",
+        title: "Existing",
+        type: "DIRECT",
+        createdAt: "2026-04-21T10:00:00.000Z",
+        updatedAt: "2026-04-21T10:01:00.000Z",
+        lastMessageAt: "2026-04-21T10:01:00.000Z",
+        messages: [],
+        executions: [],
+      })
+      .mockResolvedValueOnce({
+        id: "conv-1",
+        title: "Existing",
+        type: "DIRECT",
+        createdAt: "2026-04-21T10:00:00.000Z",
+        updatedAt: "2026-04-21T10:02:00.000Z",
+        lastMessageAt: "2026-04-21T10:02:00.000Z",
+        messages: [
+          {
+            id: "msg-user-1",
+            authorType: "USER",
+            authorId: "user-1",
+            content: "привіт",
+            createdAt: "2026-04-21T10:01:00.000Z",
+          },
+          {
+            id: "msg-agent-1",
+            authorType: "AGENT",
+            authorId: "agent-1",
+            content: "reply",
+            createdAt: "2026-04-21T10:02:00.000Z",
+          },
+        ],
+        executions: [
+          {
+            executionId: "exec-1",
+            status: "COMPLETED",
+            acceptedAt: "2026-04-21T10:01:00.000Z",
+            completedAt: "2026-04-21T10:02:00.000Z",
+          },
+        ],
+      });
+    submitChatExecutionMock.mockResolvedValue({
+      executionId: "exec-1",
+      state: "ACCEPTED",
+      conversationId: "conv-1",
+      userMessageId: "msg-user-1",
+      lifecycleStatus: "QUEUED",
+    });
+    const user = userEvent.setup();
+
+    renderChatPage();
+
+    await screen.findByText("No messages in this conversation yet.");
+    await user.type(screen.getByLabelText("Message"), "привіт");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(await screen.findByText("reply")).toBeInTheDocument();
+    expect(screen.getAllByText("привіт")).toHaveLength(1);
+  });
+
   it("givenExistingConversationClicked_whenConversationOpened_thenLoadsAndRendersItsHistory", async () => {
     getAgentByIdMock.mockResolvedValue(activeAgent);
     getAgentConversationsMock.mockResolvedValue({
