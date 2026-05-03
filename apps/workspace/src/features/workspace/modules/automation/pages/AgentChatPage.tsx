@@ -166,6 +166,8 @@ export function AgentChatPage() {
   } | null>(null);
 
   const pollInFlightRef = useRef(false);
+  const pollIntervalIdRef = useRef<number | null>(null);
+  const pollingConversationIdRef = useRef<string | null>(null);
   const latestExecutionStatusRef = useRef<ChatExecutionLifecycleStatus | null>(null);
   const inFlightExecutionIdRef = useRef<string | null>(null);
   const activeConversationIdRef = useRef<string | null>(null);
@@ -187,6 +189,15 @@ export function AgentChatPage() {
   const isConversationPanelBusy = isLoadingConversations || isLoadingConversationDetails;
   const isExecutionInFlight = isLifecycleInFlight(latestExecutionStatus);
   const isSending = executionState === "ACCEPTED" || executionState === "IN_PROGRESS";
+
+  const stopPolling = useCallback(() => {
+    if (pollIntervalIdRef.current !== null) {
+      window.clearInterval(pollIntervalIdRef.current);
+      pollIntervalIdRef.current = null;
+    }
+    pollingConversationIdRef.current = null;
+    pollInFlightRef.current = false;
+  }, []);
 
   const saveSelectedConversationId = useCallback((conversationId: string | null) => {
     if (!agentId) {
@@ -353,7 +364,7 @@ export function AgentChatPage() {
       setLatestExecutionStatus(null);
       setInFlightExecutionId(null);
       setTerminalFailure(null);
-      pollInFlightRef.current = false;
+      stopPolling();
       try {
         const loadedAgent = await getAgentById(agentId);
         setAgent(loadedAgent);
@@ -374,7 +385,7 @@ export function AgentChatPage() {
     };
 
     void load();
-  }, [agentId, loadConversationList]);
+  }, [agentId, loadConversationList, stopPolling]);
 
   const startNewChat = useCallback(() => {
     if (isSending || isExecutionInFlight) {
@@ -482,31 +493,39 @@ export function AgentChatPage() {
   }, [agentId, executeSend, isExecutionInFlight, isSending, lastSubmitContext]);
 
   useEffect(() => {
+    stopPolling();
+
     if (!agentId || !activeConversationId || !isExecutionInFlight) {
       return;
     }
 
     let cancelled = false;
+    pollingConversationIdRef.current = activeConversationId;
 
     const pollExecution = async () => {
       if (pollInFlightRef.current) {
         return;
       }
+      const conversationIdForTick = pollingConversationIdRef.current;
+      if (!conversationIdForTick || conversationIdForTick !== activeConversationIdRef.current) {
+        stopPolling();
+        return;
+      }
       pollInFlightRef.current = true;
       try {
-        const details = await loadConversationDetails(activeConversationId, {
+        const details = await loadConversationDetails(conversationIdForTick, {
           silent: true,
           preserveLocalOptimistic: true,
           syncSelection: false,
         });
-        if (cancelled || activeConversationIdRef.current !== activeConversationId) {
+        if (cancelled || activeConversationIdRef.current !== conversationIdForTick) {
           return;
         }
 
         const latestExecution = details ? getLatestExecution(details) : null;
         const executionIdForStatus = inFlightExecutionIdRef.current;
         if (!latestExecution && executionIdForStatus) {
-          const statusResponse = await getChatExecutionStatus(agentId, executionIdForStatus, activeConversationId);
+          const statusResponse = await getChatExecutionStatus(agentId, executionIdForStatus, conversationIdForTick);
           if (cancelled) {
             return;
           }
@@ -526,10 +545,13 @@ export function AgentChatPage() {
             if (statusResponse.reply) {
               setMessages((current) => mergeMessages(current, [statusResponse.reply], true));
             }
+            stopPolling();
           } else {
             setExecutionState(statusResponse.state);
             setLatestExecutionStatus(statusResponse.state === "IN_PROGRESS" ? "RUNNING" : "PENDING");
           }
+        } else if (latestExecution?.status === "COMPLETED" || latestExecution?.status === "FAILED") {
+          stopPolling();
         }
       } catch {
         if (cancelled) {
@@ -545,16 +567,15 @@ export function AgentChatPage() {
     };
 
     void pollExecution();
-    const intervalId = window.setInterval(() => {
+    pollIntervalIdRef.current = window.setInterval(() => {
       void pollExecution();
     }, 1500);
 
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
-      pollInFlightRef.current = false;
+      stopPolling();
     };
-  }, [activeConversationId, agentId, inFlightExecutionId, isExecutionInFlight, loadConversationDetails]);
+  }, [activeConversationId, agentId, inFlightExecutionId, isExecutionInFlight, loadConversationDetails, stopPolling]);
 
   const pageTitle = useMemo(() => {
     if (isDraftChat) {
