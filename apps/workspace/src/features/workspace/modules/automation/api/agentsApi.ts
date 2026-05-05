@@ -1,11 +1,12 @@
-import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-129-unstable/apis";
 import type {
   AcceptAgentRuleRequestDTO,
   CreateAgentRequestDTO,
+  CreateAgentProjectRequestDTO,
   CreateAgentRuleRequestDTO,
   PatchAgentRuleRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-129-unstable/models";
 import { bffApiConfiguration } from "../../../../../shared/http/httpClient";
 import type {
   AgentConversationDetails,
@@ -19,7 +20,10 @@ import type {
   ChatAgentResponse,
   ChatExecutionResult,
   ChatExecutionStatusResponse,
+  CreateAgentProjectRequest,
   CreateAgentRuleRequest,
+  AgentProject,
+  AgentProjectsPage,
   DeleteAgentRuleResponse,
   PatchAgentRuleRequest,
   CreateAgentRequest,
@@ -145,6 +149,14 @@ export async function getAgentById(agentId: string): Promise<AutomationAgent> {
   return agentApi.getAgent({ agentId });
 }
 
+export async function getAgentProjects(page = 0, size = 20): Promise<AgentProjectsPage> {
+  const response = await agentApi.getAgentProjects({ page, size });
+  return {
+    ...response,
+    items: Array.isArray(response.items) ? response.items : [],
+  };
+}
+
 export async function createAgent(payload: CreateAgentRequest): Promise<AutomationAgent> {
   const name = payload.name.trim();
   const description = payload.description?.trim();
@@ -165,6 +177,27 @@ export async function createAgent(payload: CreateAgentRequest): Promise<Automati
   });
 
   return response;
+}
+
+export async function createAgentProject(payload: CreateAgentProjectRequest): Promise<AgentProject> {
+  const name = payload.name.trim();
+  const description = payload.description?.trim();
+
+  if (!name) {
+    throw new Error("Project name is required");
+  }
+
+  const requestBody: CreateAgentProjectRequestDTO = {
+    name,
+  };
+
+  if (description) {
+    requestBody.description = description;
+  }
+
+  return agentApi.createAgentProject({
+    createAgentProjectRequestDTO: requestBody,
+  });
 }
 
 export async function patchAgent(agentId: string, payload: PatchAgentRequest): Promise<AutomationAgent> {

@@ -1,11 +1,14 @@
 import type {
   AgentDTO,
+  AgentProjectDTO,
+  AgentProjectsPageResponseDTO,
   AgentRuleDTO,
+  CreateAgentProjectRequestDTO,
   CreateAgentRuleRequestDTO,
   PatchAgentRuleRequestDTO,
   CreateAgentRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-129-unstable/models";
 
 export type AutomationAgent = AgentDTO;
 export type CreateAgentRequest = CreateAgentRequestDTO;
@@ -115,4 +118,8 @@ export type AgentConversationDetails = {
   }>;
 };
 
+
+export type CreateAgentProjectRequest = CreateAgentProjectRequestDTO;
+export type AgentProject = AgentProjectDTO;
+export type AgentProjectsPage = AgentProjectsPageResponseDTO;
 export type AutomationPageStatus = "idle" | "loading" | "ready" | "error";

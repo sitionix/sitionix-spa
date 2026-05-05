@@ -1,32 +1,62 @@
-import { useCallback, useEffect, useState, type KeyboardEvent, type MouseEvent } from "react";
-import { Bot, Loader2, Plus, RefreshCw } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { Bot, FolderKanban, Loader2, Plus, RefreshCw } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../../../ui/components/PageHeader";
 import { formatDate } from "../../../model/formatters";
-import { activateAgent, getAgents, restoreAgent } from "../api";
-import { CreateAgentSheet } from "../components";
+import { activateAgent, createAgentProject, getAgentProjects, getAgents, restoreAgent } from "../api";
+import { CreateAgentSheet, CreateProjectSheet } from "../components";
 import { LOAD_AUTOMATION_ERROR_TITLE } from "../model/constants";
 import { toAutomationErrorMessage } from "../model/mappers";
-import type { AutomationAgent, AutomationPageStatus } from "../model/types";
+import type { AgentProject, AutomationAgent, AutomationPageStatus } from "../model/types";
 
-function getStatusBadgeClass(status: AutomationAgent["status"]): string {
+type AutomationTab = "agents" | "projects";
+
+function getStatusBadgeClass(status: AutomationAgent["status"] | AgentProject["status"]): string {
   if (status === "ACTIVE") {
     return "bg-emerald-50 text-emerald-700";
   }
   if (status === "ARCHIVED") {
     return "bg-zinc-100 text-zinc-600";
   }
+  if (status === "DELETED") {
+    return "bg-amber-50 text-amber-700";
+  }
   return "bg-amber-50 text-amber-700";
+}
+
+function resolveTab(tab: string | null): AutomationTab {
+  return tab === "projects" ? "projects" : "agents";
 }
 
 export function AutomationPage() {
   const navigate = useNavigate();
-  const [createSheetOpen, setCreateSheetOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = resolveTab(searchParams.get("tab"));
+
+  const [createAgentSheetOpen, setCreateAgentSheetOpen] = useState(false);
   const [agents, setAgents] = useState<AutomationAgent[]>([]);
   const [status, setStatus] = useState<AutomationPageStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [cardActionLoadingById, setCardActionLoadingById] = useState<Record<string, boolean>>({});
   const [cardActionErrorById, setCardActionErrorById] = useState<Record<string, string>>({});
+
+  const [createProjectSheetOpen, setCreateProjectSheetOpen] = useState(false);
+  const [projects, setProjects] = useState<AgentProject[]>([]);
+  const [projectsStatus, setProjectsStatus] = useState<AutomationPageStatus>("idle");
+  const [projectsError, setProjectsError] = useState<string | null>(null);
+
+  const loadProjects = useCallback(async () => {
+    setProjectsStatus("loading");
+    setProjectsError(null);
+    try {
+      const response = await getAgentProjects(0, 20);
+      setProjects(response.items);
+      setProjectsStatus("ready");
+    } catch (loadError) {
+      setProjectsError(toAutomationErrorMessage(loadError));
+      setProjectsStatus("error");
+    }
+  }, []);
 
   const loadAgents = useCallback(async () => {
     setStatus("loading");
@@ -43,14 +73,35 @@ export function AutomationPage() {
   }, []);
 
   useEffect(() => {
+    if (activeTab !== "agents") {
+      return;
+    }
     void loadAgents();
-  }, [loadAgents]);
+  }, [activeTab, loadAgents]);
+
+  useEffect(() => {
+    if (activeTab !== "projects") {
+      return;
+    }
+    void loadProjects();
+  }, [activeTab, loadProjects]);
+
+  const handleTabSwitch = useCallback((tab: AutomationTab) => {
+    setSearchParams({ tab });
+  }, [setSearchParams]);
 
   const handleCreated = useCallback((createdAgent: AutomationAgent) => {
     setAgents((currentAgents) => [createdAgent, ...currentAgents]);
-    setCreateSheetOpen(false);
+    setCreateAgentSheetOpen(false);
     setStatus("ready");
     setError(null);
+  }, []);
+
+  const handleProjectCreated = useCallback((createdProject: AgentProject) => {
+    setProjects((currentProjects) => [createdProject, ...currentProjects.filter((project) => project.id !== createdProject.id)]);
+    setCreateProjectSheetOpen(false);
+    setProjectsStatus("ready");
+    setProjectsError(null);
   }, []);
 
   const handleCardClick = useCallback((agentId: string) => {
@@ -93,6 +144,19 @@ export function AutomationPage() {
     }
   }, [navigate]);
 
+  const headerActionLabel = activeTab === "agents" ? "Create Agent" : "Create Project";
+
+  const tabClass = useCallback((tab: AutomationTab) => {
+    const common = "rounded-xl px-4 py-2 text-sm font-medium transition";
+    return tab === activeTab
+      ? `${common} bg-blue-600 text-white`
+      : `${common} bg-zinc-100 text-zinc-700 hover:bg-zinc-200`;
+  }, [activeTab]);
+
+  const sortedProjects = useMemo(() => [...projects].sort((left, right) => (
+    new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
+  )), [projects]);
+
   return (
     <>
       <PageHeader
@@ -102,15 +166,26 @@ export function AutomationPage() {
           <button
             type="button"
             className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
-            onClick={() => setCreateSheetOpen(true)}
+            onClick={() => {
+              if (activeTab === "agents") {
+                setCreateAgentSheetOpen(true);
+                return;
+              }
+              setCreateProjectSheetOpen(true);
+            }}
           >
             <Plus className="h-4 w-4" />
-            Create Agent
+            {headerActionLabel}
           </button>
         }
       />
 
-      {status === "loading" ? (
+      <div className="mb-6 inline-flex items-center gap-2 rounded-2xl border border-zinc-200 bg-white p-2">
+        <button type="button" className={tabClass("agents")} onClick={() => handleTabSwitch("agents")}>Agents</button>
+        <button type="button" className={tabClass("projects")} onClick={() => handleTabSwitch("projects")}>Projects</button>
+      </div>
+
+      {activeTab === "agents" && status === "loading" ? (
         <div className="flex min-h-[320px] items-center justify-center rounded-3xl border border-zinc-200 bg-white">
           <div className="flex items-center gap-3 text-zinc-500">
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -119,7 +194,7 @@ export function AutomationPage() {
         </div>
       ) : null}
 
-      {status === "error" ? (
+      {activeTab === "agents" && status === "error" ? (
         <div className="rounded-3xl border border-red-200 bg-red-50 p-8">
           <h2 className="text-lg font-semibold text-red-900">{LOAD_AUTOMATION_ERROR_TITLE}</h2>
           <p className="mt-2 text-sm text-red-700">{error ?? "Unknown error"}</p>
@@ -134,7 +209,7 @@ export function AutomationPage() {
         </div>
       ) : null}
 
-      {status === "ready" && agents.length === 0 ? (
+      {activeTab === "agents" && status === "ready" && agents.length === 0 ? (
         <div className="rounded-[32px] border border-dashed border-zinc-300 bg-white px-8 py-16 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
             <Bot className="h-8 w-8" />
@@ -147,7 +222,7 @@ export function AutomationPage() {
           <button
             type="button"
             className="mt-8 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
-            onClick={() => setCreateSheetOpen(true)}
+            onClick={() => setCreateAgentSheetOpen(true)}
           >
             <Plus className="h-4 w-4" />
             Create Agent
@@ -155,7 +230,7 @@ export function AutomationPage() {
         </div>
       ) : null}
 
-      {status === "ready" && agents.length > 0 ? (
+      {activeTab === "agents" && status === "ready" && agents.length > 0 ? (
         <div className="grid gap-4">
           {agents.map((agent) => (
             <article
@@ -203,10 +278,91 @@ export function AutomationPage() {
         </div>
       ) : null}
 
+      {activeTab === "projects" && projectsStatus === "loading" ? (
+        <div className="flex min-h-[320px] items-center justify-center rounded-3xl border border-zinc-200 bg-white">
+          <div className="flex items-center gap-3 text-zinc-500">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span>Loading projects...</span>
+          </div>
+        </div>
+      ) : null}
+
+      {activeTab === "projects" && projectsStatus === "error" ? (
+        <div className="rounded-3xl border border-red-200 bg-red-50 p-8">
+          <h2 className="text-lg font-semibold text-red-900">Не вдалося завантажити Projects</h2>
+          <p className="mt-2 text-sm text-red-700">{projectsError ?? "Unknown error"}</p>
+          <button
+            type="button"
+            className="mt-5 inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100"
+            onClick={() => {
+              setProjectsStatus("ready");
+              setProjectsError(null);
+              void loadProjects();
+            }}
+          >
+            <RefreshCw className="h-4 w-4" />
+            Retry
+          </button>
+        </div>
+      ) : null}
+
+      {activeTab === "projects" && projectsStatus === "ready" && sortedProjects.length === 0 ? (
+        <div className="rounded-[32px] border border-dashed border-zinc-300 bg-white px-8 py-16 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+            <FolderKanban className="h-8 w-8" />
+          </div>
+          <h2 className="mt-6 text-2xl font-semibold text-zinc-900">No projects yet</h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm text-zinc-600">
+            Create your first project to organize agent work.
+          </p>
+          <button
+            type="button"
+            className="mt-8 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
+            onClick={() => setCreateProjectSheetOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Create Project
+          </button>
+        </div>
+      ) : null}
+
+      {activeTab === "projects" && projectsStatus === "ready" && sortedProjects.length > 0 ? (
+        <div className="grid gap-4">
+          {sortedProjects.map((project) => (
+            <article key={project.id} className="rounded-3xl border border-zinc-200 bg-white p-6 text-left shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-lg font-semibold text-zinc-900">{project.name}</h2>
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${getStatusBadgeClass(project.status)}`}>
+                      {project.status}
+                    </span>
+                  </div>
+                  <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-600">
+                    {project.description?.trim() ? project.description : "No description yet."}
+                  </p>
+                </div>
+                <div className="min-w-[160px] text-right text-xs text-zinc-500">
+                  <div>Created {formatDate(project.createdAt)}</div>
+                  <div className="mt-2">Updated {formatDate(project.updatedAt)}</div>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : null}
+
       <CreateAgentSheet
-        open={createSheetOpen}
-        onClose={() => setCreateSheetOpen(false)}
+        open={createAgentSheetOpen}
+        onClose={() => setCreateAgentSheetOpen(false)}
         onCreated={handleCreated}
+      />
+
+      <CreateProjectSheet
+        open={createProjectSheetOpen}
+        onClose={() => setCreateProjectSheetOpen(false)}
+        onCreate={createAgentProject}
+        onCreated={handleProjectCreated}
       />
     </>
   );
