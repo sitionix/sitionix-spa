@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Loader2, PencilLine, Plus, Send } from "lucide-react";
+import { ArrowLeft, Loader2, PencilLine, Plus, Send, X } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import {
   getAgentById,
   getChatExecutionStatus,
+  deleteAgentConversation,
   getAgentConversation,
   getAgentConversations,
   getErrorHttpStatus,
@@ -164,6 +165,10 @@ export function AgentChatPage() {
     message: string;
     conversationId?: string;
   } | null>(null);
+  const [conversationIdPendingDelete, setConversationIdPendingDelete] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeletingConversation, setIsDeletingConversation] = useState(false);
+  const [deleteConversationError, setDeleteConversationError] = useState<string | null>(null);
 
   const pollInFlightRef = useRef(false);
   const pollIntervalIdRef = useRef<number | null>(null);
@@ -607,6 +612,82 @@ export function AgentChatPage() {
     && !isDraftChat
     && !isExecutionInFlight;
 
+  const conversationPendingDelete = useMemo(
+    () => conversations.find((conversation) => conversation.id === conversationIdPendingDelete) ?? null,
+    [conversationIdPendingDelete, conversations],
+  );
+
+  const openDeleteDialog = useCallback((conversationId: string) => {
+    setConversationIdPendingDelete(conversationId);
+    setDeleteConversationError(null);
+    setIsDeleteDialogOpen(true);
+  }, []);
+
+  const closeDeleteDialog = useCallback(() => {
+    if (isDeletingConversation) {
+      return;
+    }
+    setIsDeleteDialogOpen(false);
+    setConversationIdPendingDelete(null);
+    setDeleteConversationError(null);
+  }, [isDeletingConversation]);
+
+  const confirmDeleteConversation = useCallback(async () => {
+    if (!agentId || !conversationIdPendingDelete || isDeletingConversation) {
+      return;
+    }
+
+    const deletedConversationId = conversationIdPendingDelete;
+    const remainingConversations = conversations.filter((item) => item.id !== deletedConversationId);
+    const nextConversationId = remainingConversations[0]?.id ?? null;
+
+    setIsDeletingConversation(true);
+    setDeleteConversationError(null);
+
+    try {
+      await deleteAgentConversation(deletedConversationId);
+      setConversations(remainingConversations);
+      setIsDeleteDialogOpen(false);
+      setConversationIdPendingDelete(null);
+
+      if (activeConversationId !== deletedConversationId) {
+        return;
+      }
+
+      stopPolling();
+      detailsRequestVersionRef.current += 1;
+      authoritativeConversationIdRef.current = nextConversationId;
+      setTerminalFailure(null);
+      setExecutionState(null);
+      setLatestExecutionStatus(null);
+      setInFlightExecutionId(null);
+      setLastSubmitContext(null);
+      saveSelectedConversationId(nextConversationId);
+
+      if (!nextConversationId) {
+        setActiveConversationId(null);
+        setMessages([]);
+        setIsDraftChat(true);
+        return;
+      }
+
+      await loadConversationDetails(nextConversationId);
+    } catch (error) {
+      setDeleteConversationError(toAutomationErrorMessage(error) || "Could not delete conversation. Try again.");
+    } finally {
+      setIsDeletingConversation(false);
+    }
+  }, [
+    activeConversationId,
+    agentId,
+    conversationIdPendingDelete,
+    conversations,
+    isDeletingConversation,
+    loadConversationDetails,
+    saveSelectedConversationId,
+    stopPolling,
+  ]);
+
   if (status === "loading") {
     return (
       <div className="flex min-h-[320px] items-center justify-center rounded-3xl border border-zinc-200 bg-white">
@@ -719,18 +800,31 @@ export function AgentChatPage() {
             {conversations.map((conversation) => {
               const active = conversation.id === activeConversationId && !isDraftChat;
               return (
-                <button
-                  key={conversation.id}
-                  type="button"
-                  onClick={() => void openConversation(conversation.id)}
-                  disabled={isSending}
-                  className={`w-full rounded-xl border px-3 py-2 text-left transition ${active
-                    ? "border-blue-300 bg-blue-50"
-                    : "border-zinc-200 bg-white hover:bg-zinc-50"}`}
-                >
-                  <p className="truncate text-sm font-medium text-zinc-900">{conversation.title}</p>
-                  <p className="mt-1 text-xs text-zinc-500">{formatConversationDate(conversation.lastMessageAt)}</p>
-                </button>
+                <div key={conversation.id} className="group relative">
+                  <button
+                    type="button"
+                    onClick={() => void openConversation(conversation.id)}
+                    disabled={isSending}
+                    className={`w-full rounded-xl border px-3 py-2 pr-10 text-left transition ${active
+                      ? "border-blue-300 bg-blue-50"
+                      : "border-zinc-200 bg-white hover:bg-zinc-50"}`}
+                  >
+                    <p className="truncate text-sm font-medium text-zinc-900">{conversation.title}</p>
+                    <p className="mt-1 text-xs text-zinc-500">{formatConversationDate(conversation.lastMessageAt)}</p>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Delete conversation"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      openDeleteDialog(conversation.id);
+                    }}
+                    className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition hover:bg-red-100 hover:text-red-700 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -825,6 +919,44 @@ export function AgentChatPage() {
           </div>
         </div>
       </div>
+
+      {isDeleteDialogOpen ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl">
+            <h3 className="text-base font-semibold text-zinc-900">Delete conversation?</h3>
+            <p className="mt-2 text-sm text-zinc-600">
+              This conversation will be removed from your chat list.
+            </p>
+            {conversationPendingDelete ? (
+              <p className="mt-2 truncate rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
+                {conversationPendingDelete.title}
+              </p>
+            ) : null}
+            {deleteConversationError ? (
+              <p className="mt-3 text-sm text-red-700">{deleteConversationError}</p>
+            ) : null}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeDeleteDialog}
+                disabled={isDeletingConversation}
+                className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDeleteConversation()}
+                disabled={isDeletingConversation}
+                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+              >
+                {isDeletingConversation ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

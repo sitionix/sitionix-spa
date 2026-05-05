@@ -10,6 +10,7 @@ import {
   createAgent,
   deleteAgentRule,
   deleteAgent,
+  deleteAgentConversation,
   getAgentById,
   getAgentConversation,
   getAgentConversations,
@@ -666,6 +667,30 @@ describe("agentsApi.chat", () => {
       reason: "Execution timed out",
       retryable: true,
     });
+  });
+});
+
+describe("agentsApi.deleteConversation", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("calls generated deleteAgentConversation when method exists", async () => {
+    const deleteConversationSpy = vi.fn().mockResolvedValue(undefined);
+    (AgentApi.prototype as any).deleteAgentConversation = deleteConversationSpy;
+
+    await deleteAgentConversation("conv-1");
+
+    expect(deleteConversationSpy).toHaveBeenCalledWith({ conversationId: "conv-1" });
+  });
+
+  it("throws explicit error when delete endpoint is missing in generated api", async () => {
+    (AgentApi.prototype as any).deleteAgentConversation = undefined;
+    (AgentApi.prototype as any).deleteConversation = undefined;
+
+    await expect(deleteAgentConversation("conv-3")).rejects.toThrow(
+      "Delete conversation endpoint is not available in current API package."
+    );
   });
 });
 

@@ -34,6 +34,7 @@ type ExtendedAgentApi = {
   deleteAgent(request: { agentId: string }): Promise<AutomationAgent>;
   getAgentConversations(request: { agentId: string }): Promise<AgentConversationsResponse>;
   getAgentConversation(request: { conversationId: string }): Promise<AgentConversationDetails>;
+  deleteAgentConversation?(request: { conversationId: string }): Promise<void>;
   submitAgentChatExecution?(request: {
     agentId: string;
     chatAgentRequestDTO: ChatAgentRequest;
@@ -259,6 +260,13 @@ export async function getAgentConversation(conversationId: string): Promise<Agen
       assistantMessage: execution.assistantMessage ?? undefined,
     })),
   };
+}
+
+export async function deleteAgentConversation(conversationId: string): Promise<void> {
+  if (typeof agentApiExtended.deleteAgentConversation !== "function") {
+    throw new Error("Delete conversation endpoint is not available in current API package.");
+  }
+  await agentApiExtended.deleteAgentConversation({ conversationId });
 }
 
 export async function chatAgent(agentId: string, payload: ChatAgentRequest): Promise<ChatAgentResponse> {
@@ -489,6 +497,7 @@ export const agentsApi = {
   deleteAgent,
   getAgentConversations,
   getAgentConversation,
+  deleteAgentConversation,
   chatAgent,
   getChatAgentExecution,
   submitChatExecution,
