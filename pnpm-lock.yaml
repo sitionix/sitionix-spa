@@ -264,8 +264,8 @@ importers:
   apps/workspace:
     dependencies:
       '@sitionix/app-afesox-bffssox-frontend-stable':
-        specifier: 0.0.32
-        version: 0.0.32
+        specifier: npm:@sitionix/app-afesox-bffssox-frontend-sitionix-128-unstable@0.0.33
+        version: '@sitionix/app-afesox-bffssox-frontend-sitionix-128-unstable@0.0.33'
       '@sitionix/auth-session':
         specifier: workspace:*
         version: link:../../packages/auth-session
@@ -889,11 +889,11 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@sitionix/app-afesox-bffssox-frontend-sitionix-128-unstable@0.0.33':
+    resolution: {integrity: sha512-+jDeocv23K9l9qBNPBLgIY7ll/jB63UcxmnABmaFeyKrpCHPUO4I6+sxQYefUDsVyhHr/OATNsLTya/DjiBPew==, tarball: https://npm.pkg.github.com/download/@sitionix/app-afesox-bffssox-frontend-sitionix-128-unstable/0.0.33/56eef85413b7f10a1fc252a6dc47590ae7c22018}
+
   '@sitionix/app-afesox-bffssox-frontend-stable@0.0.21':
     resolution: {integrity: sha512-qty7nf4PBDhMKS85L1qGnaTFFh3K5L8ewCsnE6UsAR+EJwY1eHe8ovaNsvTo2gcHfm9gaSnzh5LPLAnpn27i0Q==, tarball: https://npm.pkg.github.com/download/@sitionix/app-afesox-bffssox-frontend-stable/0.0.21/f53f3d38c34413eae7f50b4aa1407972dca9ac62}
-
-  '@sitionix/app-afesox-bffssox-frontend-stable@0.0.32':
-    resolution: {integrity: sha512-QYdN3ayF28HKcRbLcbX+KSqaLInUsE64FqEhvubk5nBs32EM49EVTrTewEApWjbBqYKuNHrIOzfoXqUI87IGMA==, tarball: https://npm.pkg.github.com/download/@sitionix/app-afesox-bffssox-frontend-stable/0.0.32/5e74ad9a107968feefed3a5977ed4e7b282d6061}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -2374,9 +2374,9 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.54.0':
     optional: true
 
-  '@sitionix/app-afesox-bffssox-frontend-stable@0.0.21': {}
+  '@sitionix/app-afesox-bffssox-frontend-sitionix-128-unstable@0.0.33': {}
 
-  '@sitionix/app-afesox-bffssox-frontend-stable@0.0.32': {}
+  '@sitionix/app-afesox-bffssox-frontend-stable@0.0.21': {}
 
   '@standard-schema/spec@1.1.0': {}
 
