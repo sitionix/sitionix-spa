@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AgentChatPage } from "../../../../../features/workspace/modules/automation/pages/AgentChatPage";
 import {
+  deleteAgentConversation,
   getAgentById,
   getChatExecutionStatus,
   getAgentConversation,
@@ -19,6 +20,7 @@ vi.mock("../../../../../features/workspace/modules/automation/api", () => ({
   getAgentConversation: vi.fn(),
   getAgentConversations: vi.fn(),
   getErrorHttpStatus: vi.fn(),
+  deleteAgentConversation: vi.fn(),
 }));
 
 const submitChatExecutionMock = vi.mocked(submitChatExecution);
@@ -27,6 +29,7 @@ const getAgentByIdMock = vi.mocked(getAgentById);
 const getAgentConversationMock = vi.mocked(getAgentConversation);
 const getAgentConversationsMock = vi.mocked(getAgentConversations);
 const getErrorHttpStatusMock = vi.mocked(getErrorHttpStatus);
+const deleteAgentConversationMock = vi.mocked(deleteAgentConversation);
 
 function renderChatPage(initialPath = "/automation/agents/agent-1/chat") {
   return render(
@@ -59,6 +62,7 @@ describe("AgentChatPage", () => {
     getAgentConversationMock.mockReset();
     getAgentConversationsMock.mockReset();
     getErrorHttpStatusMock.mockReset();
+    deleteAgentConversationMock.mockReset();
     getErrorHttpStatusMock.mockReturnValue(null);
   });
 
@@ -1371,5 +1375,125 @@ describe("AgentChatPage", () => {
     expect(await screen.findByRole("heading", { level: 2, name: "New" })).toBeInTheDocument();
     expect(screen.queryByText("stale old")).not.toBeInTheDocument();
     expect(screen.getByText("Привіт")).toBeInTheDocument();
+  });
+
+  it("givenConversationDeleteCanceled_whenDialogClosed_thenKeepsConversation", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock.mockResolvedValue({
+      items: [
+        {
+          id: "conv-1",
+          title: "First",
+          type: "DIRECT",
+          createdAt: "2026-04-21T10:00:00.000Z",
+          updatedAt: "2026-04-21T10:01:00.000Z",
+          lastMessageAt: "2026-04-21T10:01:00.000Z",
+        },
+      ],
+    });
+    getAgentConversationMock.mockResolvedValue({
+      id: "conv-1",
+      title: "First",
+      type: "DIRECT",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:01:00.000Z",
+      lastMessageAt: "2026-04-21T10:01:00.000Z",
+      messages: [],
+    });
+    const user = userEvent.setup();
+
+    renderChatPage();
+
+    await screen.findByRole("button", { name: /First/ });
+    await user.click(screen.getAllByRole("button", { name: "Delete conversation" })[0]);
+    expect(screen.getByText("Delete conversation?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByText("Delete conversation?")).not.toBeInTheDocument();
+    expect(deleteAgentConversationMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /First/ })).toBeInTheDocument();
+  });
+
+  it("givenConversationDeleteConfirmed_whenDeleteClicked_thenDeletesWithoutSelectingConversation", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock.mockResolvedValue({
+      items: [
+        {
+          id: "conv-1",
+          title: "First",
+          type: "DIRECT",
+          createdAt: "2026-04-21T10:00:00.000Z",
+          updatedAt: "2026-04-21T10:01:00.000Z",
+          lastMessageAt: "2026-04-21T10:01:00.000Z",
+        },
+        {
+          id: "conv-2",
+          title: "Second",
+          type: "DIRECT",
+          createdAt: "2026-04-21T11:00:00.000Z",
+          updatedAt: "2026-04-21T11:01:00.000Z",
+          lastMessageAt: "2026-04-21T11:01:00.000Z",
+        },
+      ],
+    });
+    getAgentConversationMock.mockResolvedValue({
+      id: "conv-1",
+      title: "First",
+      type: "DIRECT",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:01:00.000Z",
+      lastMessageAt: "2026-04-21T10:01:00.000Z",
+      messages: [],
+    });
+    deleteAgentConversationMock.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    renderChatPage();
+
+    await screen.findByRole("button", { name: /First/ });
+    await user.click(screen.getAllByRole("button", { name: "Delete conversation" })[0]);
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(deleteAgentConversationMock).toHaveBeenCalledWith("conv-1");
+    });
+    expect(screen.queryByRole("button", { name: /First/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Second/ })).toBeInTheDocument();
+  });
+
+  it("givenDeleteFailed_whenConfirmed_thenShowsErrorAndKeepsConversation", async () => {
+    getAgentByIdMock.mockResolvedValue(activeAgent);
+    getAgentConversationsMock.mockResolvedValue({
+      items: [
+        {
+          id: "conv-1",
+          title: "First",
+          type: "DIRECT",
+          createdAt: "2026-04-21T10:00:00.000Z",
+          updatedAt: "2026-04-21T10:01:00.000Z",
+          lastMessageAt: "2026-04-21T10:01:00.000Z",
+        },
+      ],
+    });
+    getAgentConversationMock.mockResolvedValue({
+      id: "conv-1",
+      title: "First",
+      type: "DIRECT",
+      createdAt: "2026-04-21T10:00:00.000Z",
+      updatedAt: "2026-04-21T10:01:00.000Z",
+      lastMessageAt: "2026-04-21T10:01:00.000Z",
+      messages: [],
+    });
+    deleteAgentConversationMock.mockRejectedValue(new Error("Forbidden"));
+    const user = userEvent.setup();
+
+    renderChatPage();
+
+    await screen.findByRole("button", { name: /First/ });
+    await user.click(screen.getByRole("button", { name: "Delete conversation" }));
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(await screen.findByText("Forbidden")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /First/ })).toBeInTheDocument();
   });
 });
