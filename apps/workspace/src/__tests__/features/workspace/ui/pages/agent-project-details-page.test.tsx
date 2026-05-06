@@ -24,6 +24,17 @@ function renderPage() {
   );
 }
 
+function renderPageWithPath(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path="/automation/projects/:projectId" element={<AgentProjectDetailsPage />} />
+        <Route path="/automation" element={<div>Automation projects page</div>} />
+      </Routes>
+    </MemoryRouter>
+  );
+}
+
 describe("AgentProjectDetailsPage", () => {
   beforeEach(() => {
     getAgentProjectMock.mockReset();
@@ -78,6 +89,28 @@ describe("AgentProjectDetailsPage", () => {
     renderPage();
 
     expect(await screen.findByText("ARCHIVED")).toBeInTheDocument();
+  });
+
+  it("renders deleted project status badge", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Deleted Project",
+      description: "Deleted description",
+      status: "DELETED",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("DELETED")).toBeInTheDocument();
+  });
+
+  it("renders not found state when projectId is blank", async () => {
+    renderPageWithPath("/automation/projects/%20");
+
+    expect(await screen.findByText("Project not found")).toBeInTheDocument();
+    expect(getAgentProjectMock).not.toHaveBeenCalled();
   });
 
   it("renders not-found state on 404 response", async () => {

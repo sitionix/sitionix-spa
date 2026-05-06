@@ -57,4 +57,18 @@ describe("agentsApi fallback endpoints", () => {
       body: { name: "Project 3", description: "Desc" },
     });
   });
+
+  it("throws status errors for single-project and create-project fallback", async () => {
+    const { createAgentProject, getAgentProject, getErrorHttpStatus } = await import("../../../../features/workspace/modules/automation/api/agentsApi");
+
+    requestJsonMock.mockResolvedValueOnce({ ok: false, status: 404 });
+    const getProjectError = await getAgentProject("project-404").catch((error) => error);
+    expect(getProjectError.message).toBe("Unable to load project");
+    expect(getErrorHttpStatus(getProjectError)).toBe(404);
+
+    requestJsonMock.mockResolvedValueOnce({ ok: false, status: 500 });
+    const createProjectError = await createAgentProject({ name: "Project X" }).catch((error) => error);
+    expect(createProjectError.message).toBe("Unable to create project");
+    expect(getErrorHttpStatus(createProjectError)).toBe(500);
+  });
 });
