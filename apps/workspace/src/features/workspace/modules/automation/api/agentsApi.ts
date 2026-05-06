@@ -34,9 +34,6 @@ import type {
 const agentApi = new AgentApi(bffApiConfiguration);
 type RuleTextPayload = { title?: string; content?: string };
 type ExtendedAgentApi = {
-  getAgentProjects?(request: { page?: number; size?: number }): Promise<AgentProjectsPage>;
-  getAgentProject?(request: { projectId: string }): Promise<AgentProject>;
-  createAgentProject?(request: { createAgentProjectRequestDTO: CreateAgentProjectRequestDTO }): Promise<AgentProject>;
   restoreAgent(request: { agentId: string }): Promise<AutomationAgent>;
   deleteAgent(request: { agentId: string }): Promise<AutomationAgent>;
   getAgentConversations(request: { agentId: string }): Promise<AgentConversationsResponse>;
@@ -167,18 +164,14 @@ export async function getAgentById(agentId: string): Promise<AutomationAgent> {
 }
 
 export async function getAgentProjects(page = 0, size = 20): Promise<AgentProjectsPage> {
-  const response = agentApiExtended.getAgentProjects
-    ? await agentApiExtended.getAgentProjects({ page, size })
-    : await (async () => {
-      const result = await requestJson<AgentProjectsPage, unknown, never>({
-        method: "GET",
-        path: buildProjectsPath(page, size),
-      });
-      if (!result.ok) {
-        throw createHttpStatusError(result.status, "Unable to load projects");
-      }
-      return result.data;
-    })();
+  const result = await requestJson<AgentProjectsPage, unknown, never>({
+    method: "GET",
+    path: buildProjectsPath(page, size),
+  });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to load projects");
+  }
+  const response = result.data;
   return {
     ...response,
     items: Array.isArray(response.items) ? response.items : [],
@@ -186,10 +179,6 @@ export async function getAgentProjects(page = 0, size = 20): Promise<AgentProjec
 }
 
 export async function getAgentProject(projectId: string): Promise<AgentProject> {
-  if (agentApiExtended.getAgentProject) {
-    return agentApiExtended.getAgentProject({ projectId });
-  }
-
   const result = await requestJson<AgentProject, unknown, never>({
     method: "GET",
     path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}`,
@@ -236,12 +225,6 @@ export async function createAgentProject(payload: CreateAgentProjectRequest): Pr
 
   if (description) {
     requestBody.description = description;
-  }
-
-  if (agentApiExtended.createAgentProject) {
-    return agentApiExtended.createAgentProject({
-      createAgentProjectRequestDTO: requestBody,
-    });
   }
 
   const result = await requestJson<AgentProject, unknown, CreateAgentProjectRequestDTO>({

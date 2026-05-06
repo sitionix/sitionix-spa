@@ -7,22 +7,10 @@ import { activateAgent, createAgentProject, getAgentProjects, getAgents, restore
 import { CreateAgentSheet, CreateProjectSheet } from "../components";
 import { LOAD_AUTOMATION_ERROR_TITLE } from "../model/constants";
 import { toAutomationErrorMessage } from "../model/mappers";
+import { getStatusBadgeClass } from "../model/statusBadge";
 import type { AgentProject, AutomationAgent, AutomationPageStatus } from "../model/types";
 
 type AutomationTab = "agents" | "projects";
-
-function getStatusBadgeClass(status: AutomationAgent["status"] | AgentProject["status"]): string {
-  if (status === "ACTIVE") {
-    return "bg-emerald-50 text-emerald-700";
-  }
-  if (status === "ARCHIVED") {
-    return "bg-zinc-100 text-zinc-600";
-  }
-  if (status === "DELETED") {
-    return "bg-amber-50 text-amber-700";
-  }
-  return "bg-amber-50 text-amber-700";
-}
 
 function resolveTab(tab: string | null): AutomationTab {
   return tab === "projects" ? "projects" : "agents";

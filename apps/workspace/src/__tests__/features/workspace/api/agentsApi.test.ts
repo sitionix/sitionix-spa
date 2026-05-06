@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import * as httpClient from "../../../../shared/http/httpClient";
 
 import {
   acceptAgentRule,
@@ -142,120 +143,80 @@ describe("agentsApi.projects", () => {
   });
 
   it("loads paged projects and normalizes items", async () => {
-    const getProjectsSpy = vi.fn().mockResolvedValue({
-      items: [
-        {
-          id: "project-1",
-          name: "Marketing Automation",
-          description: "Desc",
-          status: "ACTIVE",
-          createdAt: "2026-05-05T12:00:00Z",
-          updatedAt: "2026-05-05T12:00:00Z",
-        },
-      ],
-      page: 0,
-      size: 20,
-      hasNext: false,
-    });
-    const originalGetAgentProjects = (AgentApi.prototype as any).getAgentProjects;
-    Object.defineProperty(AgentApi.prototype, "getAgentProjects", {
-      configurable: true,
-      writable: true,
-      value: getProjectsSpy,
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        items: [
+          {
+            id: "project-1",
+            name: "Marketing Automation",
+            description: "Desc",
+            status: "ACTIVE",
+            createdAt: "2026-05-05T12:00:00Z",
+            updatedAt: "2026-05-05T12:00:00Z",
+          },
+        ],
+        page: 0,
+        size: 20,
+        hasNext: false,
+      },
     });
 
-    try {
-      const result = await getAgentProjects(0, 20);
+    const result = await getAgentProjects(0, 20);
 
-      expect(getProjectsSpy).toHaveBeenCalledWith({ page: 0, size: 20 });
-      expect(result.items).toHaveLength(1);
-      expect(result.items[0].id).toBe("project-1");
-    } finally {
-      if (typeof originalGetAgentProjects === "undefined") {
-        delete (AgentApi.prototype as any).getAgentProjects;
-      } else {
-        Object.defineProperty(AgentApi.prototype, "getAgentProjects", {
-          configurable: true,
-          writable: true,
-          value: originalGetAgentProjects,
-        });
-      }
-    }
+    expect(requestJsonSpy).toHaveBeenCalledWith({ method: "GET", path: "/api/v1/agent-projects?page=0&size=20" });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].id).toBe("project-1");
   });
 
   it("creates project with trimmed payload", async () => {
-    const createProjectSpy = vi.fn().mockResolvedValue({
-      id: "project-1",
-      name: "Marketing Automation",
-      description: "Desc",
-      status: "ACTIVE",
-      createdAt: "2026-05-05T12:00:00Z",
-      updatedAt: "2026-05-05T12:00:00Z",
-    });
-    const originalCreateAgentProject = (AgentApi.prototype as any).createAgentProject;
-    Object.defineProperty(AgentApi.prototype, "createAgentProject", {
-      configurable: true,
-      writable: true,
-      value: createProjectSpy,
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        id: "project-1",
+        name: "Marketing Automation",
+        description: "Desc",
+        status: "ACTIVE",
+        createdAt: "2026-05-05T12:00:00Z",
+        updatedAt: "2026-05-05T12:00:00Z",
+      },
     });
 
-    try {
-      await createAgentProject({
-        name: "  Marketing Automation  ",
-        description: "  Desc  ",
-      });
+    await createAgentProject({
+      name: "  Marketing Automation  ",
+      description: "  Desc  ",
+    });
 
-      expect(createProjectSpy).toHaveBeenCalledWith({
-        createAgentProjectRequestDTO: {
-          name: "Marketing Automation",
-          description: "Desc",
-        },
-      });
-    } finally {
-      if (typeof originalCreateAgentProject === "undefined") {
-        delete (AgentApi.prototype as any).createAgentProject;
-      } else {
-        Object.defineProperty(AgentApi.prototype, "createAgentProject", {
-          configurable: true,
-          writable: true,
-          value: originalCreateAgentProject,
-        });
-      }
-    }
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "POST",
+      path: "/api/v1/agent-projects",
+      body: {
+        name: "Marketing Automation",
+        description: "Desc",
+      },
+    });
   });
 
-  it("loads single project through generated endpoint when available", async () => {
-    const getProjectSpy = vi.fn().mockResolvedValue({
-      id: "project-1",
-      name: "Project One",
-      description: "desc",
-      status: "ACTIVE",
-      createdAt: "2026-05-05T12:00:00Z",
-      updatedAt: "2026-05-05T12:00:00Z",
-    });
-    const originalGetAgentProject = (AgentApi.prototype as any).getAgentProject;
-    Object.defineProperty(AgentApi.prototype, "getAgentProject", {
-      configurable: true,
-      writable: true,
-      value: getProjectSpy,
+  it("loads single project by id", async () => {
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        id: "project-1",
+        name: "Project One",
+        description: "desc",
+        status: "ACTIVE",
+        createdAt: "2026-05-05T12:00:00Z",
+        updatedAt: "2026-05-05T12:00:00Z",
+      },
     });
 
-    try {
-      const result = await getAgentProject("project-1");
+    const result = await getAgentProject("project-1");
 
-      expect(getProjectSpy).toHaveBeenCalledWith({ projectId: "project-1" });
-      expect(result.id).toBe("project-1");
-    } finally {
-      if (typeof originalGetAgentProject === "undefined") {
-        delete (AgentApi.prototype as any).getAgentProject;
-      } else {
-        Object.defineProperty(AgentApi.prototype, "getAgentProject", {
-          configurable: true,
-          writable: true,
-          value: originalGetAgentProject,
-        });
-      }
-    }
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "GET",
+      path: "/api/v1/agent-projects/project-1",
+    });
+    expect(result.id).toBe("project-1");
   });
 
 });

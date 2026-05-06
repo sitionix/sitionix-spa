@@ -5,22 +5,10 @@ import { PageHeader } from "../../../ui/components/PageHeader";
 import { formatDate } from "../../../model/formatters";
 import { getAgentProject, getErrorHttpStatus } from "../api";
 import { toAutomationErrorMessage } from "../model/mappers";
+import { getStatusBadgeClass } from "../model/statusBadge";
 import type { AgentProject } from "../model/types";
 
 type AgentProjectDetailsPageState = "idle" | "loading" | "ready" | "not_found" | "error";
-
-function getStatusBadgeClass(status: AgentProject["status"]): string {
-  if (status === "ACTIVE") {
-    return "bg-emerald-50 text-emerald-700";
-  }
-  if (status === "ARCHIVED") {
-    return "bg-zinc-100 text-zinc-600";
-  }
-  if (status === "DELETED") {
-    return "bg-amber-50 text-amber-700";
-  }
-  return "bg-amber-50 text-amber-700";
-}
 
 export function AgentProjectDetailsPage() {
   const navigate = useNavigate();
