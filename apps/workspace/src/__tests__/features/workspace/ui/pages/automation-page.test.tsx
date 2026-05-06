@@ -1,12 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { AutomationPage } from "../../../../../features/workspace/modules/automation/pages/AutomationPage";
-import { activateAgent, getAgents, restoreAgent } from "../../../../../features/workspace/modules/automation/api/agentsApi";
+import {
+  activateAgent,
+  createAgentProject,
+  getAgentProjects,
+  getAgents,
+  restoreAgent,
+} from "../../../../../features/workspace/modules/automation/api/agentsApi";
 
 vi.mock("../../../../../features/workspace/modules/automation/api/agentsApi", () => ({
   activateAgent: vi.fn(),
+  createAgentProject: vi.fn(),
+  getAgentProjects: vi.fn(),
   getAgents: vi.fn(),
   restoreAgent: vi.fn(),
 }));
@@ -54,6 +63,8 @@ vi.mock("../../../../../features/workspace/modules/automation/components/CreateA
 }));
 
 const activateAgentMock = vi.mocked(activateAgent);
+const createAgentProjectMock = vi.mocked(createAgentProject);
+const getAgentProjectsMock = vi.mocked(getAgentProjects);
 const getAgentsMock = vi.mocked(getAgents);
 const restoreAgentMock = vi.mocked(restoreAgent);
 
@@ -82,8 +93,16 @@ function renderAutomationPage() {
 describe("AutomationPage", () => {
   beforeEach(() => {
     activateAgentMock.mockReset();
+    createAgentProjectMock.mockReset();
+    getAgentProjectsMock.mockReset();
     getAgentsMock.mockReset();
     restoreAgentMock.mockReset();
+    getAgentProjectsMock.mockResolvedValue({
+      items: [],
+      page: 0,
+      size: 20,
+      hasNext: false,
+    });
   });
 
   it("renders empty state when no agents are returned", async () => {
@@ -408,5 +427,84 @@ describe("AutomationPage", () => {
     expect(screen.getByText("DRAFT")).toBeInTheDocument();
     expect(screen.getByText("ACTIVE")).toBeInTheDocument();
     expect(screen.getByText("ARCHIVED")).toBeInTheDocument();
+  });
+  it("shows projects empty state when projects tab selected", async () => {
+    getAgentsMock.mockResolvedValue([]);
+
+    const user = userEvent.setup();
+    renderAutomationPage();
+
+    await screen.findByText("No agents yet");
+    await user.click(screen.getByRole("button", { name: "Projects" }));
+
+    expect(screen.getByText("No projects yet")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Create Project" })).toHaveLength(2);
+  });
+
+  it("creates project and prepends it to projects list", async () => {
+    getAgentsMock.mockResolvedValue([]);
+    createAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+
+    const user = userEvent.setup();
+    renderAutomationPage();
+
+    await screen.findByText("No agents yet");
+    await user.click(screen.getByRole("button", { name: "Projects" }));
+    await user.click(screen.getAllByRole("button", { name: "Create Project" })[0]);
+
+    await user.type(screen.getByLabelText("Name"), "  Marketing Automation  ");
+    await user.type(screen.getByLabelText("Description"), "  Campaign automations  ");
+    const createProjectSheet = screen.getByRole("complementary");
+    await user.click(within(createProjectSheet).getByRole("button", { name: "Create Project" }));
+
+    expect(await screen.findByText("Marketing Automation")).toBeInTheDocument();
+    expect(screen.getByText("Campaign automations")).toBeInTheDocument();
+    expect(screen.getByText("ACTIVE")).toBeInTheDocument();
+    expect(createAgentProjectMock).toHaveBeenCalledWith({
+      name: "Marketing Automation",
+      description: "Campaign automations",
+    });
+  });
+
+  it("shows fallback description for empty and whitespace project descriptions", async () => {
+    getAgentsMock.mockResolvedValue([]);
+    getAgentProjectsMock.mockResolvedValue({
+      items: [
+        {
+          id: "project-1",
+          name: "Empty Description",
+          description: "",
+          status: "ACTIVE",
+          createdAt: "2026-05-05T12:00:00Z",
+          updatedAt: "2026-05-05T12:00:00Z",
+        },
+        {
+          id: "project-2",
+          name: "Whitespace Description",
+          description: "   ",
+          status: "ACTIVE",
+          createdAt: "2026-05-05T11:00:00Z",
+          updatedAt: "2026-05-05T11:00:00Z",
+        },
+      ],
+      page: 0,
+      size: 20,
+      hasNext: false,
+    });
+
+    const user = userEvent.setup();
+    renderAutomationPage();
+
+    await screen.findByText("No agents yet");
+    await user.click(screen.getByRole("button", { name: "Projects" }));
+
+    expect(await screen.findAllByText("No description yet.")).toHaveLength(2);
   });
 });

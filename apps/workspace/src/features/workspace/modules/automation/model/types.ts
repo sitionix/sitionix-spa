@@ -1,6 +1,9 @@
 import type {
   AgentDTO,
+  AgentProjectDTO,
+  AgentProjectsPageResponseDTO,
   AgentRuleDTO,
+  CreateAgentProjectRequestDTO,
   CreateAgentRuleRequestDTO,
   PatchAgentRuleRequestDTO,
   CreateAgentRequestDTO,
@@ -115,4 +118,8 @@ export type AgentConversationDetails = {
   }>;
 };
 
+
+export type CreateAgentProjectRequest = CreateAgentProjectRequestDTO;
+export type AgentProject = AgentProjectDTO;
+export type AgentProjectsPage = AgentProjectsPageResponseDTO;
 export type AutomationPageStatus = "idle" | "loading" | "ready" | "error";

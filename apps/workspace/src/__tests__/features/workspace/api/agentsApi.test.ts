@@ -6,6 +6,7 @@ import {
   activateAgent,
   archiveAgent,
   chatAgent,
+  createAgentProject,
   createAgentRule,
   createAgent,
   deleteAgentRule,
@@ -14,6 +15,7 @@ import {
   getAgentById,
   getAgentConversation,
   getAgentConversations,
+  getAgentProjects,
   getChatAgentExecution,
   getChatExecutionStatus,
   getAgents,
@@ -128,6 +130,59 @@ describe("agentsApi.createAgent", () => {
     expect(createAgentSpy).toHaveBeenCalledWith({
       createAgentRequestDTO: {
         name: "Name only",
+      },
+    });
+  });
+});
+
+describe("agentsApi.projects", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("loads paged projects and normalizes items", async () => {
+    const getProjectsSpy = vi.spyOn(AgentApi.prototype, "getAgentProjects").mockResolvedValue({
+      items: [
+        {
+          id: "project-1",
+          name: "Marketing Automation",
+          description: "Desc",
+          status: "ACTIVE",
+          createdAt: "2026-05-05T12:00:00Z",
+          updatedAt: "2026-05-05T12:00:00Z",
+        },
+      ],
+      page: 0,
+      size: 20,
+      hasNext: false,
+    });
+
+    const result = await getAgentProjects(0, 20);
+
+    expect(getProjectsSpy).toHaveBeenCalledWith({ page: 0, size: 20 });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].id).toBe("project-1");
+  });
+
+  it("creates project with trimmed payload", async () => {
+    const createProjectSpy = vi.spyOn(AgentApi.prototype, "createAgentProject").mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "Desc",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+
+    await createAgentProject({
+      name: "  Marketing Automation  ",
+      description: "  Desc  ",
+    });
+
+    expect(createProjectSpy).toHaveBeenCalledWith({
+      createAgentProjectRequestDTO: {
+        name: "Marketing Automation",
+        description: "Desc",
       },
     });
   });
