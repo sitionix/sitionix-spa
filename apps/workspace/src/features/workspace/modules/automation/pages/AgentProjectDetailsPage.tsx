@@ -12,6 +12,7 @@ import type { AgentProject } from "../model/types";
 type AgentProjectDetailsPageState = "idle" | "loading" | "ready" | "not_found" | "error";
 type EditableField = "name" | "description" | null;
 type EditableNonNullField = Exclude<EditableField, null>;
+type FieldKind = "input" | "textarea";
 
 export function AgentProjectDetailsPage() {
   const navigate = useNavigate();
@@ -168,24 +169,17 @@ export function AgentProjectDetailsPage() {
     };
   }, [editingField, saveField]);
 
-  const handleNameKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
+  const handleFieldKeyDown = useCallback((field: EditableNonNullField, kind: FieldKind) => (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (event.key === "Escape") {
       event.preventDefault();
-      void saveField("name");
+      cancelEditing();
       return;
     }
-    if (event.key === "Escape") {
+    if (field === "name" && kind === "input" && event.key === "Enter") {
       event.preventDefault();
-      cancelEditing();
+      void saveField("name");
     }
   }, [cancelEditing, saveField]);
-
-  const handleDescriptionKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      cancelEditing();
-    }
-  }, [cancelEditing]);
 
   return (
     <>
@@ -214,49 +208,45 @@ export function AgentProjectDetailsPage() {
 
           <section className="rounded-3xl border border-zinc-200 bg-white p-6">
             <div className="min-w-0">
-              <EditableFieldTrigger
+              <EditableField
                 className="flex flex-wrap items-center gap-3"
                 textClassName="truncate text-left text-3xl font-semibold text-zinc-900"
                 ariaLabel="Edit project name"
-                value={project.name}
                 field="name"
                 editingField={editingField}
                 onStartEditing={startEditing}
-                editingNode={
-                  <div ref={nameEditorRef} className="w-full max-w-2xl">
-                    <input
-                      ref={nameInputRef}
-                      value={nameDraft}
-                      onChange={(event) => setNameDraft(event.target.value)}
-                      onKeyDown={handleNameKeyDown}
-                      disabled={savingField === "name"}
-                      className="w-full rounded-xl border border-zinc-300 px-4 py-2 text-3xl font-semibold text-zinc-900 outline-none ring-blue-100 focus:ring"
-                    />
-                  </div>
-                }
+                value={project.name}
+                draftValue={nameDraft}
+                disabled={savingField === "name"}
+                inputRef={nameInputRef}
+                editorRef={nameEditorRef}
+                onDraftChange={setNameDraft}
+                onSave={() => void saveField("name")}
+                onCancel={cancelEditing}
+                onKeyDown={handleFieldKeyDown("name", "input")}
+                kind="input"
+                editorClassName="w-full rounded-xl border border-zinc-300 px-4 py-2 text-3xl font-semibold text-zinc-900 outline-none ring-blue-100 focus:ring"
               />
 
-              <EditableFieldTrigger
+              <EditableField
                 className="mt-3 inline-flex max-w-3xl items-start gap-2"
                 textClassName="text-left text-sm leading-6 text-zinc-600"
                 ariaLabel="Edit project description"
-                value={project.description ?? "No description yet."}
                 field="description"
                 editingField={editingField}
                 onStartEditing={startEditing}
-                editingNode={
-                  <EditableDescription
-                    editorRef={descriptionEditorRef}
-                    inputRef={descriptionInputRef}
-                    value={descriptionDraft}
-                    disabled={savingField === "description"}
-                    onChange={setDescriptionDraft}
-                    onKeyDown={handleDescriptionKeyDown}
-                    onSave={() => void saveField("description")}
-                    onCancel={cancelEditing}
-                    isSaving={savingField === "description"}
-                  />
-                }
+                value={project.description ?? "No description yet."}
+                draftValue={descriptionDraft}
+                disabled={savingField === "description"}
+                isSaving={savingField === "description"}
+                inputRef={descriptionInputRef}
+                editorRef={descriptionEditorRef}
+                onDraftChange={setDescriptionDraft}
+                onSave={() => void saveField("description")}
+                onCancel={cancelEditing}
+                onKeyDown={handleFieldKeyDown("description", "textarea")}
+                kind="textarea"
+                editorClassName="w-full resize-none rounded-xl border border-zinc-300 px-3 py-2 text-sm leading-6 text-zinc-800 outline-none ring-blue-100 focus:ring"
               />
 
               <div className="mt-4 grid gap-2 text-sm text-zinc-600">
@@ -362,60 +352,25 @@ function StatePanel({ children }: { children: ReactNode }) {
 }
 
 type EditableDescriptionProps = {
-  editorRef: React.RefObject<HTMLDivElement | null>;
-  inputRef: React.RefObject<HTMLTextAreaElement | null>;
+  className: string;
+  textClassName: string;
+  ariaLabel: string;
   value: string;
+  field: EditableNonNullField;
+  editingField: EditableField;
+  draftValue: string;
   disabled: boolean;
-  isSaving: boolean;
-  onChange: (value: string) => void;
-  onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  isSaving?: boolean;
+  kind: FieldKind;
+  editorClassName: string;
+  inputRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>;
+  editorRef: React.RefObject<HTMLDivElement | null>;
+  onStartEditing: (field: EditableNonNullField) => void;
+  onDraftChange: (value: string) => void;
   onSave: () => void;
   onCancel: () => void;
+  onKeyDown: (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
 };
-
-function EditableDescription({
-  editorRef,
-  inputRef,
-  value,
-  disabled,
-  isSaving,
-  onChange,
-  onKeyDown,
-  onSave,
-  onCancel,
-}: EditableDescriptionProps) {
-  return (
-    <div ref={editorRef} className="max-w-3xl">
-      <textarea
-        ref={inputRef}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        onKeyDown={onKeyDown}
-        disabled={disabled}
-        rows={3}
-        className="w-full resize-none rounded-xl border border-zinc-300 px-3 py-2 text-sm leading-6 text-zinc-800 outline-none ring-blue-100 focus:ring"
-      />
-      <div className="mt-2 flex items-center gap-2">
-        <button
-          type="button"
-          disabled={disabled}
-          className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
-          onClick={onSave}
-        >
-          {isSaving ? "Saving..." : "Save"}
-        </button>
-        <button
-          type="button"
-          disabled={disabled}
-          className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
-          onClick={onCancel}
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function InlineError({ message }: { message: string | null }) {
   if (!message) {
@@ -472,29 +427,71 @@ function LifecycleActions({ isDeleting, isDisabled, onDelete }: LifecycleActions
   );
 }
 
-type EditableFieldTriggerProps = {
-  className: string;
-  textClassName: string;
-  ariaLabel: string;
-  value: string;
-  field: EditableNonNullField;
-  editingField: EditableField;
-  onStartEditing: (field: EditableNonNullField) => void;
-  editingNode: JSX.Element;
-};
-
-function EditableFieldTrigger({
+function EditableField({
   className,
   textClassName,
   ariaLabel,
   value,
   field,
   editingField,
+  draftValue,
+  disabled,
+  isSaving = false,
+  kind,
+  editorClassName,
+  inputRef,
+  editorRef,
   onStartEditing,
-  editingNode,
-}: EditableFieldTriggerProps) {
+  onDraftChange,
+  onSave,
+  onCancel,
+  onKeyDown,
+}: EditableDescriptionProps) {
   if (editingField === field) {
-    return editingNode;
+    return (
+      <div ref={editorRef} className={field === "name" ? "w-full max-w-2xl" : "max-w-3xl"}>
+        {kind === "input" ? (
+          <input
+            ref={inputRef as React.RefObject<HTMLInputElement>}
+            value={draftValue}
+            onChange={(event) => onDraftChange(event.target.value)}
+            onKeyDown={onKeyDown as (event: KeyboardEvent<HTMLInputElement>) => void}
+            disabled={disabled}
+            className={editorClassName}
+          />
+        ) : (
+          <textarea
+            ref={inputRef as React.RefObject<HTMLTextAreaElement>}
+            value={draftValue}
+            onChange={(event) => onDraftChange(event.target.value)}
+            onKeyDown={onKeyDown as (event: KeyboardEvent<HTMLTextAreaElement>) => void}
+            disabled={disabled}
+            rows={3}
+            className={editorClassName}
+          />
+        )}
+        {kind === "textarea" ? (
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              disabled={disabled}
+              className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+              onClick={onSave}
+            >
+              {isSaving ? "Saving..." : "Save"}
+            </button>
+            <button
+              type="button"
+              disabled={disabled}
+              className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
   }
 
   return (
