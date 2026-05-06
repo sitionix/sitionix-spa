@@ -543,4 +543,66 @@ describe("AutomationPage", () => {
 
     expect(await screen.findByText("Project details route: project-77")).toBeInTheDocument();
   });
+
+  it("givenProjectCard_whenEnterPressed_thenNavigatesToProjectDetailsRoute", async () => {
+    getAgentsMock.mockResolvedValue([]);
+    getAgentProjectsMock.mockResolvedValue({
+      items: [
+        {
+          id: "project-78",
+          name: "Routing Project Keyboard",
+          description: "Description",
+          status: "ACTIVE",
+          createdAt: "2026-05-05T12:00:00Z",
+          updatedAt: "2026-05-05T12:00:00Z",
+        },
+      ],
+      page: 0,
+      size: 20,
+      hasNext: false,
+    });
+
+    const user = userEvent.setup();
+    renderAutomationPage();
+
+    await screen.findByText("No agents yet");
+    await user.click(screen.getByRole("button", { name: "Projects" }));
+
+    const card = await screen.findByRole("button", { name: /Routing Project Keyboard/i });
+    card.focus();
+    await user.keyboard("{Enter}");
+
+    expect(await screen.findByText("Project details route: project-78")).toBeInTheDocument();
+  });
+
+  it("givenProjectCard_whenUnrelatedKeyPressed_thenDoesNotNavigate", async () => {
+    getAgentsMock.mockResolvedValue([]);
+    getAgentProjectsMock.mockResolvedValue({
+      items: [
+        {
+          id: "project-79",
+          name: "Routing Project No Nav",
+          description: "Description",
+          status: "ACTIVE",
+          createdAt: "2026-05-05T12:00:00Z",
+          updatedAt: "2026-05-05T12:00:00Z",
+        },
+      ],
+      page: 0,
+      size: 20,
+      hasNext: false,
+    });
+
+    const user = userEvent.setup();
+    renderAutomationPage();
+
+    await screen.findByText("No agents yet");
+    await user.click(screen.getByRole("button", { name: "Projects" }));
+
+    const card = await screen.findByRole("button", { name: /Routing Project No Nav/i });
+    card.focus();
+    await user.keyboard("A");
+
+    expect(screen.queryByText("Project details route: project-79")).not.toBeInTheDocument();
+  });
 });
