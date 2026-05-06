@@ -4,7 +4,7 @@ import { SitesPage } from "../features/workspace/ui/pages/SitesPage";
 import { CollectionsPage } from "../features/workspace/ui/pages/CollectionsPage";
 import { DomainsPage } from "../features/workspace/ui/pages/DomainsPage";
 import { TrashPage } from "../features/workspace/ui/pages/TrashPage";
-import { AgentChatPage, AgentOverviewPage, AutomationPage } from "../features/workspace/modules/automation";
+import { AgentChatPage, AgentOverviewPage, AgentProjectDetailsPage, AutomationPage } from "../features/workspace/modules/automation";
 import { SiteSettingsPage } from "../features/workspace/ui/pages/SiteSettingsPage";
 import { SiteEditorPage } from "../features/workspace/ui/pages/SiteEditorPage";
 import { CRMPage } from "../features/workspace/ui/pages/CRMPage";
@@ -21,6 +21,7 @@ export function WorkspaceRoutes() {
         <Route path="domains" element={<DomainsPage />} />
         <Route path="trash" element={<TrashPage />} />
         <Route path="automation" element={<AutomationPage />} />
+        <Route path="automation/projects/:projectId" element={<AgentProjectDetailsPage />} />
         <Route path="automation/agents/:agentId" element={<AgentOverviewPage />} />
         <Route path="automation/agents/:agentId/chat" element={<AgentChatPage />} />
         <Route path="crm" element={<CRMPage />} />

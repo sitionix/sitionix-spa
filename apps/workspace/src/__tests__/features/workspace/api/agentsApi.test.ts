@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import * as httpClient from "../../../../shared/http/httpClient";
 
 import {
   acceptAgentRule,
@@ -13,6 +14,7 @@ import {
   deleteAgent,
   deleteAgentConversation,
   getAgentById,
+  getAgentProject,
   getAgentConversation,
   getAgentConversations,
   getAgentProjects,
@@ -141,37 +143,43 @@ describe("agentsApi.projects", () => {
   });
 
   it("loads paged projects and normalizes items", async () => {
-    const getProjectsSpy = vi.spyOn(AgentApi.prototype, "getAgentProjects").mockResolvedValue({
-      items: [
-        {
-          id: "project-1",
-          name: "Marketing Automation",
-          description: "Desc",
-          status: "ACTIVE",
-          createdAt: "2026-05-05T12:00:00Z",
-          updatedAt: "2026-05-05T12:00:00Z",
-        },
-      ],
-      page: 0,
-      size: 20,
-      hasNext: false,
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        items: [
+          {
+            id: "project-1",
+            name: "Marketing Automation",
+            description: "Desc",
+            status: "ACTIVE",
+            createdAt: "2026-05-05T12:00:00Z",
+            updatedAt: "2026-05-05T12:00:00Z",
+          },
+        ],
+        page: 0,
+        size: 20,
+        hasNext: false,
+      },
     });
 
     const result = await getAgentProjects(0, 20);
 
-    expect(getProjectsSpy).toHaveBeenCalledWith({ page: 0, size: 20 });
+    expect(requestJsonSpy).toHaveBeenCalledWith({ method: "GET", path: "/api/v1/agent-projects?page=0&size=20" });
     expect(result.items).toHaveLength(1);
     expect(result.items[0].id).toBe("project-1");
   });
 
   it("creates project with trimmed payload", async () => {
-    const createProjectSpy = vi.spyOn(AgentApi.prototype, "createAgentProject").mockResolvedValue({
-      id: "project-1",
-      name: "Marketing Automation",
-      description: "Desc",
-      status: "ACTIVE",
-      createdAt: "2026-05-05T12:00:00Z",
-      updatedAt: "2026-05-05T12:00:00Z",
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        id: "project-1",
+        name: "Marketing Automation",
+        description: "Desc",
+        status: "ACTIVE",
+        createdAt: "2026-05-05T12:00:00Z",
+        updatedAt: "2026-05-05T12:00:00Z",
+      },
     });
 
     await createAgentProject({
@@ -179,13 +187,38 @@ describe("agentsApi.projects", () => {
       description: "  Desc  ",
     });
 
-    expect(createProjectSpy).toHaveBeenCalledWith({
-      createAgentProjectRequestDTO: {
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "POST",
+      path: "/api/v1/agent-projects",
+      body: {
         name: "Marketing Automation",
         description: "Desc",
       },
     });
   });
+
+  it("loads single project by id", async () => {
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        id: "project-1",
+        name: "Project One",
+        description: "desc",
+        status: "ACTIVE",
+        createdAt: "2026-05-05T12:00:00Z",
+        updatedAt: "2026-05-05T12:00:00Z",
+      },
+    });
+
+    const result = await getAgentProject("project-1");
+
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "GET",
+      path: "/api/v1/agent-projects/project-1",
+    });
+    expect(result.id).toBe("project-1");
+  });
+
 });
 
 describe("agentsApi.getAgentById", () => {

@@ -20,6 +20,7 @@ import {
   restoreAgent,
 } from "../api";
 import { toAutomationErrorMessage } from "../model/mappers";
+import { getStatusBadgeClass } from "../model/statusBadge";
 import type { AgentRule, AutomationAgent } from "../model/types";
 
 type AgentOverviewState = "idle" | "loading" | "ready" | "not_found" | "error";
@@ -30,19 +31,6 @@ const INSTRUCTION_PREVIEW_MAX_LINES = 6;
 const INSTRUCTION_PREVIEW_MAX_CHARS = 420;
 const SUGGESTED_RULE_PREVIEW_MAX_LINES = 2;
 const SUGGESTED_RULE_PREVIEW_MAX_CHARS = 180;
-
-function getStatusBadgeClass(status: AutomationAgent["status"]): string {
-  if (status === "ACTIVE") {
-    return "bg-emerald-50 text-emerald-700";
-  }
-  if (status === "ARCHIVED") {
-    return "bg-zinc-100 text-zinc-600";
-  }
-  if (status === "DELETED") {
-    return "bg-red-50 text-red-700";
-  }
-  return "bg-amber-50 text-amber-700";
-}
 
 function shouldCollapseInstruction(instruction: string): boolean {
   const linesCount = instruction.split(/\r?\n/).length;

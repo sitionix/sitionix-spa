@@ -7,7 +7,7 @@ import type {
   PatchAgentRuleRequestDTO,
   PatchAgentRequestDTO,
 } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
-import { bffApiConfiguration } from "../../../../../shared/http/httpClient";
+import { bffApiConfiguration, requestJson } from "../../../../../shared/http/httpClient";
 import type {
   AgentConversationDetails,
   AgentConversationsResponse,
@@ -82,6 +82,20 @@ type ExtendedAgentApi = {
 
 const agentApiExtended = agentApi as unknown as ExtendedAgentApi;
 
+function createHttpStatusError(status: number, message: string): Error & { status: number } {
+  const error = new Error(message) as Error & { status: number };
+  error.status = status;
+  return error;
+}
+
+function buildProjectsPath(page: number, size: number): string {
+  const query = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+  });
+  return `/api/v1/agent-projects?${query.toString()}`;
+}
+
 function hasOwn(source: object, key: PropertyKey): boolean {
   return Object.prototype.hasOwnProperty.call(source, key);
 }
@@ -150,11 +164,29 @@ export async function getAgentById(agentId: string): Promise<AutomationAgent> {
 }
 
 export async function getAgentProjects(page = 0, size = 20): Promise<AgentProjectsPage> {
-  const response = await agentApi.getAgentProjects({ page, size });
+  const result = await requestJson<AgentProjectsPage, unknown, never>({
+    method: "GET",
+    path: buildProjectsPath(page, size),
+  });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to load projects");
+  }
+  const response = result.data;
   return {
     ...response,
     items: Array.isArray(response.items) ? response.items : [],
   };
+}
+
+export async function getAgentProject(projectId: string): Promise<AgentProject> {
+  const result = await requestJson<AgentProject, unknown, never>({
+    method: "GET",
+    path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}`,
+  });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to load project");
+  }
+  return result.data;
 }
 
 export async function createAgent(payload: CreateAgentRequest): Promise<AutomationAgent> {
@@ -195,9 +227,15 @@ export async function createAgentProject(payload: CreateAgentProjectRequest): Pr
     requestBody.description = description;
   }
 
-  return agentApi.createAgentProject({
-    createAgentProjectRequestDTO: requestBody,
+  const result = await requestJson<AgentProject, unknown, CreateAgentProjectRequestDTO>({
+    method: "POST",
+    path: "/api/v1/agent-projects",
+    body: requestBody,
   });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to create project");
+  }
+  return result.data;
 }
 
 export async function patchAgent(agentId: string, payload: PatchAgentRequest): Promise<AutomationAgent> {
@@ -522,6 +560,7 @@ export function getErrorHttpStatus(error: unknown): number | null {
 export const agentsApi = {
   getAgents,
   getAgentById,
+  getAgentProject,
   createAgent,
   patchAgent,
   activateAgent,
