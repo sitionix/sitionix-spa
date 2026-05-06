@@ -138,35 +138,40 @@ export function AgentProjectDetailsPage() {
   }, [isDeleting, navigate, project, savingField]);
 
   useEffect(() => {
-    if (editingField === "name") {
-      nameInputRef.current?.focus();
-      nameInputRef.current?.select();
+    const activeInput = editingField === "name"
+      ? nameInputRef.current
+      : editingField === "description"
+        ? descriptionInputRef.current
+        : null;
+    if (!activeInput) {
       return;
     }
-    if (editingField === "description") {
-      descriptionInputRef.current?.focus();
-      descriptionInputRef.current?.select();
-    }
+    activeInput.focus();
+    activeInput.select();
   }, [editingField]);
 
   useEffect(() => {
-    if (!editingField) {
+    if (editingField === null) {
       return;
     }
 
-    const handleOutsideMouseDown = (event: MouseEvent) => {
-      const targetNode = event.target as Node;
-      const editor = editingField === "name" ? nameEditorRef.current : descriptionEditorRef.current;
-      if (!editor || editor.contains(targetNode)) {
+    const activeEditorRef = editingField === "name" ? nameEditorRef : descriptionEditorRef;
+    const onDocumentMouseDown = (event: MouseEvent) => {
+      const currentEditor = activeEditorRef.current;
+      if (!currentEditor) {
         return;
       }
+
+      const targetNode = event.target;
+      if (targetNode instanceof Node && currentEditor.contains(targetNode)) {
+        return;
+      }
+
       void saveField(editingField);
     };
 
-    document.addEventListener("mousedown", handleOutsideMouseDown);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideMouseDown);
-    };
+    window.addEventListener("mousedown", onDocumentMouseDown);
+    return () => window.removeEventListener("mousedown", onDocumentMouseDown);
   }, [editingField, saveField]);
 
   const handleFieldKeyDown = useCallback((field: EditableNonNullField, kind: FieldKind) => (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
