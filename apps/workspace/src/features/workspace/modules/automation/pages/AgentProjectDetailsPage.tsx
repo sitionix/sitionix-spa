@@ -11,6 +11,7 @@ import type { AgentProject } from "../model/types";
 
 type AgentProjectDetailsPageState = "idle" | "loading" | "ready" | "not_found" | "error";
 type EditableField = "name" | "description" | null;
+type EditableNonNullField = Exclude<EditableField, null>;
 
 export function AgentProjectDetailsPage() {
   const navigate = useNavigate();
@@ -61,7 +62,7 @@ export function AgentProjectDetailsPage() {
     void loadProject();
   }, [loadProject]);
 
-  const startEditing = useCallback((field: Exclude<EditableField, null>) => {
+  const startEditing = useCallback((field: EditableNonNullField) => {
     if (!project || savingField || isDeleting) {
       return;
     }
@@ -84,7 +85,7 @@ export function AgentProjectDetailsPage() {
     setSaveError(null);
   }, []);
 
-  const saveField = useCallback(async (field: Exclude<EditableField, null>) => {
+  const saveField = useCallback(async (field: EditableNonNullField) => {
     if (!project || savingField || isDeleting) {
       return;
     }
@@ -211,33 +212,68 @@ export function AgentProjectDetailsPage() {
 
           <section className="rounded-3xl border border-zinc-200 bg-white p-6">
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-3">
-                {editingField === "name" ? (
+              <EditableFieldTrigger
+                className="flex flex-wrap items-center gap-3"
+                textClassName="truncate text-left text-3xl font-semibold text-zinc-900"
+                ariaLabel="Edit project name"
+                value={project.name}
+                field="name"
+                editingField={editingField}
+                onStartEditing={startEditing}
+                editingNode={
                   <div ref={nameEditorRef} className="w-full max-w-2xl">
-                    <input ref={nameInputRef} value={nameDraft} onChange={(event) => setNameDraft(event.target.value)} onKeyDown={handleNameKeyDown} disabled={savingField === "name"} className="w-full rounded-xl border border-zinc-300 px-4 py-2 text-3xl font-semibold text-zinc-900 outline-none ring-blue-100 focus:ring" />
+                    <input
+                      ref={nameInputRef}
+                      value={nameDraft}
+                      onChange={(event) => setNameDraft(event.target.value)}
+                      onKeyDown={handleNameKeyDown}
+                      disabled={savingField === "name"}
+                      className="w-full rounded-xl border border-zinc-300 px-4 py-2 text-3xl font-semibold text-zinc-900 outline-none ring-blue-100 focus:ring"
+                    />
                   </div>
-                ) : (
-                  <div className="group inline-flex items-center gap-2">
-                    <button type="button" className="truncate text-left text-3xl font-semibold text-zinc-900" onClick={() => startEditing("name")} aria-label="Edit project name">{project.name}</button>
-                    <button type="button" className="rounded-lg p-1 text-zinc-400 opacity-0 transition hover:bg-zinc-100 hover:text-zinc-700 group-hover:opacity-100" onClick={() => startEditing("name")} aria-label="Edit project name"><Pencil className="h-4 w-4" /></button>
-                  </div>
-                )}
-              </div>
+                }
+              />
 
-              {editingField === "description" ? (
-                <div ref={descriptionEditorRef} className="mt-3 max-w-3xl">
-                  <textarea ref={descriptionInputRef} value={descriptionDraft} onChange={(event) => setDescriptionDraft(event.target.value)} onKeyDown={handleDescriptionKeyDown} disabled={savingField === "description"} rows={3} className="w-full resize-none rounded-xl border border-zinc-300 px-3 py-2 text-sm leading-6 text-zinc-800 outline-none ring-blue-100 focus:ring" />
-                  <div className="mt-2 flex items-center gap-2">
-                    <button type="button" disabled={savingField === "description"} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60" onClick={() => void saveField("description")}>{savingField === "description" ? "Saving..." : "Save"}</button>
-                    <button type="button" disabled={savingField === "description"} className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50" onClick={cancelEditing}>Cancel</button>
+              <EditableFieldTrigger
+                className="mt-3 inline-flex max-w-3xl items-start gap-2"
+                textClassName="text-left text-sm leading-6 text-zinc-600"
+                ariaLabel="Edit project description"
+                value={project.description ?? "No description yet."}
+                field="description"
+                editingField={editingField}
+                onStartEditing={startEditing}
+                editingNode={
+                  <div ref={descriptionEditorRef} className="max-w-3xl">
+                    <textarea
+                      ref={descriptionInputRef}
+                      value={descriptionDraft}
+                      onChange={(event) => setDescriptionDraft(event.target.value)}
+                      onKeyDown={handleDescriptionKeyDown}
+                      disabled={savingField === "description"}
+                      rows={3}
+                      className="w-full resize-none rounded-xl border border-zinc-300 px-3 py-2 text-sm leading-6 text-zinc-800 outline-none ring-blue-100 focus:ring"
+                    />
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={savingField === "description"}
+                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                        onClick={() => void saveField("description")}
+                      >
+                        {savingField === "description" ? "Saving..." : "Save"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={savingField === "description"}
+                        className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                        onClick={cancelEditing}
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="group mt-3 inline-flex max-w-3xl items-start gap-2">
-                  <button type="button" className="text-left text-sm leading-6 text-zinc-600" onClick={() => startEditing("description")} aria-label="Edit project description">{project.description ?? "No description yet."}</button>
-                  <button type="button" className="mt-1 rounded-lg p-1 text-zinc-400 opacity-0 transition hover:bg-zinc-100 hover:text-zinc-700 group-hover:opacity-100" onClick={() => startEditing("description")} aria-label="Edit project description"><Pencil className="h-4 w-4" /></button>
-                </div>
-              )}
+                }
+              />
 
               <div className="mt-4 grid gap-2 text-sm text-zinc-600"><div>Created {formatDate(project.createdAt)}</div><div>Updated {formatDate(project.updatedAt)}</div></div>
 
@@ -264,5 +300,52 @@ export function AgentProjectDetailsPage() {
       ) : null}
       <ConfirmationDialog open={deleteConfirmOpen} title="Delete project?" description="The project will be removed from normal automation views." confirmLabel="Delete" tone="danger" onCancel={() => setDeleteConfirmOpen(false)} onConfirm={() => void confirmDeleteAction()} />
     </>
+  );
+}
+
+type EditableFieldTriggerProps = {
+  className: string;
+  textClassName: string;
+  ariaLabel: string;
+  value: string;
+  field: EditableNonNullField;
+  editingField: EditableField;
+  onStartEditing: (field: EditableNonNullField) => void;
+  editingNode: JSX.Element;
+};
+
+function EditableFieldTrigger({
+  className,
+  textClassName,
+  ariaLabel,
+  value,
+  field,
+  editingField,
+  onStartEditing,
+  editingNode,
+}: EditableFieldTriggerProps) {
+  if (editingField === field) {
+    return editingNode;
+  }
+
+  return (
+    <div className={`group ${className}`}>
+      <button
+        type="button"
+        className={textClassName}
+        onClick={() => onStartEditing(field)}
+        aria-label={ariaLabel}
+      >
+        {value}
+      </button>
+      <button
+        type="button"
+        className="rounded-lg p-1 text-zinc-400 opacity-0 transition hover:bg-zinc-100 hover:text-zinc-700 group-hover:opacity-100"
+        onClick={() => onStartEditing(field)}
+        aria-label={ariaLabel}
+      >
+        <Pencil className="h-4 w-4" />
+      </button>
+    </div>
   );
 }

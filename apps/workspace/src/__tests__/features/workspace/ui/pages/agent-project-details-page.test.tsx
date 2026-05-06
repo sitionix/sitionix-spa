@@ -266,6 +266,31 @@ describe("AgentProjectDetailsPage", () => {
     expect(await screen.findByText("Updated description")).toBeInTheDocument();
   });
 
+  it("shows error when patch project name fails", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    patchAgentProjectMock.mockRejectedValue(new Error("Unable to save changes"));
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Marketing Automation");
+
+    await user.click(screen.getAllByRole("button", { name: "Edit project name" })[0]);
+    const input = screen.getByDisplayValue("Marketing Automation");
+    await user.clear(input);
+    await user.type(input, "Updated Marketing Automation");
+    await user.keyboard("{Enter}");
+
+    expect(patchAgentProjectMock).toHaveBeenCalledWith("project-1", { name: "Updated Marketing Automation" });
+    expect(await screen.findByText("Unable to save changes")).toBeInTheDocument();
+  });
+
   it("renders archive disabled and deletes project after confirmation", async () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",

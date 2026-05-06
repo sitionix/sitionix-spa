@@ -1,5 +1,4 @@
 import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
-import { AgentProjectApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-132-unstable/apis";
 import type {
   AcceptAgentRuleRequestDTO,
   CreateAgentRequestDTO,
@@ -8,7 +7,6 @@ import type {
   PatchAgentRuleRequestDTO,
   PatchAgentRequestDTO,
 } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
-import type { PatchAgentProjectRequestDTO } from "@sitionix/app-afesox-bffssox-frontend-sitionix-132-unstable/models";
 import { bffApiConfiguration, requestJson } from "../../../../../shared/http/httpClient";
 import type {
   AgentConversationDetails,
@@ -35,7 +33,6 @@ import type {
 } from "../model/types";
 
 const agentApi = new AgentApi(bffApiConfiguration);
-const agentProjectApi = new AgentProjectApi(bffApiConfiguration);
 type RuleTextPayload = { title?: string; content?: string };
 type ExtendedAgentApi = {
   restoreAgent(request: { agentId: string }): Promise<AutomationAgent>;
@@ -194,7 +191,7 @@ export async function getAgentProject(projectId: string): Promise<AgentProject> 
 }
 
 export async function patchAgentProject(projectId: string, payload: PatchAgentProjectRequest): Promise<AgentProject> {
-  const requestBody: PatchAgentProjectRequestDTO = {};
+  const requestBody: PatchAgentProjectRequest = {};
 
   if (hasOwn(payload, "name")) {
     const name = payload.name?.trim() ?? "";
@@ -218,16 +215,25 @@ export async function patchAgentProject(projectId: string, payload: PatchAgentPr
     throw new Error("At least one field (name or description) must be provided");
   }
 
-  return agentProjectApi.patchAgentProject({
-    projectId,
-    patchAgentProjectRequestDTO: requestBody,
+  const result = await requestJson<AgentProject, unknown, PatchAgentProjectRequest>({
+    method: "PATCH",
+    path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}`,
+    body: requestBody,
   });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to patch project");
+  }
+  return result.data;
 }
 
 export async function deleteAgentProject(projectId: string): Promise<void> {
-  await agentProjectApi.deleteAgentProject({
-    projectId,
+  const result = await requestJson<undefined, unknown, never>({
+    method: "DELETE",
+    path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}`,
   });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to delete project");
+  }
 }
 
 export async function createAgent(payload: CreateAgentRequest): Promise<AutomationAgent> {
