@@ -108,6 +108,10 @@ export function AutomationPage() {
     navigate(`/automation/agents/${agentId}`);
   }, [navigate]);
 
+  const handleProjectCardClick = useCallback((projectId: string) => {
+    navigate(`/automation/projects/${projectId}`);
+  }, [navigate]);
+
   const handleCardKeyDown = useCallback((event: KeyboardEvent<HTMLElement>, agentId: string) => {
     if (event.key !== "Enter" && event.key !== " ") {
       return;
@@ -115,6 +119,14 @@ export function AutomationPage() {
     event.preventDefault();
     handleCardClick(agentId);
   }, [handleCardClick]);
+
+  const handleProjectCardKeyDown = useCallback((event: KeyboardEvent<HTMLElement>, projectId: string) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    event.preventDefault();
+    handleProjectCardClick(projectId);
+  }, [handleProjectCardClick]);
 
   const handleCardCtaClick = useCallback(async (event: MouseEvent<HTMLButtonElement>, agent: AutomationAgent) => {
     event.stopPropagation();
@@ -329,7 +341,14 @@ export function AutomationPage() {
       {activeTab === "projects" && projectsStatus === "ready" && sortedProjects.length > 0 ? (
         <div className="grid gap-4">
           {sortedProjects.map((project) => (
-            <article key={project.id} className="rounded-3xl border border-zinc-200 bg-white p-6 text-left shadow-sm">
+            <article
+              key={project.id}
+              role="button"
+              tabIndex={0}
+              className="cursor-pointer rounded-3xl border border-zinc-200 bg-white p-6 text-left shadow-sm transition hover:border-zinc-300 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+              onClick={() => handleProjectCardClick(project.id)}
+              onKeyDown={(event) => handleProjectCardKeyDown(event, project.id)}
+            >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-3">

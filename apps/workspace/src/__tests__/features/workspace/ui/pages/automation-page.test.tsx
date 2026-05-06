@@ -78,11 +78,17 @@ function AgentChatRouteProbe() {
   return <div>Agent chat route: {agentId}</div>;
 }
 
+function ProjectDetailsRouteProbe() {
+  const { projectId } = useParams<{ projectId: string }>();
+  return <div>Project details route: {projectId}</div>;
+}
+
 function renderAutomationPage() {
   return render(
     <MemoryRouter initialEntries={["/automation"]}>
       <Routes>
         <Route path="/automation" element={<AutomationPage />} />
+        <Route path="/automation/projects/:projectId" element={<ProjectDetailsRouteProbe />} />
         <Route path="/automation/agents/:agentId" element={<AgentDetailsRouteProbe />} />
         <Route path="/automation/agents/:agentId/chat" element={<AgentChatRouteProbe />} />
       </Routes>
@@ -506,5 +512,35 @@ describe("AutomationPage", () => {
     await user.click(screen.getByRole("button", { name: "Projects" }));
 
     expect(await screen.findAllByText("No description yet.")).toHaveLength(2);
+  });
+
+  it("givenProjectCard_whenClicked_thenNavigatesToProjectDetailsRoute", async () => {
+    getAgentsMock.mockResolvedValue([]);
+    getAgentProjectsMock.mockResolvedValue({
+      items: [
+        {
+          id: "project-77",
+          name: "Routing Project",
+          description: "Description",
+          status: "ACTIVE",
+          createdAt: "2026-05-05T12:00:00Z",
+          updatedAt: "2026-05-05T12:00:00Z",
+        },
+      ],
+      page: 0,
+      size: 20,
+      hasNext: false,
+    });
+
+    const user = userEvent.setup();
+    renderAutomationPage();
+
+    await screen.findByText("No agents yet");
+    await user.click(screen.getByRole("button", { name: "Projects" }));
+
+    const card = await screen.findByRole("button", { name: /Routing Project/i });
+    await user.click(card);
+
+    expect(await screen.findByText("Project details route: project-77")).toBeInTheDocument();
   });
 });

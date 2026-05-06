@@ -157,6 +157,10 @@ export async function getAgentProjects(page = 0, size = 20): Promise<AgentProjec
   };
 }
 
+export async function getAgentProject(projectId: string): Promise<AgentProject> {
+  return agentApi.getAgentProject({ projectId });
+}
+
 export async function createAgent(payload: CreateAgentRequest): Promise<AutomationAgent> {
   const name = payload.name.trim();
   const description = payload.description?.trim();
@@ -522,6 +526,7 @@ export function getErrorHttpStatus(error: unknown): number | null {
 export const agentsApi = {
   getAgents,
   getAgentById,
+  getAgentProject,
   createAgent,
   patchAgent,
   activateAgent,
