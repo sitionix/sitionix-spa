@@ -13,6 +13,7 @@ import {
   deleteAgent,
   deleteAgentConversation,
   getAgentById,
+  getAgentProject,
   getAgentConversation,
   getAgentConversations,
   getAgentProjects,
@@ -218,6 +219,40 @@ describe("agentsApi.projects", () => {
           configurable: true,
           writable: true,
           value: originalCreateAgentProject,
+        });
+      }
+    }
+  });
+
+  it("loads single project through generated endpoint when available", async () => {
+    const getProjectSpy = vi.fn().mockResolvedValue({
+      id: "project-1",
+      name: "Project One",
+      description: "desc",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    const originalGetAgentProject = (AgentApi.prototype as any).getAgentProject;
+    Object.defineProperty(AgentApi.prototype, "getAgentProject", {
+      configurable: true,
+      writable: true,
+      value: getProjectSpy,
+    });
+
+    try {
+      const result = await getAgentProject("project-1");
+
+      expect(getProjectSpy).toHaveBeenCalledWith({ projectId: "project-1" });
+      expect(result.id).toBe("project-1");
+    } finally {
+      if (typeof originalGetAgentProject === "undefined") {
+        delete (AgentApi.prototype as any).getAgentProject;
+      } else {
+        Object.defineProperty(AgentApi.prototype, "getAgentProject", {
+          configurable: true,
+          writable: true,
+          value: originalGetAgentProject,
         });
       }
     }

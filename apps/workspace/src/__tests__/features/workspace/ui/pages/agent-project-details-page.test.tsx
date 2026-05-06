@@ -65,6 +65,21 @@ describe("AgentProjectDetailsPage", () => {
     expect(await screen.findByText("No description yet.")).toBeInTheDocument();
   });
 
+  it("renders archived project status badge", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Archived Project",
+      description: "Archived description",
+      status: "ARCHIVED",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("ARCHIVED")).toBeInTheDocument();
+  });
+
   it("renders not-found state on 404 response", async () => {
     getAgentProjectMock.mockRejectedValue(new Error("Not found"));
     getErrorHttpStatusMock.mockReturnValue(404);
