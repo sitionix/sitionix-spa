@@ -191,19 +191,36 @@ describe("agentsApi.projects", () => {
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
     });
-    (AgentApi.prototype as any).createAgentProject = createProjectSpy;
-
-    await createAgentProject({
-      name: "  Marketing Automation  ",
-      description: "  Desc  ",
+    const originalCreateAgentProject = (AgentApi.prototype as any).createAgentProject;
+    Object.defineProperty(AgentApi.prototype, "createAgentProject", {
+      configurable: true,
+      writable: true,
+      value: createProjectSpy,
     });
 
-    expect(createProjectSpy).toHaveBeenCalledWith({
-      createAgentProjectRequestDTO: {
-        name: "Marketing Automation",
-        description: "Desc",
-      },
-    });
+    try {
+      await createAgentProject({
+        name: "  Marketing Automation  ",
+        description: "  Desc  ",
+      });
+
+      expect(createProjectSpy).toHaveBeenCalledWith({
+        createAgentProjectRequestDTO: {
+          name: "Marketing Automation",
+          description: "Desc",
+        },
+      });
+    } finally {
+      if (typeof originalCreateAgentProject === "undefined") {
+        delete (AgentApi.prototype as any).createAgentProject;
+      } else {
+        Object.defineProperty(AgentApi.prototype, "createAgentProject", {
+          configurable: true,
+          writable: true,
+          value: originalCreateAgentProject,
+        });
+      }
+    }
   });
 
 });
