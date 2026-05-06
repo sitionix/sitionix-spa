@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentProjectApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-132-unstable/apis";
 import * as httpClient from "../../../../shared/http/httpClient";
 
 import {
@@ -8,6 +9,7 @@ import {
   archiveAgent,
   chatAgent,
   createAgentProject,
+  deleteAgentProject,
   createAgentRule,
   createAgent,
   deleteAgentRule,
@@ -24,6 +26,7 @@ import {
   getErrorHttpStatus,
   getAgentRules,
   patchAgent,
+  patchAgentProject,
   patchAgentRule,
   rejectAgentRule,
   restoreAgent,
@@ -217,6 +220,56 @@ describe("agentsApi.projects", () => {
       path: "/api/v1/agent-projects/project-1",
     });
     expect(result.id).toBe("project-1");
+  });
+
+  it("patches project name only with trimmed value", async () => {
+    const patchAgentProjectSpy = vi.spyOn(AgentProjectApi.prototype, "patchAgentProject").mockResolvedValue({
+      id: "project-1",
+      name: "Updated Name",
+      description: "desc",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:10:00Z",
+    });
+
+    await patchAgentProject("project-1", { name: "  Updated Name  " });
+
+    expect(patchAgentProjectSpy).toHaveBeenCalledWith({
+      projectId: "project-1",
+      patchAgentProjectRequestDTO: { name: "Updated Name" },
+    });
+  });
+
+  it("patches project description only and maps blank to null", async () => {
+    const patchAgentProjectSpy = vi.spyOn(AgentProjectApi.prototype, "patchAgentProject").mockResolvedValue({
+      id: "project-1",
+      name: "Name",
+      description: null,
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:10:00Z",
+    });
+
+    await patchAgentProject("project-1", { description: "   " });
+
+    expect(patchAgentProjectSpy).toHaveBeenCalledWith({
+      projectId: "project-1",
+      patchAgentProjectRequestDTO: { description: null },
+    });
+  });
+
+  it("rejects blank project name while patching", async () => {
+    await expect(patchAgentProject("project-1", { name: "   " })).rejects.toThrow("Project name is required");
+  });
+
+  it("deletes project via delete endpoint", async () => {
+    const deleteAgentProjectSpy = vi.spyOn(AgentProjectApi.prototype, "deleteAgentProject").mockResolvedValue(undefined);
+
+    await deleteAgentProject("project-1");
+
+    expect(deleteAgentProjectSpy).toHaveBeenCalledWith({
+      projectId: "project-1",
+    });
   });
 
 });

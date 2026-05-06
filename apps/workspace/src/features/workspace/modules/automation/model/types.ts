@@ -9,10 +9,12 @@ import type {
   CreateAgentRequestDTO,
   PatchAgentRequestDTO,
 } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+import type { PatchAgentProjectRequestDTO } from "@sitionix/app-afesox-bffssox-frontend-sitionix-132-unstable/models";
 
 export type AutomationAgent = AgentDTO;
 export type CreateAgentRequest = CreateAgentRequestDTO;
 export type PatchAgentRequest = PatchAgentRequestDTO;
+export type PatchAgentProjectRequest = PatchAgentProjectRequestDTO;
 
 export type ChatAgentRequest = {
   clientRequestId?: string;

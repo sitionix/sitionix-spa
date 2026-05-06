@@ -1,4 +1,5 @@
 import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentProjectApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-132-unstable/apis";
 import type {
   AcceptAgentRuleRequestDTO,
   CreateAgentRequestDTO,
@@ -7,6 +8,7 @@ import type {
   PatchAgentRuleRequestDTO,
   PatchAgentRequestDTO,
 } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+import type { PatchAgentProjectRequestDTO } from "@sitionix/app-afesox-bffssox-frontend-sitionix-132-unstable/models";
 import { bffApiConfiguration, requestJson } from "../../../../../shared/http/httpClient";
 import type {
   AgentConversationDetails,
@@ -28,10 +30,12 @@ import type {
   PatchAgentRuleRequest,
   CreateAgentRequest,
   PatchAgentRequest,
+  PatchAgentProjectRequest,
   SubmitChatExecutionResponse,
 } from "../model/types";
 
 const agentApi = new AgentApi(bffApiConfiguration);
+const agentProjectApi = new AgentProjectApi(bffApiConfiguration);
 type RuleTextPayload = { title?: string; content?: string };
 type ExtendedAgentApi = {
   restoreAgent(request: { agentId: string }): Promise<AutomationAgent>;
@@ -187,6 +191,43 @@ export async function getAgentProject(projectId: string): Promise<AgentProject> 
     throw createHttpStatusError(result.status, "Unable to load project");
   }
   return result.data;
+}
+
+export async function patchAgentProject(projectId: string, payload: PatchAgentProjectRequest): Promise<AgentProject> {
+  const requestBody: PatchAgentProjectRequestDTO = {};
+
+  if (hasOwn(payload, "name")) {
+    const name = payload.name?.trim() ?? "";
+    if (!name) {
+      throw new Error("Project name is required");
+    }
+    requestBody.name = name;
+  }
+
+  if (hasOwn(payload, "description")) {
+    const rawDescription = payload.description;
+    if (rawDescription === null) {
+      requestBody.description = null;
+    } else {
+      const description = rawDescription?.trim() ?? "";
+      requestBody.description = description || null;
+    }
+  }
+
+  if (!hasOwn(requestBody, "name") && !hasOwn(requestBody, "description")) {
+    throw new Error("At least one field (name or description) must be provided");
+  }
+
+  return agentProjectApi.patchAgentProject({
+    projectId,
+    patchAgentProjectRequestDTO: requestBody,
+  });
+}
+
+export async function deleteAgentProject(projectId: string): Promise<void> {
+  await agentProjectApi.deleteAgentProject({
+    projectId,
+  });
 }
 
 export async function createAgent(payload: CreateAgentRequest): Promise<AutomationAgent> {
@@ -561,6 +602,8 @@ export const agentsApi = {
   getAgents,
   getAgentById,
   getAgentProject,
+  patchAgentProject,
+  deleteAgentProject,
   createAgent,
   patchAgent,
   activateAgent,
