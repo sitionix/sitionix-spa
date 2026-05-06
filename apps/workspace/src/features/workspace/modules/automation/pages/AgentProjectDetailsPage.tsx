@@ -1,5 +1,5 @@
 import { ArrowLeft, Loader2, Pencil, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ConfirmationDialog } from "../../../ui/components/ConfirmationDialog";
 import { PageHeader } from "../../../ui/components/PageHeader";
@@ -198,9 +198,11 @@ export function AgentProjectDetailsPage() {
         Back to Projects
       </button>
 
-      {status === "loading" ? <div className="flex min-h-[320px] items-center justify-center rounded-3xl border border-zinc-200 bg-white"><div className="flex items-center gap-3 text-zinc-500"><Loader2 className="h-5 w-5 animate-spin" /><span>Loading project details...</span></div></div> : null}
-      {status === "not_found" ? <div className="rounded-3xl border border-zinc-200 bg-white p-8"><h2 className="text-xl font-semibold text-zinc-900">Project not found</h2><p className="mt-2 text-sm text-zinc-600">This project may have been deleted or you may not have access to it.</p></div> : null}
-      {status === "error" ? <div className="rounded-3xl border border-red-200 bg-red-50 p-8"><h2 className="text-lg font-semibold text-red-900">Unable to load project details</h2><p className="mt-2 text-sm text-red-700">{error ?? "Unknown error"}</p><button type="button" className="mt-5 inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100" onClick={() => void loadProject()}><RefreshCw className="h-4 w-4" />Retry</button></div> : null}
+      <PageStateView
+        status={status}
+        error={error}
+        onRetry={loadProject}
+      />
 
       {status === "ready" && project ? (
         <>
@@ -243,63 +245,230 @@ export function AgentProjectDetailsPage() {
                 editingField={editingField}
                 onStartEditing={startEditing}
                 editingNode={
-                  <div ref={descriptionEditorRef} className="max-w-3xl">
-                    <textarea
-                      ref={descriptionInputRef}
-                      value={descriptionDraft}
-                      onChange={(event) => setDescriptionDraft(event.target.value)}
-                      onKeyDown={handleDescriptionKeyDown}
-                      disabled={savingField === "description"}
-                      rows={3}
-                      className="w-full resize-none rounded-xl border border-zinc-300 px-3 py-2 text-sm leading-6 text-zinc-800 outline-none ring-blue-100 focus:ring"
-                    />
-                    <div className="mt-2 flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={savingField === "description"}
-                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
-                        onClick={() => void saveField("description")}
-                      >
-                        {savingField === "description" ? "Saving..." : "Save"}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={savingField === "description"}
-                        className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                        onClick={cancelEditing}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
+                  <EditableDescription
+                    editorRef={descriptionEditorRef}
+                    inputRef={descriptionInputRef}
+                    value={descriptionDraft}
+                    disabled={savingField === "description"}
+                    onChange={setDescriptionDraft}
+                    onKeyDown={handleDescriptionKeyDown}
+                    onSave={() => void saveField("description")}
+                    onCancel={cancelEditing}
+                    isSaving={savingField === "description"}
+                  />
                 }
               />
 
-              <div className="mt-4 grid gap-2 text-sm text-zinc-600"><div>Created {formatDate(project.createdAt)}</div><div>Updated {formatDate(project.updatedAt)}</div></div>
+              <div className="mt-4 grid gap-2 text-sm text-zinc-600">
+                <div>Created {formatDate(project.createdAt)}</div>
+                <div>Updated {formatDate(project.updatedAt)}</div>
+              </div>
 
-              {saveError ? <p className="mt-3 text-sm text-red-700">{saveError}</p> : null}
-              {lifecycleError ? <p className="mt-3 text-sm text-red-700">{lifecycleError}</p> : null}
+              <InlineError message={saveError} />
+              <InlineError message={lifecycleError} />
             </div>
           </section>
 
           <div className="mt-6 grid gap-6 xl:grid-cols-[2fr_1fr]">
             <div className="grid gap-4">
-              <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm"><h2 className="text-lg font-semibold text-zinc-900">Agents</h2><p className="mt-2 text-sm text-zinc-600">Project agents will appear here.</p><p className="mt-1 text-sm text-zinc-500">Soon you will be able to attach agents to this project.</p></section>
-              <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm"><h2 className="text-lg font-semibold text-zinc-900">Conversations</h2><p className="mt-2 text-sm text-zinc-600">Project conversations will appear here.</p><p className="mt-1 text-sm text-zinc-500">Soon you will be able to start project-bound conversations.</p></section>
+              <PlaceholderCard
+                title="Agents"
+                description="Project agents will appear here."
+                note="Soon you will be able to attach agents to this project."
+              />
+              <PlaceholderCard
+                title="Conversations"
+                description="Project conversations will appear here."
+                note="Soon you will be able to start project-bound conversations."
+              />
             </div>
 
             <aside>
-              <section className="rounded-3xl border border-zinc-200 bg-white p-6">
-                <h2 className="text-lg font-semibold text-zinc-900">Lifecycle actions</h2>
-                <button type="button" disabled className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm font-medium text-zinc-400 disabled:cursor-not-allowed disabled:opacity-100" title="Coming soon">Archive</button>
-                <button type="button" disabled={isDeleting || savingField !== null} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-300 bg-white px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-zinc-400 disabled:opacity-100" onClick={() => setDeleteConfirmOpen(true)}>{isDeleting ? (<><Loader2 className="h-4 w-4 animate-spin" />Deleting...</>) : "Delete"}</button>
-              </section>
+              <LifecycleActions
+                isDeleting={isDeleting}
+                isDisabled={savingField !== null}
+                onDelete={() => setDeleteConfirmOpen(true)}
+              />
             </aside>
           </div>
         </>
       ) : null}
-      <ConfirmationDialog open={deleteConfirmOpen} title="Delete project?" description="The project will be removed from normal automation views." confirmLabel="Delete" tone="danger" onCancel={() => setDeleteConfirmOpen(false)} onConfirm={() => void confirmDeleteAction()} />
+
+      <ConfirmationDialog
+        open={deleteConfirmOpen}
+        title="Delete project?"
+        description="The project will be removed from normal automation views."
+        confirmLabel="Delete"
+        tone="danger"
+        onCancel={() => setDeleteConfirmOpen(false)}
+        onConfirm={() => void confirmDeleteAction()}
+      />
     </>
+  );
+}
+
+type PageStateViewProps = {
+  status: AgentProjectDetailsPageState;
+  error: string | null;
+  onRetry: () => Promise<void>;
+};
+
+function PageStateView({ status, error, onRetry }: PageStateViewProps) {
+  if (status === "loading") {
+    return (
+      <StatePanel>
+        <div className="flex items-center gap-3 text-zinc-500">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Loading project details...</span>
+        </div>
+      </StatePanel>
+    );
+  }
+
+  if (status === "not_found") {
+    return (
+      <div className="rounded-3xl border border-zinc-200 bg-white p-8">
+        <h2 className="text-xl font-semibold text-zinc-900">Project not found</h2>
+        <p className="mt-2 text-sm text-zinc-600">This project may have been deleted or you may not have access to it.</p>
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div className="rounded-3xl border border-red-200 bg-red-50 p-8">
+        <h2 className="text-lg font-semibold text-red-900">Unable to load project details</h2>
+        <p className="mt-2 text-sm text-red-700">{error ?? "Unknown error"}</p>
+        <button
+          type="button"
+          className="mt-5 inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100"
+          onClick={() => void onRetry()}
+        >
+          <RefreshCw className="h-4 w-4" />Retry
+        </button>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function StatePanel({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex min-h-[320px] items-center justify-center rounded-3xl border border-zinc-200 bg-white">
+      {children}
+    </div>
+  );
+}
+
+type EditableDescriptionProps = {
+  editorRef: React.RefObject<HTMLDivElement | null>;
+  inputRef: React.RefObject<HTMLTextAreaElement | null>;
+  value: string;
+  disabled: boolean;
+  isSaving: boolean;
+  onChange: (value: string) => void;
+  onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  onSave: () => void;
+  onCancel: () => void;
+};
+
+function EditableDescription({
+  editorRef,
+  inputRef,
+  value,
+  disabled,
+  isSaving,
+  onChange,
+  onKeyDown,
+  onSave,
+  onCancel,
+}: EditableDescriptionProps) {
+  return (
+    <div ref={editorRef} className="max-w-3xl">
+      <textarea
+        ref={inputRef}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={onKeyDown}
+        disabled={disabled}
+        rows={3}
+        className="w-full resize-none rounded-xl border border-zinc-300 px-3 py-2 text-sm leading-6 text-zinc-800 outline-none ring-blue-100 focus:ring"
+      />
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          disabled={disabled}
+          className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+          onClick={onSave}
+        >
+          {isSaving ? "Saving..." : "Save"}
+        </button>
+        <button
+          type="button"
+          disabled={disabled}
+          className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function InlineError({ message }: { message: string | null }) {
+  if (!message) {
+    return null;
+  }
+  return <p className="mt-3 text-sm text-red-700">{message}</p>;
+}
+
+type PlaceholderCardProps = {
+  title: string;
+  description: string;
+  note: string;
+};
+
+function PlaceholderCard({ title, description, note }: PlaceholderCardProps) {
+  return (
+    <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+      <h2 className="text-lg font-semibold text-zinc-900">{title}</h2>
+      <p className="mt-2 text-sm text-zinc-600">{description}</p>
+      <p className="mt-1 text-sm text-zinc-500">{note}</p>
+    </section>
+  );
+}
+
+type LifecycleActionsProps = {
+  isDeleting: boolean;
+  isDisabled: boolean;
+  onDelete: () => void;
+};
+
+function LifecycleActions({ isDeleting, isDisabled, onDelete }: LifecycleActionsProps) {
+  return (
+    <section className="rounded-3xl border border-zinc-200 bg-white p-6">
+      <h2 className="text-lg font-semibold text-zinc-900">Lifecycle actions</h2>
+      <button
+        type="button"
+        disabled
+        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm font-medium text-zinc-400 disabled:cursor-not-allowed disabled:opacity-100"
+        title="Coming soon"
+      >
+        Archive
+      </button>
+      <button
+        type="button"
+        disabled={isDeleting || isDisabled}
+        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-300 bg-white px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-zinc-400 disabled:opacity-100"
+        onClick={onDelete}
+      >
+        {isDeleting ? (
+          <><Loader2 className="h-4 w-4 animate-spin" />Deleting...</>
+        ) : "Delete"}
+      </button>
+    </section>
   );
 }
 
