@@ -141,7 +141,7 @@ describe("agentsApi.projects", () => {
   });
 
   it("loads paged projects and normalizes items", async () => {
-    const getProjectsSpy = vi.spyOn(AgentApi.prototype, "getAgentProjects").mockResolvedValue({
+    const getProjectsSpy = vi.fn().mockResolvedValue({
       items: [
         {
           id: "project-1",
@@ -156,6 +156,7 @@ describe("agentsApi.projects", () => {
       size: 20,
       hasNext: false,
     });
+    (AgentApi.prototype as any).getAgentProjects = getProjectsSpy;
 
     const result = await getAgentProjects(0, 20);
 
@@ -165,7 +166,7 @@ describe("agentsApi.projects", () => {
   });
 
   it("creates project with trimmed payload", async () => {
-    const createProjectSpy = vi.spyOn(AgentApi.prototype, "createAgentProject").mockResolvedValue({
+    const createProjectSpy = vi.fn().mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
       description: "Desc",
@@ -173,6 +174,7 @@ describe("agentsApi.projects", () => {
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
     });
+    (AgentApi.prototype as any).createAgentProject = createProjectSpy;
 
     await createAgentProject({
       name: "  Marketing Automation  ",

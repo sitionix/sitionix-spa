@@ -7,7 +7,7 @@ import type {
   PatchAgentRuleRequestDTO,
   PatchAgentRequestDTO,
 } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
-import { bffApiConfiguration } from "../../../../../shared/http/httpClient";
+import { bffApiConfiguration, requestJson } from "../../../../../shared/http/httpClient";
 import type {
   AgentConversationDetails,
   AgentConversationsResponse,
@@ -34,6 +34,9 @@ import type {
 const agentApi = new AgentApi(bffApiConfiguration);
 type RuleTextPayload = { title?: string; content?: string };
 type ExtendedAgentApi = {
+  getAgentProjects?(request: { page?: number; size?: number }): Promise<AgentProjectsPage>;
+  getAgentProject?(request: { projectId: string }): Promise<AgentProject>;
+  createAgentProject?(request: { createAgentProjectRequestDTO: CreateAgentProjectRequestDTO }): Promise<AgentProject>;
   restoreAgent(request: { agentId: string }): Promise<AutomationAgent>;
   deleteAgent(request: { agentId: string }): Promise<AutomationAgent>;
   getAgentConversations(request: { agentId: string }): Promise<AgentConversationsResponse>;
@@ -81,6 +84,20 @@ type ExtendedAgentApi = {
 };
 
 const agentApiExtended = agentApi as unknown as ExtendedAgentApi;
+
+function createHttpStatusError(status: number, message: string): Error & { status: number } {
+  const error = new Error(message) as Error & { status: number };
+  error.status = status;
+  return error;
+}
+
+function buildProjectsPath(page: number, size: number): string {
+  const query = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+  });
+  return `/api/v1/agent-projects?${query.toString()}`;
+}
 
 function hasOwn(source: object, key: PropertyKey): boolean {
   return Object.prototype.hasOwnProperty.call(source, key);
@@ -150,7 +167,18 @@ export async function getAgentById(agentId: string): Promise<AutomationAgent> {
 }
 
 export async function getAgentProjects(page = 0, size = 20): Promise<AgentProjectsPage> {
-  const response = await agentApi.getAgentProjects({ page, size });
+  const response = agentApiExtended.getAgentProjects
+    ? await agentApiExtended.getAgentProjects({ page, size })
+    : await (async () => {
+      const result = await requestJson<AgentProjectsPage, unknown, never>({
+        method: "GET",
+        path: buildProjectsPath(page, size),
+      });
+      if (!result.ok) {
+        throw createHttpStatusError(result.status, "Unable to load projects");
+      }
+      return result.data;
+    })();
   return {
     ...response,
     items: Array.isArray(response.items) ? response.items : [],
@@ -158,7 +186,18 @@ export async function getAgentProjects(page = 0, size = 20): Promise<AgentProjec
 }
 
 export async function getAgentProject(projectId: string): Promise<AgentProject> {
-  return agentApi.getAgentProject({ projectId });
+  if (agentApiExtended.getAgentProject) {
+    return agentApiExtended.getAgentProject({ projectId });
+  }
+
+  const result = await requestJson<AgentProject, unknown, never>({
+    method: "GET",
+    path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}`,
+  });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to load project");
+  }
+  return result.data;
 }
 
 export async function createAgent(payload: CreateAgentRequest): Promise<AutomationAgent> {
@@ -199,9 +238,21 @@ export async function createAgentProject(payload: CreateAgentProjectRequest): Pr
     requestBody.description = description;
   }
 
-  return agentApi.createAgentProject({
-    createAgentProjectRequestDTO: requestBody,
+  if (agentApiExtended.createAgentProject) {
+    return agentApiExtended.createAgentProject({
+      createAgentProjectRequestDTO: requestBody,
+    });
+  }
+
+  const result = await requestJson<AgentProject, unknown, CreateAgentProjectRequestDTO>({
+    method: "POST",
+    path: "/api/v1/agent-projects",
+    body: requestBody,
   });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to create project");
+  }
+  return result.data;
 }
 
 export async function patchAgent(agentId: string, payload: PatchAgentRequest): Promise<AutomationAgent> {
