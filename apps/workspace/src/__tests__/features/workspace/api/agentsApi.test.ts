@@ -156,13 +156,30 @@ describe("agentsApi.projects", () => {
       size: 20,
       hasNext: false,
     });
-    (AgentApi.prototype as any).getAgentProjects = getProjectsSpy;
+    const originalGetAgentProjects = (AgentApi.prototype as any).getAgentProjects;
+    Object.defineProperty(AgentApi.prototype, "getAgentProjects", {
+      configurable: true,
+      writable: true,
+      value: getProjectsSpy,
+    });
 
-    const result = await getAgentProjects(0, 20);
+    try {
+      const result = await getAgentProjects(0, 20);
 
-    expect(getProjectsSpy).toHaveBeenCalledWith({ page: 0, size: 20 });
-    expect(result.items).toHaveLength(1);
-    expect(result.items[0].id).toBe("project-1");
+      expect(getProjectsSpy).toHaveBeenCalledWith({ page: 0, size: 20 });
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].id).toBe("project-1");
+    } finally {
+      if (typeof originalGetAgentProjects === "undefined") {
+        delete (AgentApi.prototype as any).getAgentProjects;
+      } else {
+        Object.defineProperty(AgentApi.prototype, "getAgentProjects", {
+          configurable: true,
+          writable: true,
+          value: originalGetAgentProjects,
+        });
+      }
+    }
   });
 
   it("creates project with trimmed payload", async () => {
