@@ -11,6 +11,7 @@ import {
   submitChatExecution,
 } from "../api";
 import { toAutomationErrorMessage } from "../model/mappers";
+import { getStatusBadgeClass } from "../model/statusBadge";
 import type {
   AgentConversation,
   AgentConversationDetails,
@@ -33,16 +34,6 @@ type LatestExecution = {
 
 function isLifecycleInFlight(status: ChatExecutionLifecycleStatus | null | undefined): boolean {
   return status === "QUEUED" || status === "PENDING" || status === "RUNNING";
-}
-
-function getStatusBadgeClass(status: AutomationAgent["status"]): string {
-  if (status === "ACTIVE") {
-    return "bg-emerald-50 text-emerald-700";
-  }
-  if (status === "ARCHIVED") {
-    return "bg-zinc-100 text-zinc-600";
-  }
-  return "bg-amber-50 text-amber-700";
 }
 
 function formatConversationDate(value: string): string {
