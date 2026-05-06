@@ -13,8 +13,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@sitionix/app-afesox-bffssox-frontend-sitionix-129-unstable": "0.0.34",
-    "@sitionix/app-afesox-bffssox-frontend-stable": "0.0.33",
+    "@sitionix/app-afesox-bffssox-frontend-stable": "0.0.34",
     "@sitionix/auth-session": "workspace:*",
     "@sitionix/contracts": "workspace:*",
     "@sitionix/http-client": "workspace:*",
