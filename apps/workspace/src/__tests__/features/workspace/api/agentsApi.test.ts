@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentApi, AgentChatApi, AgentConversationApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
 import * as httpClient from "../../../../shared/http/httpClient";
 
 import {
@@ -672,7 +672,7 @@ describe("agentsApi.chat", () => {
 
   it("returns normalized conversation list and defaults to empty array when items missing", async () => {
     const getAgentConversationsSpy = vi.fn().mockResolvedValue({});
-    (AgentApi.prototype as any).getAgentConversations = getAgentConversationsSpy;
+    (AgentConversationApi.prototype as any).getAgentConversations = getAgentConversationsSpy;
 
     const result = await getAgentConversations("agent-11");
 
@@ -689,7 +689,7 @@ describe("agentsApi.chat", () => {
       updatedAt: "2026-04-21T10:01:00.000Z",
       lastMessageAt: "2026-04-21T10:01:00.000Z",
     });
-    (AgentApi.prototype as any).getAgentConversation = getAgentConversationSpy;
+    (AgentConversationApi.prototype as any).getAgentConversation = getAgentConversationSpy;
 
     const result = await getAgentConversation("conv-1");
 
@@ -703,7 +703,7 @@ describe("agentsApi.chat", () => {
       conversationId: "conv-1",
       status: "QUEUED",
     });
-    (AgentApi.prototype as any).submitAgentChatExecution = chatAgentSpy;
+    (AgentChatApi.prototype as any).submitAgentChatExecution = chatAgentSpy;
 
     const result = await chatAgent("agent-11", { message: "  Explain clean architecture  " });
 
@@ -726,7 +726,7 @@ describe("agentsApi.chat", () => {
       conversationId: "conv-1",
       status: "QUEUED",
     });
-    (AgentApi.prototype as any).submitAgentChatExecution = chatAgentSpy;
+    (AgentChatApi.prototype as any).submitAgentChatExecution = chatAgentSpy;
 
     await chatAgent("agent-11", {
       conversationId: "conv-1",
@@ -750,7 +750,7 @@ describe("agentsApi.chat", () => {
       conversationId: "conv-1",
       status: "QUEUED",
     });
-    (AgentApi.prototype as any).submitAgentChatExecution = chatAgentSpy;
+    (AgentChatApi.prototype as any).submitAgentChatExecution = chatAgentSpy;
 
     const result = await chatAgent("agent-11", {
       conversationId: "conv-1",
@@ -770,7 +770,7 @@ describe("agentsApi.chat", () => {
       conversationId: "conv-2",
       status: "ACCEPTED",
     });
-    (AgentApi.prototype as any).submitAgentChatExecution = chatAgentSpy;
+    (AgentChatApi.prototype as any).submitAgentChatExecution = chatAgentSpy;
 
     const result = await chatAgent("agent-11", { message: "hello" });
 
@@ -782,13 +782,13 @@ describe("agentsApi.chat", () => {
   });
 
   it("uses executions-path submit endpoint when default submit endpoint is unavailable", async () => {
-    (AgentApi.prototype as any).submitAgentChatExecution = undefined;
+    (AgentChatApi.prototype as any).submitAgentChatExecution = undefined;
     const chatAgentByExecutionsPathSpy = vi.fn().mockResolvedValue({
       executionId: "exec-3",
       conversationId: "conv-3",
       status: "QUEUED",
     });
-    (AgentApi.prototype as any).submitAgentChatExecutionByExecutionsPath = chatAgentByExecutionsPathSpy;
+    (AgentChatApi.prototype as any).submitAgentChatExecutionByExecutionsPath = chatAgentByExecutionsPathSpy;
 
     const result = await chatAgent("agent-11", { message: "hello" });
 
@@ -816,7 +816,7 @@ describe("agentsApi.chat", () => {
         status: "QUEUED",
       });
     });
-    (AgentApi.prototype as any).submitAgentChatExecution = submitSpy;
+    (AgentChatApi.prototype as any).submitAgentChatExecution = submitSpy;
 
     const result = await chatAgent("agent-11", { message: "context" });
 
@@ -833,7 +833,7 @@ describe("agentsApi.chat", () => {
       conversationId: "conv-idem",
       status: "QUEUED",
     });
-    (AgentApi.prototype as any).submitAgentChatExecution = submitSpy;
+    (AgentChatApi.prototype as any).submitAgentChatExecution = submitSpy;
 
     await chatAgent("agent-11", {
       message: "hello",
@@ -858,7 +858,7 @@ describe("agentsApi.chat", () => {
   });
 
   it("throws request error when chat request fails", async () => {
-    (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockRejectedValue(new Error("Gateway timeout"));
+    (AgentChatApi.prototype as any).submitAgentChatExecution = vi.fn().mockRejectedValue(new Error("Gateway timeout"));
 
     await expect(chatAgent("agent-11", { message: "hello" })).rejects.toThrow("Gateway timeout");
   });
@@ -869,7 +869,7 @@ describe("agentsApi.chat", () => {
       conversationId: "conv-10",
       status: "RUNNING",
     });
-    (AgentApi.prototype as any).getAgentChatExecution = getExecutionSpy;
+    (AgentChatApi.prototype as any).getAgentChatExecution = getExecutionSpy;
 
     const result = await getChatAgentExecution("agent-11", "exec-10", "conv-10");
 
@@ -888,7 +888,7 @@ describe("agentsApi.chat", () => {
       status: "COMPLETED",
       assistantMessage: "Ready",
     });
-    (AgentApi.prototype as any).getAgentChatExecution = getExecutionSpy;
+    (AgentChatApi.prototype as any).getAgentChatExecution = getExecutionSpy;
 
     const result = await getChatAgentExecution("agent-11", "exec-11");
 
@@ -915,7 +915,7 @@ describe("agentsApi.chat", () => {
         retryable: true,
       },
     });
-    (AgentApi.prototype as any).getAgentChatExecution = getExecutionSpy;
+    (AgentChatApi.prototype as any).getAgentChatExecution = getExecutionSpy;
 
     const result = await getChatAgentExecution("agent-11", "exec-12", "conv-12");
 
@@ -939,7 +939,7 @@ describe("agentsApi.deleteConversation", () => {
 
   it("calls generated deleteAgentConversation when method exists", async () => {
     const deleteConversationSpy = vi.fn().mockResolvedValue(undefined);
-    (AgentApi.prototype as any).deleteAgentConversation = deleteConversationSpy;
+    (AgentConversationApi.prototype as any).deleteAgentConversation = deleteConversationSpy;
 
     await deleteAgentConversation("conv-1");
 
@@ -947,7 +947,7 @@ describe("agentsApi.deleteConversation", () => {
   });
 
   it("throws explicit error when delete endpoint is missing in generated api", async () => {
-    (AgentApi.prototype as any).deleteAgentConversation = undefined;
+    (AgentConversationApi.prototype as any).deleteAgentConversation = undefined;
     (AgentApi.prototype as any).deleteConversation = undefined;
 
     await expect(deleteAgentConversation("conv-3")).rejects.toThrow(
@@ -962,7 +962,7 @@ describe("agentsApi.chat execution wrappers", () => {
   });
 
   it("maps queued submit response to accepted state", async () => {
-    (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
+    (AgentChatApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-20",
       conversationId: "conv-20",
       inputMessageId: "msg-user-20",
@@ -981,7 +981,7 @@ describe("agentsApi.chat execution wrappers", () => {
   });
 
   it("keeps inputMessageId undefined when inputMessageId is absent", async () => {
-    (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
+    (AgentChatApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-20b",
       conversationId: "conv-20b",
       status: "QUEUED",
@@ -999,7 +999,7 @@ describe("agentsApi.chat execution wrappers", () => {
   });
 
   it("maps running submit response to in-progress state", async () => {
-    (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
+    (AgentChatApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-21",
       conversationId: "conv-21",
       status: "RUNNING",
@@ -1011,7 +1011,7 @@ describe("agentsApi.chat execution wrappers", () => {
   });
 
   it("maps completed submit response to completed state", async () => {
-    (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
+    (AgentChatApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-22",
       conversationId: "conv-22",
       status: "COMPLETED",
@@ -1023,7 +1023,7 @@ describe("agentsApi.chat execution wrappers", () => {
   });
 
   it("maps failed submit response to failed state", async () => {
-    (AgentApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
+    (AgentChatApi.prototype as any).submitAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-23",
       conversationId: "conv-23",
       status: "FAILED",
@@ -1035,7 +1035,7 @@ describe("agentsApi.chat execution wrappers", () => {
   });
 
   it("maps completed execution status and keeps reply", async () => {
-    (AgentApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
+    (AgentChatApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-30",
       conversationId: "conv-30",
       status: "COMPLETED",
@@ -1053,7 +1053,7 @@ describe("agentsApi.chat execution wrappers", () => {
   });
 
   it("maps failed execution status and keeps fallback error defaults", async () => {
-    (AgentApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
+    (AgentChatApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-31",
       conversationId: "conv-31",
       status: "FAILED",
@@ -1079,7 +1079,7 @@ describe("agentsApi.chat execution wrappers", () => {
   });
 
   it("maps failed execution with missing details to defaults", async () => {
-    (AgentApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
+    (AgentChatApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-32",
       conversationId: "conv-32",
       status: "FAILED",
@@ -1100,7 +1100,7 @@ describe("agentsApi.chat execution wrappers", () => {
   });
 
   it("maps running execution to in-progress state", async () => {
-    (AgentApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
+    (AgentChatApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-33",
       conversationId: "conv-33",
       status: "RUNNING",
@@ -1116,7 +1116,7 @@ describe("agentsApi.chat execution wrappers", () => {
   });
 
   it("maps pending execution to accepted state and uses fallback conversation id", async () => {
-    (AgentApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
+    (AgentChatApi.prototype as any).getAgentChatExecution = vi.fn().mockResolvedValue({
       executionId: "exec-34",
       status: "ACCEPTED",
     });
