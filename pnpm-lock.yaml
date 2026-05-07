@@ -24,8 +24,8 @@ importers:
   apps/auth:
     dependencies:
       '@sitionix/app-afesox-bffssox-frontend-stable':
-        specifier: 0.0.21
-        version: 0.0.21
+        specifier: 0.0.37
+        version: 0.0.37
       '@sitionix/auth-session':
         specifier: workspace:*
         version: link:../../packages/auth-session
@@ -264,8 +264,8 @@ importers:
   apps/workspace:
     dependencies:
       '@sitionix/app-afesox-bffssox-frontend-stable':
-        specifier: 0.0.34
-        version: 0.0.34
+        specifier: 0.0.37
+        version: 0.0.37
       '@sitionix/auth-session':
         specifier: workspace:*
         version: link:../../packages/auth-session
@@ -889,11 +889,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@sitionix/app-afesox-bffssox-frontend-stable@0.0.21':
-    resolution: {integrity: sha512-qty7nf4PBDhMKS85L1qGnaTFFh3K5L8ewCsnE6UsAR+EJwY1eHe8ovaNsvTo2gcHfm9gaSnzh5LPLAnpn27i0Q==, tarball: https://npm.pkg.github.com/download/@sitionix/app-afesox-bffssox-frontend-stable/0.0.21/f53f3d38c34413eae7f50b4aa1407972dca9ac62}
-
-  '@sitionix/app-afesox-bffssox-frontend-stable@0.0.34':
-    resolution: {integrity: sha512-r5DDq9EAX3VMJNe2MdLikf0bePx7ZSIwdqiuYoEpUoyNUvZp1ZmfKe4zVtYf8i+wdDVYtKr2gE5iJ4wvZKeklw==, tarball: https://npm.pkg.github.com/download/@sitionix/app-afesox-bffssox-frontend-stable/0.0.34/7129c1e23ad97941f076a14c9daba8511b4e4b1c}
+  '@sitionix/app-afesox-bffssox-frontend-stable@0.0.37':
+    resolution: {integrity: sha512-RxDKgj/z0tTdgv6iNnRUWZVXl5ueUYVH9b8G6y8b7Q2AXCCeMV2n99J+opWKoYsrw7j3tnj7ctX5DajgMbta0A==, tarball: https://npm.pkg.github.com/download/@sitionix/app-afesox-bffssox-frontend-stable/0.0.37/73eb2fd17b47ea22942bf8879612c30a0d14e7c6}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -2374,9 +2371,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.54.0':
     optional: true
 
-  '@sitionix/app-afesox-bffssox-frontend-stable@0.0.21': {}
-
-  '@sitionix/app-afesox-bffssox-frontend-stable@0.0.34': {}
+  '@sitionix/app-afesox-bffssox-frontend-stable@0.0.37': {}
 
   '@standard-schema/spec@1.1.0': {}
 
