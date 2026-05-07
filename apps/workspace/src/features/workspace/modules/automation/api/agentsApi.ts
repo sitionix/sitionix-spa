@@ -1,4 +1,4 @@
-import { AgentApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentApi, AgentChatApi, AgentConversationApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
 import type {
   AcceptAgentRuleRequestDTO,
   CreateAgentRequestDTO,
@@ -14,6 +14,7 @@ import type {
   AgentRule,
   AgentRuleAuthorType,
   AgentRuleStatus,
+  AddAgentToProjectRequest,
   AutomationAgent,
   ChatAgentAcceptedResponse,
   ChatAgentRequest,
@@ -29,17 +30,33 @@ import type {
   CreateAgentRequest,
   PatchAgentRequest,
   PatchAgentProjectRequest,
+  ProjectAgent,
+  ProjectAgentsResponse,
   SubmitChatExecutionResponse,
 } from "../model/types";
 
 const agentApi = new AgentApi(bffApiConfiguration);
+const agentConversationApi = new AgentConversationApi(bffApiConfiguration);
+const agentChatApi = new AgentChatApi(bffApiConfiguration);
 type RuleTextPayload = { title?: string; content?: string };
 type ExtendedAgentApi = {
   restoreAgent(request: { agentId: string }): Promise<AutomationAgent>;
   deleteAgent(request: { agentId: string }): Promise<AutomationAgent>;
+  getAgentRules(request: { agentId: string; status?: AgentRuleStatus; authorType?: AgentRuleAuthorType }): Promise<{ items?: AgentRule[] }>;
+  createAgentRule(request: { agentId: string; createAgentRuleRequestDTO: CreateAgentRuleRequestDTO }): Promise<AgentRule>;
+  patchAgentRule(request: { agentId: string; ruleId: string; patchAgentRuleRequestDTO: PatchAgentRuleRequestDTO }): Promise<AgentRule>;
+  acceptAgentRule(request: { agentId: string; ruleId: string; acceptAgentRuleRequestDTO?: AcceptAgentRuleRequestDTO }): Promise<AgentRule>;
+  rejectAgentRule(request: { agentId: string; ruleId: string }): Promise<AgentRule>;
+  deleteAgentRule(request: { agentId: string; ruleId: string }): Promise<DeleteAgentRuleResponse>;
+};
+
+const agentApiExtended = agentApi as unknown as ExtendedAgentApi;
+const agentConversationApiExtended = agentConversationApi as unknown as {
   getAgentConversations(request: { agentId: string }): Promise<AgentConversationsResponse>;
   getAgentConversation(request: { conversationId: string }): Promise<AgentConversationDetails>;
   deleteAgentConversation?(request: { conversationId: string }): Promise<void>;
+};
+const agentChatApiExtended = agentChatApi as unknown as {
   submitAgentChatExecution?(request: {
     agentId: string;
     chatAgentRequestDTO: ChatAgentRequest;
@@ -73,15 +90,7 @@ type ExtendedAgentApi = {
     error?: { failureClass: ChatExecutionResult["failureClass"]; reason: string; retryable: boolean } | null;
     assistantMessage?: ChatExecutionResult["reply"] | null;
   }>;
-  getAgentRules(request: { agentId: string; status?: AgentRuleStatus; authorType?: AgentRuleAuthorType }): Promise<{ items?: AgentRule[] }>;
-  createAgentRule(request: { agentId: string; createAgentRuleRequestDTO: CreateAgentRuleRequestDTO }): Promise<AgentRule>;
-  patchAgentRule(request: { agentId: string; ruleId: string; patchAgentRuleRequestDTO: PatchAgentRuleRequestDTO }): Promise<AgentRule>;
-  acceptAgentRule(request: { agentId: string; ruleId: string; acceptAgentRuleRequestDTO?: AcceptAgentRuleRequestDTO }): Promise<AgentRule>;
-  rejectAgentRule(request: { agentId: string; ruleId: string }): Promise<AgentRule>;
-  deleteAgentRule(request: { agentId: string; ruleId: string }): Promise<DeleteAgentRuleResponse>;
 };
-
-const agentApiExtended = agentApi as unknown as ExtendedAgentApi;
 
 function createHttpStatusError(status: number, message: string): Error & { status: number } {
   const error = new Error(message) as Error & { status: number };
@@ -236,6 +245,39 @@ export async function deleteAgentProject(projectId: string): Promise<void> {
   }
 }
 
+export async function listAgentProjectAgents(projectId: string): Promise<ProjectAgent[]> {
+  const result = await requestJson<ProjectAgentsResponse, unknown, never>({
+    method: "GET",
+    path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}/agents`,
+  });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to load project agents");
+  }
+  return Array.isArray(result.data.items) ? result.data.items : [];
+}
+
+export async function addAgentToProject(projectId: string, payload: AddAgentToProjectRequest): Promise<ProjectAgent> {
+  const result = await requestJson<ProjectAgent, unknown, AddAgentToProjectRequest>({
+    method: "POST",
+    path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}/agents`,
+    body: payload,
+  });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to add agent to project");
+  }
+  return result.data;
+}
+
+export async function removeAgentFromProject(projectId: string, agentId: string): Promise<void> {
+  const result = await requestJson<undefined, unknown, never>({
+    method: "DELETE",
+    path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}/agents/${encodeURIComponent(agentId)}`,
+  });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to remove agent from project");
+  }
+}
+
 export async function createAgent(payload: CreateAgentRequest): Promise<AutomationAgent> {
   const name = payload.name.trim();
   const description = payload.description?.trim();
@@ -345,14 +387,14 @@ export async function deleteAgent(agentId: string): Promise<AutomationAgent> {
 }
 
 export async function getAgentConversations(agentId: string): Promise<AgentConversationsResponse> {
-  const response = await agentApiExtended.getAgentConversations({ agentId });
+  const response = await agentConversationApiExtended.getAgentConversations({ agentId });
   return {
     items: Array.isArray(response.items) ? response.items : [],
   };
 }
 
 export async function getAgentConversation(conversationId: string): Promise<AgentConversationDetails> {
-  const response = await agentApiExtended.getAgentConversation({ conversationId });
+  const response = await agentConversationApiExtended.getAgentConversation({ conversationId });
   const rawExecutions = Array.isArray((response as { executions?: unknown[] }).executions)
     ? (response as { executions: Array<{
       executionId: string;
@@ -381,10 +423,10 @@ export async function getAgentConversation(conversationId: string): Promise<Agen
 }
 
 export async function deleteAgentConversation(conversationId: string): Promise<void> {
-  if (typeof agentApiExtended.deleteAgentConversation !== "function") {
+  if (typeof agentConversationApiExtended.deleteAgentConversation !== "function") {
     throw new Error("Delete conversation endpoint is not available in current API package.");
   }
-  await agentApiExtended.deleteAgentConversation({ conversationId });
+  await agentConversationApiExtended.deleteAgentConversation({ conversationId });
 }
 
 export async function chatAgent(agentId: string, payload: ChatAgentRequest): Promise<ChatAgentResponse> {
@@ -402,8 +444,8 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
     requestBody.conversationId = payload.conversationId;
   }
 
-  if (typeof agentApiExtended.submitAgentChatExecution === "function") {
-    const response = await agentApiExtended.submitAgentChatExecution({
+  if (typeof agentChatApiExtended.submitAgentChatExecution === "function") {
+    const response = await agentChatApiExtended.submitAgentChatExecution({
       agentId,
       chatAgentRequestDTO: requestBody,
       idempotencyKey: requestBody.clientRequestId,
@@ -417,11 +459,11 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
     } satisfies ChatAgentAcceptedResponse;
   }
 
-  if (typeof agentApiExtended.submitAgentChatExecutionByExecutionsPath !== "function") {
+  if (typeof agentChatApiExtended.submitAgentChatExecutionByExecutionsPath !== "function") {
     throw new Error("Async chat execution endpoint is not available in current API package.");
   }
 
-  const response = await agentApiExtended.submitAgentChatExecutionByExecutionsPath({
+  const response = await agentChatApiExtended.submitAgentChatExecutionByExecutionsPath({
     agentId,
     chatAgentRequestDTO: requestBody,
     idempotencyKey: requestBody.clientRequestId,
@@ -436,10 +478,10 @@ export async function chatAgent(agentId: string, payload: ChatAgentRequest): Pro
 }
 
 export async function getChatAgentExecution(agentId: string, executionId: string, conversationId?: string): Promise<ChatExecutionResult> {
-  if (typeof agentApiExtended.getAgentChatExecution !== "function") {
+  if (typeof agentChatApiExtended.getAgentChatExecution !== "function") {
     throw new Error("Chat execution status endpoint is not available in current API package.");
   }
-  const response = await agentApiExtended.getAgentChatExecution({ agentId, executionId, conversationId });
+  const response = await agentChatApiExtended.getAgentChatExecution({ agentId, executionId, conversationId });
   const normalizedStatus: ChatExecutionResult["status"] = normalizeLifecycleStatus(response.status);
   return {
     executionId: response.executionId,

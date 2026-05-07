@@ -1,23 +1,35 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AgentProjectDetailsPage } from "../../../../../features/workspace/modules/automation/pages/AgentProjectDetailsPage";
 import {
+  addAgentToProject,
   deleteAgentProject,
+  getAgents,
   getAgentProject,
   getErrorHttpStatus,
+  listAgentProjectAgents,
   patchAgentProject,
+  removeAgentFromProject,
 } from "../../../../../features/workspace/modules/automation/api/agentsApi";
 
 vi.mock("../../../../../features/workspace/modules/automation/api/agentsApi", () => ({
   deleteAgentProject: vi.fn(),
+  addAgentToProject: vi.fn(),
+  getAgents: vi.fn(),
   getAgentProject: vi.fn(),
   getErrorHttpStatus: vi.fn(),
+  listAgentProjectAgents: vi.fn(),
   patchAgentProject: vi.fn(),
+  removeAgentFromProject: vi.fn(),
 }));
 
 const getAgentProjectMock = vi.mocked(getAgentProject);
+const listAgentProjectAgentsMock = vi.mocked(listAgentProjectAgents);
+const getAgentsMock = vi.mocked(getAgents);
+const addAgentToProjectMock = vi.mocked(addAgentToProject);
+const removeAgentFromProjectMock = vi.mocked(removeAgentFromProject);
 const getErrorHttpStatusMock = vi.mocked(getErrorHttpStatus);
 const patchAgentProjectMock = vi.mocked(patchAgentProject);
 const deleteAgentProjectMock = vi.mocked(deleteAgentProject);
@@ -50,7 +62,12 @@ describe("AgentProjectDetailsPage", () => {
     getErrorHttpStatusMock.mockReset();
     patchAgentProjectMock.mockReset();
     deleteAgentProjectMock.mockReset();
+    listAgentProjectAgentsMock.mockReset();
+    getAgentsMock.mockReset();
+    addAgentToProjectMock.mockReset();
+    removeAgentFromProjectMock.mockReset();
     getErrorHttpStatusMock.mockReturnValue(null);
+    listAgentProjectAgentsMock.mockResolvedValue([]);
   });
 
   it("renders project details when loaded", async () => {
@@ -70,6 +87,254 @@ describe("AgentProjectDetailsPage", () => {
     expect(screen.getByText("ACTIVE")).toBeInTheDocument();
     expect(screen.getByText("Agents")).toBeInTheDocument();
     expect(screen.getByText("Conversations")).toBeInTheDocument();
+    expect(await screen.findByText("No agents attached yet")).toBeInTheDocument();
+  });
+
+  it("renders attached project agents", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    listAgentProjectAgentsMock.mockResolvedValue([
+      {
+        id: "agent-1",
+        name: "Marketing Writer",
+        description: null,
+        status: "ACTIVE",
+        createdAt: "2026-05-05T12:00:00Z",
+        updatedAt: "2026-05-05T12:00:00Z",
+        attachedAt: "2026-05-06T12:00:00Z",
+      },
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText("Marketing Writer")).toBeInTheDocument();
+    expect(screen.getByText("No description yet.")).toBeInTheDocument();
+  });
+
+  it("opens add agents sheet and filters already attached agents", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    listAgentProjectAgentsMock
+      .mockResolvedValueOnce([{ id: "agent-1", name: "A1", description: "d1", status: "ACTIVE", createdAt: "2026-05-05T12:00:00Z", updatedAt: "2026-05-05T12:00:00Z", attachedAt: "2026-05-06T12:00:00Z" }])
+      .mockResolvedValueOnce([{ id: "agent-1", name: "A1", description: "d1", status: "ACTIVE", createdAt: "2026-05-05T12:00:00Z", updatedAt: "2026-05-05T12:00:00Z", attachedAt: "2026-05-06T12:00:00Z" }]);
+    getAgentsMock.mockResolvedValue([
+      { id: "agent-1", name: "A1", description: "d1", status: "ACTIVE", createdAt: "2026-05-05T12:00:00Z", updatedAt: "2026-05-05T12:00:00Z" },
+      { id: "agent-2", name: "A2", description: "d2", status: "ACTIVE", createdAt: "2026-05-05T12:00:00Z", updatedAt: "2026-05-05T12:00:00Z" },
+    ]);
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Marketing Automation");
+    await user.click(screen.getByRole("button", { name: "Add Agents" }));
+
+    expect(await screen.findByRole("heading", { name: "Add Agents" })).toBeInTheDocument();
+    expect(screen.getAllByText("A1")).toHaveLength(1);
+    expect(screen.getByText("A2")).toBeInTheDocument();
+  });
+
+  it("selects/unselects and submits selected agents", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    listAgentProjectAgentsMock.mockResolvedValue([]);
+    getAgentsMock.mockResolvedValue([
+      { id: "agent-2", name: "A2", description: "d2", status: "ACTIVE", createdAt: "2026-05-05T12:00:00Z", updatedAt: "2026-05-05T12:00:00Z" },
+    ]);
+    addAgentToProjectMock.mockResolvedValue({
+      id: "agent-2",
+      name: "A2",
+      description: "d2",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+      attachedAt: "2026-05-06T12:00:00Z",
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Marketing Automation");
+    await user.click(screen.getByRole("button", { name: "Add Agents" }));
+    const card = await screen.findByRole("button", { name: /A2/ });
+
+    expect(screen.getByRole("button", { name: "Add selected agents" })).toBeDisabled();
+    await user.click(card);
+    expect(card.className).toContain("agent-card--selected");
+    expect(screen.getByRole("button", { name: "Add selected agents" })).toBeEnabled();
+    await user.click(card);
+    expect(card.className).not.toContain("agent-card--selected");
+  });
+
+  it("keeps failed agents available when add selected agents partially fails", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    listAgentProjectAgentsMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "agent-1",
+          name: "A1",
+          description: "d1",
+          status: "ACTIVE",
+          createdAt: "2026-05-05T12:00:00Z",
+          updatedAt: "2026-05-05T12:00:00Z",
+          attachedAt: "2026-05-06T12:00:00Z",
+        },
+      ]);
+    getAgentsMock
+      .mockResolvedValueOnce([
+        { id: "agent-1", name: "A1", description: "d1", status: "ACTIVE", createdAt: "2026-05-05T12:00:00Z", updatedAt: "2026-05-05T12:00:00Z" },
+        { id: "agent-2", name: "A2", description: "d2", status: "ACTIVE", createdAt: "2026-05-05T12:00:00Z", updatedAt: "2026-05-05T12:00:00Z" },
+      ])
+      .mockResolvedValueOnce([
+        { id: "agent-1", name: "A1", description: "d1", status: "ACTIVE", createdAt: "2026-05-05T12:00:00Z", updatedAt: "2026-05-05T12:00:00Z" },
+        { id: "agent-2", name: "A2", description: "d2", status: "ACTIVE", createdAt: "2026-05-05T12:00:00Z", updatedAt: "2026-05-05T12:00:00Z" },
+      ]);
+    addAgentToProjectMock.mockImplementation(async (_, { agentId }) => {
+      if (agentId === "agent-2") {
+        throw new Error("Failed to add agent");
+      }
+      return {
+        id: "agent-1",
+        name: "A1",
+        description: "d1",
+        status: "ACTIVE",
+        createdAt: "2026-05-05T12:00:00Z",
+        updatedAt: "2026-05-05T12:00:00Z",
+        attachedAt: "2026-05-06T12:00:00Z",
+      };
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Marketing Automation");
+    await user.click(screen.getByRole("button", { name: "Add Agents" }));
+
+    const agent1Card = await screen.findByRole("button", { name: /A1/ });
+    const agent2Card = await screen.findByRole("button", { name: /A2/ });
+    await user.click(agent1Card);
+    await user.click(agent2Card);
+    await user.click(screen.getByRole("button", { name: "Add selected agents" }));
+
+    expect(await screen.findByText("Failed to add agent")).toBeInTheDocument();
+    const addAgentsHeading = screen.getByRole("heading", { name: "Add Agents" });
+    const addAgentsSheet = addAgentsHeading.closest("aside");
+    expect(addAgentsSheet).not.toBeNull();
+    const sheet = within(addAgentsSheet as HTMLElement);
+    expect(sheet.queryByRole("button", { name: /A1/ })).not.toBeInTheDocument();
+    expect(sheet.getByRole("button", { name: /A2/ })).toBeInTheDocument();
+  });
+
+  it("removes attached project agent after confirmation", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    listAgentProjectAgentsMock
+      .mockResolvedValueOnce([{ id: "agent-2", name: "A2", description: "d2", status: "ACTIVE", createdAt: "2026-05-05T12:00:00Z", updatedAt: "2026-05-05T12:00:00Z", attachedAt: "2026-05-06T12:00:00Z" }])
+      .mockResolvedValueOnce([]);
+    removeAgentFromProjectMock.mockResolvedValue();
+
+    const user = userEvent.setup();
+    renderPage();
+    expect(await screen.findByText("A2")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Remove A2" }));
+    expect(screen.getByText("Remove agent from project?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+
+    expect(removeAgentFromProjectMock).toHaveBeenCalledWith("project-1", "agent-2");
+  });
+
+  it("shows error and retry action when attached agents loading fails", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    listAgentProjectAgentsMock
+      .mockRejectedValueOnce(new Error("Unable to load attached agents"))
+      .mockResolvedValueOnce([]);
+
+    const user = userEvent.setup();
+    renderPage();
+
+    expect(await screen.findByText("Unable to load attached agents")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByText("No agents attached yet")).toBeInTheDocument();
+  });
+
+  it("shows no available agents state in add agents sheet", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    listAgentProjectAgentsMock.mockResolvedValue([]);
+    getAgentsMock.mockResolvedValue([]);
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Marketing Automation");
+    await user.click(screen.getByRole("button", { name: "Add Agents" }));
+
+    expect(await screen.findByText("No available agents")).toBeInTheDocument();
+  });
+
+  it("shows remove error and keeps agent visible when remove fails", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    listAgentProjectAgentsMock.mockResolvedValue([
+      { id: "agent-2", name: "A2", description: "d2", status: "ACTIVE", createdAt: "2026-05-05T12:00:00Z", updatedAt: "2026-05-05T12:00:00Z", attachedAt: "2026-05-06T12:00:00Z" },
+    ]);
+    removeAgentFromProjectMock.mockRejectedValue(new Error("Unable to remove project agent"));
+
+    const user = userEvent.setup();
+    renderPage();
+    expect(await screen.findByText("A2")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Remove A2" }));
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+
+    expect(await screen.findByText("Unable to remove project agent")).toBeInTheDocument();
+    expect(screen.getByText("A2")).toBeInTheDocument();
   });
 
   it("renders fallback description when description is null", async () => {
