@@ -84,6 +84,8 @@ describe("AgentProjectDetailsPage", () => {
 
     expect(await screen.findByText("Marketing Automation")).toBeInTheDocument();
     expect(screen.getByText("Campaign automations")).toBeInTheDocument();
+    expect(screen.getByText("Project context")).toBeInTheDocument();
+    expect(screen.getByText("Workspace view, project context, and lifecycle controls for this automation project.")).toBeInTheDocument();
     expect(screen.getByText("ACTIVE")).toBeInTheDocument();
     expect(screen.getByText("Agents")).toBeInTheDocument();
     expect(screen.getByText("Conversations")).toBeInTheDocument();
