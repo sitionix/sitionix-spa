@@ -8,6 +8,7 @@ import {
   archiveAgent,
   chatAgent,
   createAgentProject,
+  deleteAgentProject,
   createAgentRule,
   createAgent,
   deleteAgentRule,
@@ -24,6 +25,7 @@ import {
   getErrorHttpStatus,
   getAgentRules,
   patchAgent,
+  patchAgentProject,
   patchAgentRule,
   rejectAgentRule,
   restoreAgent,
@@ -217,6 +219,68 @@ describe("agentsApi.projects", () => {
       path: "/api/v1/agent-projects/project-1",
     });
     expect(result.id).toBe("project-1");
+  });
+
+  it("patches project name only with trimmed value", async () => {
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        id: "project-1",
+        name: "Updated Name",
+        description: "desc",
+        status: "ACTIVE",
+        createdAt: "2026-05-05T12:00:00Z",
+        updatedAt: "2026-05-05T12:10:00Z",
+      },
+    });
+
+    await patchAgentProject("project-1", { name: "  Updated Name  " });
+
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "PATCH",
+      path: "/api/v1/agent-projects/project-1",
+      body: { name: "Updated Name" },
+    });
+  });
+
+  it("patches project description only and maps blank to null", async () => {
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        id: "project-1",
+        name: "Name",
+        description: null,
+        status: "ACTIVE",
+        createdAt: "2026-05-05T12:00:00Z",
+        updatedAt: "2026-05-05T12:10:00Z",
+      },
+    });
+
+    await patchAgentProject("project-1", { description: "   " });
+
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "PATCH",
+      path: "/api/v1/agent-projects/project-1",
+      body: { description: null },
+    });
+  });
+
+  it("rejects blank project name while patching", async () => {
+    await expect(patchAgentProject("project-1", { name: "   " })).rejects.toThrow("Project name is required");
+  });
+
+  it("deletes project via delete endpoint", async () => {
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: undefined,
+    });
+
+    await deleteAgentProject("project-1");
+
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "DELETE",
+      path: "/api/v1/agent-projects/project-1",
+    });
   });
 
 });

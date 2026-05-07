@@ -13,6 +13,10 @@ import type {
 export type AutomationAgent = AgentDTO;
 export type CreateAgentRequest = CreateAgentRequestDTO;
 export type PatchAgentRequest = PatchAgentRequestDTO;
+export type PatchAgentProjectRequest = {
+  name?: string;
+  description?: string | null;
+};
 
 export type ChatAgentRequest = {
   clientRequestId?: string;

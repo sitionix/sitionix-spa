@@ -28,6 +28,7 @@ import type {
   PatchAgentRuleRequest,
   CreateAgentRequest,
   PatchAgentRequest,
+  PatchAgentProjectRequest,
   SubmitChatExecutionResponse,
 } from "../model/types";
 
@@ -187,6 +188,52 @@ export async function getAgentProject(projectId: string): Promise<AgentProject> 
     throw createHttpStatusError(result.status, "Unable to load project");
   }
   return result.data;
+}
+
+export async function patchAgentProject(projectId: string, payload: PatchAgentProjectRequest): Promise<AgentProject> {
+  const requestBody: PatchAgentProjectRequest = {};
+
+  if (hasOwn(payload, "name")) {
+    const name = payload.name?.trim() ?? "";
+    if (!name) {
+      throw new Error("Project name is required");
+    }
+    requestBody.name = name;
+  }
+
+  if (hasOwn(payload, "description")) {
+    const rawDescription = payload.description;
+    if (rawDescription === null) {
+      requestBody.description = null;
+    } else {
+      const description = rawDescription?.trim() ?? "";
+      requestBody.description = description || null;
+    }
+  }
+
+  if (!hasOwn(requestBody, "name") && !hasOwn(requestBody, "description")) {
+    throw new Error("At least one field (name or description) must be provided");
+  }
+
+  const result = await requestJson<AgentProject, unknown, PatchAgentProjectRequest>({
+    method: "PATCH",
+    path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}`,
+    body: requestBody,
+  });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to patch project");
+  }
+  return result.data;
+}
+
+export async function deleteAgentProject(projectId: string): Promise<void> {
+  const result = await requestJson<undefined, unknown, never>({
+    method: "DELETE",
+    path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}`,
+  });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to delete project");
+  }
 }
 
 export async function createAgent(payload: CreateAgentRequest): Promise<AutomationAgent> {
@@ -561,6 +608,8 @@ export const agentsApi = {
   getAgents,
   getAgentById,
   getAgentProject,
+  patchAgentProject,
+  deleteAgentProject,
   createAgent,
   patchAgent,
   activateAgent,
