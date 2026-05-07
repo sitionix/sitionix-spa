@@ -1,13 +1,22 @@
-import { ArrowLeft, Loader2, Pencil, RefreshCw } from "lucide-react";
+import { ArrowLeft, Check, Loader2, Pencil, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ConfirmationDialog } from "../../../ui/components/ConfirmationDialog";
 import { PageHeader } from "../../../ui/components/PageHeader";
 import { formatDate } from "../../../model/formatters";
-import { deleteAgentProject, getAgentProject, getErrorHttpStatus, patchAgentProject } from "../api";
+import {
+  addAgentToProject,
+  deleteAgentProject,
+  getAgentProject,
+  getAgents,
+  getErrorHttpStatus,
+  listAgentProjectAgents,
+  patchAgentProject,
+  removeAgentFromProject,
+} from "../api";
 import { toAutomationErrorMessage } from "../model/mappers";
 import { getStatusBadgeClass } from "../model/statusBadge";
-import type { AgentProject } from "../model/types";
+import type { AgentProject, AutomationAgent, ProjectAgent } from "../model/types";
 
 type AgentProjectDetailsPageState = "idle" | "loading" | "ready" | "not_found" | "error";
 type EditableField = "name" | "description" | null;
@@ -28,6 +37,19 @@ export function AgentProjectDetailsPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
+  const [projectAgents, setProjectAgents] = useState<ProjectAgent[]>([]);
+  const [projectAgentsStatus, setProjectAgentsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [projectAgentsError, setProjectAgentsError] = useState<string | null>(null);
+  const [addAgentsOpen, setAddAgentsOpen] = useState(false);
+  const [availableAgents, setAvailableAgents] = useState<AutomationAgent[]>([]);
+  const [availableAgentsStatus, setAvailableAgentsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [availableAgentsError, setAvailableAgentsError] = useState<string | null>(null);
+  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
+  const [isAddingAgents, setIsAddingAgents] = useState(false);
+  const [addAgentsError, setAddAgentsError] = useState<string | null>(null);
+  const [pendingRemoveAgent, setPendingRemoveAgent] = useState<ProjectAgent | null>(null);
+  const [isRemovingAgent, setIsRemovingAgent] = useState(false);
+  const [removeAgentError, setRemoveAgentError] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const descriptionInputRef = useRef<HTMLTextAreaElement | null>(null);
   const nameEditorRef = useRef<HTMLDivElement | null>(null);
@@ -59,9 +81,60 @@ export function AgentProjectDetailsPage() {
     }
   }, [projectId]);
 
+  const loadProjectAgents = useCallback(async () => {
+    if (!projectId?.trim()) {
+      setProjectAgents([]);
+      setProjectAgentsStatus("ready");
+      setProjectAgentsError(null);
+      return;
+    }
+    setProjectAgentsStatus("loading");
+    setProjectAgentsError(null);
+    try {
+      const items = await listAgentProjectAgents(projectId);
+      setProjectAgents(items);
+      setProjectAgentsStatus("ready");
+    } catch (loadError) {
+      setProjectAgentsStatus("error");
+      setProjectAgentsError(toAutomationErrorMessage(loadError));
+    }
+  }, [projectId]);
+
+  const loadAvailableAgents = useCallback(async () => {
+    if (!projectId?.trim()) {
+      setAvailableAgents([]);
+      setAvailableAgentsStatus("ready");
+      setAvailableAgentsError(null);
+      return;
+    }
+    setAvailableAgentsStatus("loading");
+    setAvailableAgentsError(null);
+    try {
+      const [agents, attachedAgents] = await Promise.all([
+        getAgents(),
+        listAgentProjectAgents(projectId),
+      ]);
+      const attachedIds = new Set(attachedAgents.map((agent) => agent.id));
+      setProjectAgents(attachedAgents);
+      setProjectAgentsStatus("ready");
+      setAvailableAgents(agents.filter((agent) => !attachedIds.has(agent.id)));
+      setAvailableAgentsStatus("ready");
+    } catch (loadError) {
+      setAvailableAgentsStatus("error");
+      setAvailableAgentsError(toAutomationErrorMessage(loadError));
+    }
+  }, [projectId]);
+
   useEffect(() => {
     void loadProject();
   }, [loadProject]);
+
+  useEffect(() => {
+    if (status !== "ready") {
+      return;
+    }
+    void loadProjectAgents();
+  }, [loadProjectAgents, status]);
 
   const startEditing = useCallback((field: EditableNonNullField) => {
     if (!project || savingField || isDeleting) {
@@ -136,6 +209,61 @@ export function AgentProjectDetailsPage() {
       setIsDeleting(false);
     }
   }, [isDeleting, navigate, project, savingField]);
+
+  const openAddAgents = useCallback(async () => {
+    if (!projectId?.trim() || isAddingAgents) {
+      return;
+    }
+    setAddAgentsOpen(true);
+    setAddAgentsError(null);
+    setSelectedAgentIds([]);
+    await loadAvailableAgents();
+  }, [isAddingAgents, loadAvailableAgents, projectId]);
+
+  const toggleSelectedAgent = useCallback((agentId: string) => {
+    setSelectedAgentIds((current) => (
+      current.includes(agentId)
+        ? current.filter((id) => id !== agentId)
+        : [...current, agentId]
+    ));
+  }, []);
+
+  const submitAddAgents = useCallback(async () => {
+    if (!projectId?.trim() || isAddingAgents || selectedAgentIds.length === 0) {
+      return;
+    }
+    setIsAddingAgents(true);
+    setAddAgentsError(null);
+    try {
+      await Promise.all(selectedAgentIds.map((agentId) => addAgentToProject(projectId, { agentId })));
+      await loadProjectAgents();
+      setAddAgentsOpen(false);
+      setAvailableAgents([]);
+      setSelectedAgentIds([]);
+    } catch (addError) {
+      setAddAgentsError(toAutomationErrorMessage(addError));
+      await loadAvailableAgents();
+    } finally {
+      setIsAddingAgents(false);
+    }
+  }, [isAddingAgents, loadAvailableAgents, loadProjectAgents, projectId, selectedAgentIds]);
+
+  const confirmRemoveProjectAgent = useCallback(async () => {
+    if (!projectId?.trim() || !pendingRemoveAgent || isRemovingAgent) {
+      return;
+    }
+    setIsRemovingAgent(true);
+    setRemoveAgentError(null);
+    try {
+      await removeAgentFromProject(projectId, pendingRemoveAgent.id);
+      setPendingRemoveAgent(null);
+      await loadProjectAgents();
+    } catch (removeError) {
+      setRemoveAgentError(toAutomationErrorMessage(removeError));
+    } finally {
+      setIsRemovingAgent(false);
+    }
+  }, [isRemovingAgent, loadProjectAgents, pendingRemoveAgent, projectId]);
 
   useEffect(() => {
     const activeInput = editingField === "name"
@@ -266,10 +394,17 @@ export function AgentProjectDetailsPage() {
 
           <div className="mt-6 grid gap-6 xl:grid-cols-[2fr_1fr]">
             <div className="grid gap-4">
-              <PlaceholderCard
-                title="Agents"
-                description="Project agents will appear here."
-                note="Soon you will be able to attach agents to this project."
+              <ProjectAgentsSection
+                agents={projectAgents}
+                status={projectAgentsStatus}
+                error={projectAgentsError}
+                removeError={removeAgentError}
+                onRetry={() => void loadProjectAgents()}
+                onOpenAddAgents={() => void openAddAgents()}
+                onRemoveAgent={(agent) => {
+                  setRemoveAgentError(null);
+                  setPendingRemoveAgent(agent);
+                }}
               />
               <PlaceholderCard
                 title="Conversations"
@@ -297,6 +432,39 @@ export function AgentProjectDetailsPage() {
         tone="danger"
         onCancel={() => setDeleteConfirmOpen(false)}
         onConfirm={() => void confirmDeleteAction()}
+      />
+      <AddProjectAgentsSheet
+        open={addAgentsOpen}
+        agents={availableAgents}
+        status={availableAgentsStatus}
+        error={availableAgentsError}
+        addError={addAgentsError}
+        selectedAgentIds={selectedAgentIds}
+        isSubmitting={isAddingAgents}
+        onClose={() => {
+          if (isAddingAgents) {
+            return;
+          }
+          setAddAgentsOpen(false);
+          setSelectedAgentIds([]);
+          setAddAgentsError(null);
+        }}
+        onToggleSelected={toggleSelectedAgent}
+        onSubmit={() => void submitAddAgents()}
+      />
+      <ConfirmationDialog
+        open={pendingRemoveAgent !== null}
+        title="Remove agent from project?"
+        description="This will only remove the agent from this project. The agent itself will not be deleted."
+        confirmLabel={isRemovingAgent ? "Removing..." : "Remove"}
+        tone="danger"
+        onCancel={() => {
+          if (isRemovingAgent) {
+            return;
+          }
+          setPendingRemoveAgent(null);
+        }}
+        onConfirm={() => void confirmRemoveProjectAgent()}
       />
     </>
   );
@@ -382,6 +550,175 @@ function InlineError({ message }: { message: string | null }) {
     return null;
   }
   return <p className="mt-3 text-sm text-red-700">{message}</p>;
+}
+
+type ProjectAgentsSectionProps = {
+  agents: ProjectAgent[];
+  status: "idle" | "loading" | "ready" | "error";
+  error: string | null;
+  removeError: string | null;
+  onRetry: () => void;
+  onOpenAddAgents: () => void;
+  onRemoveAgent: (agent: ProjectAgent) => void;
+};
+
+function ProjectAgentsSection({
+  agents,
+  status,
+  error,
+  removeError,
+  onRetry,
+  onOpenAddAgents,
+  onRemoveAgent,
+}: ProjectAgentsSectionProps) {
+  return (
+    <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold text-zinc-900">Agents</h2>
+        <button
+          type="button"
+          className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+          onClick={onOpenAddAgents}
+        >
+          Add Agents
+        </button>
+      </div>
+      <p className="mt-2 text-sm text-zinc-600">Agents attached to this project will be available for future project conversations.</p>
+      <InlineError message={removeError} />
+      {status === "loading" ? (
+        <div className="mt-4 flex items-center gap-2 text-sm text-zinc-500">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading agents...
+        </div>
+      ) : null}
+      {status === "error" ? (
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <p>{error ?? "Unable to load attached agents."}</p>
+          <button type="button" className="mt-2 font-semibold underline" onClick={onRetry}>Retry</button>
+        </div>
+      ) : null}
+      {status === "ready" && agents.length === 0 ? (
+        <div className="mt-4 rounded-xl border border-dashed border-zinc-300 p-4">
+          <p className="text-sm font-medium text-zinc-900">No agents attached yet</p>
+          <p className="mt-1 text-sm text-zinc-600">Add agents to prepare this project for future conversations.</p>
+        </div>
+      ) : null}
+      {status === "ready" && agents.length > 0 ? (
+        <div className="mt-4 grid gap-3">
+          {agents.map((agent) => (
+            <article key={agent.id} className="rounded-2xl border border-zinc-200 bg-white p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900">{agent.name}</p>
+                  <p className="mt-1 text-sm text-zinc-600">{agent.description?.trim() ? agent.description : "No description yet."}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${getStatusBadgeClass(agent.status)}`}>{agent.status}</span>
+                  <button type="button" className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-red-700" aria-label={`Remove ${agent.name}`} onClick={() => onRemoveAgent(agent)}>
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+type AddProjectAgentsSheetProps = {
+  open: boolean;
+  agents: AutomationAgent[];
+  status: "idle" | "loading" | "ready" | "error";
+  error: string | null;
+  addError: string | null;
+  selectedAgentIds: string[];
+  isSubmitting: boolean;
+  onClose: () => void;
+  onToggleSelected: (agentId: string) => void;
+  onSubmit: () => void;
+};
+
+function AddProjectAgentsSheet({
+  open,
+  agents,
+  status,
+  error,
+  addError,
+  selectedAgentIds,
+  isSubmitting,
+  onClose,
+  onToggleSelected,
+  onSubmit,
+}: AddProjectAgentsSheetProps) {
+  if (!open) {
+    return null;
+  }
+  return (
+    <>
+      <button type="button" aria-label="Close add agents sheet" className="fixed inset-0 z-50 bg-black/35" onClick={onClose} />
+      <aside className="fixed inset-y-0 right-0 z-[60] w-full max-w-[560px] border-l border-zinc-200 bg-white shadow-2xl">
+        <div className="flex h-full flex-col overflow-y-auto p-6 md:p-8">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-xl font-bold text-zinc-900">Add Agents</h2>
+            <button type="button" aria-label="Close" className="h-10 w-10 rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700" onClick={onClose}>
+              <X className="mx-auto h-5 w-5" />
+            </button>
+          </div>
+          <p className="mt-2 text-sm text-zinc-600">Select one or more agents to attach to this project.</p>
+          <InlineError message={addError} />
+          {status === "loading" ? (
+            <div className="mt-5 flex items-center gap-2 text-sm text-zinc-500"><Loader2 className="h-4 w-4 animate-spin" />Loading available agents...</div>
+          ) : null}
+          {status === "error" ? (
+            <p className="mt-5 text-sm text-red-700">{error ?? "Unable to load available agents."}</p>
+          ) : null}
+          {status === "ready" && agents.length === 0 ? (
+            <div className="mt-5 rounded-xl border border-dashed border-zinc-300 p-4">
+              <p className="text-sm font-medium text-zinc-900">No available agents</p>
+              <p className="mt-1 text-sm text-zinc-600">All your agents are already attached to this project, or you have not created agents yet.</p>
+            </div>
+          ) : null}
+          {status === "ready" && agents.length > 0 ? (
+            <div className="mt-5 grid gap-3">
+              {agents.map((agent) => {
+                const isSelected = selectedAgentIds.includes(agent.id);
+                return (
+                  <button
+                    type="button"
+                    key={agent.id}
+                    className={`agent-card rounded-2xl border p-4 text-left transition ${isSelected ? "agent-card--selected border-emerald-500 bg-emerald-50/60" : "border-zinc-200 bg-white hover:border-zinc-300"}`}
+                    onClick={() => onToggleSelected(agent.id)}
+                    aria-pressed={isSelected}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-900">{agent.name}</p>
+                        <p className="mt-1 text-sm text-zinc-600">{agent.description?.trim() ? agent.description : "No description yet."}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${getStatusBadgeClass(agent.status)}`}>{agent.status}</span>
+                        {isSelected ? <Check className="h-4 w-4 text-emerald-600" /> : null}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+          <div className="mt-auto flex items-center justify-end gap-3 border-t border-zinc-200 pt-6">
+            <button type="button" className="rounded-xl border border-zinc-200 px-5 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="button" disabled={isSubmitting || selectedAgentIds.length === 0} className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60" onClick={onSubmit}>
+              {isSubmitting ? "Adding selected agents..." : "Add selected agents"}
+            </button>
+          </div>
+        </div>
+      </aside>
+    </>
+  );
 }
 
 type PlaceholderCardProps = {

@@ -6,6 +6,7 @@ import {
   acceptAgentRule,
   activateAgent,
   archiveAgent,
+  addAgentToProject,
   chatAgent,
   createAgentProject,
   deleteAgentProject,
@@ -24,11 +25,13 @@ import {
   getAgents,
   getErrorHttpStatus,
   getAgentRules,
+  listAgentProjectAgents,
   patchAgent,
   patchAgentProject,
   patchAgentRule,
   rejectAgentRule,
   restoreAgent,
+  removeAgentFromProject,
   submitChatExecution,
 } from "../../../../features/workspace/modules/automation/api/agentsApi";
 
@@ -283,6 +286,76 @@ describe("agentsApi.projects", () => {
     });
   });
 
+});
+
+describe("agentsApi.projectAgents", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("lists project agents", async () => {
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        items: [
+          {
+            id: "agent-1",
+            name: "Agent 1",
+            description: "Desc",
+            status: "ACTIVE",
+            createdAt: "2026-05-05T12:00:00Z",
+            updatedAt: "2026-05-05T12:00:00Z",
+            attachedAt: "2026-05-06T12:00:00Z",
+          },
+        ],
+      },
+    });
+
+    const result = await listAgentProjectAgents("project-1");
+
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "GET",
+      path: "/api/v1/agent-projects/project-1/agents",
+    });
+    expect(result).toHaveLength(1);
+  });
+
+  it("adds agent to project", async () => {
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        id: "agent-1",
+        name: "Agent 1",
+        description: "Desc",
+        status: "ACTIVE",
+        createdAt: "2026-05-05T12:00:00Z",
+        updatedAt: "2026-05-05T12:00:00Z",
+        attachedAt: "2026-05-06T12:00:00Z",
+      },
+    });
+
+    await addAgentToProject("project-1", { agentId: "agent-1" });
+
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "POST",
+      path: "/api/v1/agent-projects/project-1/agents",
+      body: { agentId: "agent-1" },
+    });
+  });
+
+  it("removes agent from project", async () => {
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: undefined,
+    });
+
+    await removeAgentFromProject("project-1", "agent-1");
+
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "DELETE",
+      path: "/api/v1/agent-projects/project-1/agents/agent-1",
+    });
+  });
 });
 
 describe("agentsApi.getAgentById", () => {

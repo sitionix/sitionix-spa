@@ -14,6 +14,7 @@ import type {
   AgentRule,
   AgentRuleAuthorType,
   AgentRuleStatus,
+  AddAgentToProjectRequest,
   AutomationAgent,
   ChatAgentAcceptedResponse,
   ChatAgentRequest,
@@ -29,6 +30,8 @@ import type {
   CreateAgentRequest,
   PatchAgentRequest,
   PatchAgentProjectRequest,
+  ProjectAgent,
+  ProjectAgentsResponse,
   SubmitChatExecutionResponse,
 } from "../model/types";
 
@@ -233,6 +236,39 @@ export async function deleteAgentProject(projectId: string): Promise<void> {
   });
   if (!result.ok) {
     throw createHttpStatusError(result.status, "Unable to delete project");
+  }
+}
+
+export async function listAgentProjectAgents(projectId: string): Promise<ProjectAgent[]> {
+  const result = await requestJson<ProjectAgentsResponse, unknown, never>({
+    method: "GET",
+    path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}/agents`,
+  });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to load project agents");
+  }
+  return Array.isArray(result.data.items) ? result.data.items : [];
+}
+
+export async function addAgentToProject(projectId: string, payload: AddAgentToProjectRequest): Promise<ProjectAgent> {
+  const result = await requestJson<ProjectAgent, unknown, AddAgentToProjectRequest>({
+    method: "POST",
+    path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}/agents`,
+    body: payload,
+  });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to add agent to project");
+  }
+  return result.data;
+}
+
+export async function removeAgentFromProject(projectId: string, agentId: string): Promise<void> {
+  const result = await requestJson<undefined, unknown, never>({
+    method: "DELETE",
+    path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}/agents/${encodeURIComponent(agentId)}`,
+  });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to remove agent from project");
   }
 }
 
