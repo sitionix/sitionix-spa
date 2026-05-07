@@ -320,6 +320,19 @@ describe("agentsApi.projectAgents", () => {
     expect(result).toHaveLength(1);
   });
 
+  it("returns empty array when list project agents payload is malformed", async () => {
+    vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        items: null,
+      },
+    });
+
+    const result = await listAgentProjectAgents("project-1");
+
+    expect(result).toEqual([]);
+  });
+
   it("adds agent to project", async () => {
     const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
       ok: true,
@@ -343,6 +356,18 @@ describe("agentsApi.projectAgents", () => {
     });
   });
 
+  it("throws when add agent to project fails", async () => {
+    vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: false,
+      status: 404,
+      data: undefined,
+    });
+
+    await expect(addAgentToProject("project-1", { agentId: "agent-1" })).rejects.toThrow(
+      "Unable to add agent to project"
+    );
+  });
+
   it("removes agent from project", async () => {
     const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
       ok: true,
@@ -355,6 +380,18 @@ describe("agentsApi.projectAgents", () => {
       method: "DELETE",
       path: "/api/v1/agent-projects/project-1/agents/agent-1",
     });
+  });
+
+  it("throws when remove agent from project fails", async () => {
+    vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: false,
+      status: 404,
+      data: undefined,
+    });
+
+    await expect(removeAgentFromProject("project-1", "agent-1")).rejects.toThrow(
+      "Unable to remove agent from project"
+    );
   });
 });
 

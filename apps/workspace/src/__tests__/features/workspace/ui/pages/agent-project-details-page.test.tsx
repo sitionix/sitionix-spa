@@ -272,6 +272,71 @@ describe("AgentProjectDetailsPage", () => {
     expect(removeAgentFromProjectMock).toHaveBeenCalledWith("project-1", "agent-2");
   });
 
+  it("shows error and retry action when attached agents loading fails", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    listAgentProjectAgentsMock
+      .mockRejectedValueOnce(new Error("Unable to load attached agents"))
+      .mockResolvedValueOnce([]);
+
+    const user = userEvent.setup();
+    renderPage();
+
+    expect(await screen.findByText("Unable to load attached agents")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByText("No agents attached yet")).toBeInTheDocument();
+  });
+
+  it("shows no available agents state in add agents sheet", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    listAgentProjectAgentsMock.mockResolvedValue([]);
+    getAgentsMock.mockResolvedValue([]);
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Marketing Automation");
+    await user.click(screen.getByRole("button", { name: "Add Agents" }));
+
+    expect(await screen.findByText("No available agents")).toBeInTheDocument();
+  });
+
+  it("shows remove error and keeps agent visible when remove fails", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    listAgentProjectAgentsMock.mockResolvedValue([
+      { id: "agent-2", name: "A2", description: "d2", status: "ACTIVE", createdAt: "2026-05-05T12:00:00Z", updatedAt: "2026-05-05T12:00:00Z", attachedAt: "2026-05-06T12:00:00Z" },
+    ]);
+    removeAgentFromProjectMock.mockRejectedValue(new Error("Unable to remove project agent"));
+
+    const user = userEvent.setup();
+    renderPage();
+    expect(await screen.findByText("A2")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Remove A2" }));
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+
+    expect(await screen.findByText("Unable to remove project agent")).toBeInTheDocument();
+    expect(screen.getByText("A2")).toBeInTheDocument();
+  });
+
   it("renders fallback description when description is null", async () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
