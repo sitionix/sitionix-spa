@@ -1,4 +1,4 @@
-import { AgentApi, AgentChatApi, AgentConversationApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentApi, AgentChatApi, AgentConversationApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-134-unstable/apis";
 import type {
   AcceptAgentRuleRequestDTO,
   CreateAgentRequestDTO,
@@ -6,7 +6,7 @@ import type {
   CreateAgentRuleRequestDTO,
   PatchAgentRuleRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-134-unstable/models";
 import { bffApiConfiguration, requestJson } from "../../../../../shared/http/httpClient";
 import type {
   AgentConversationDetails,
@@ -210,18 +210,18 @@ export async function patchAgentProject(projectId: string, payload: PatchAgentPr
     requestBody.name = name;
   }
 
-  if (hasOwn(payload, "description")) {
-    const rawDescription = payload.description;
-    if (rawDescription === null) {
-      requestBody.description = null;
+  if (hasOwn(payload, "context")) {
+    const rawContext = payload.context;
+    if (rawContext === null) {
+      requestBody.context = null;
     } else {
-      const description = rawDescription?.trim() ?? "";
-      requestBody.description = description || null;
+      const context = rawContext?.trim() ?? "";
+      requestBody.context = context || null;
     }
   }
 
-  if (!hasOwn(requestBody, "name") && !hasOwn(requestBody, "description")) {
-    throw new Error("At least one field (name or description) must be provided");
+  if (!hasOwn(requestBody, "name") && !hasOwn(requestBody, "context")) {
+    throw new Error("At least one field (name or context) must be provided");
   }
 
   const result = await requestJson<AgentProject, unknown, PatchAgentProjectRequest>({

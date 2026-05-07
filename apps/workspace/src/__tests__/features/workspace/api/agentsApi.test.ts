@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AgentApi, AgentChatApi, AgentConversationApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentApi, AgentChatApi, AgentConversationApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-134-unstable/apis";
 import * as httpClient from "../../../../shared/http/httpClient";
 
 import {
@@ -246,25 +246,25 @@ describe("agentsApi.projects", () => {
     });
   });
 
-  it("patches project description only and maps blank to null", async () => {
+  it("patches project context only and maps blank to null", async () => {
     const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
       ok: true,
       data: {
         id: "project-1",
         name: "Name",
-        description: null,
+        context: null,
         status: "ACTIVE",
         createdAt: "2026-05-05T12:00:00Z",
         updatedAt: "2026-05-05T12:10:00Z",
       },
     });
 
-    await patchAgentProject("project-1", { description: "   " });
+    await patchAgentProject("project-1", { context: "   " });
 
     expect(requestJsonSpy).toHaveBeenCalledWith({
       method: "PATCH",
       path: "/api/v1/agent-projects/project-1",
-      body: { description: null },
+      body: { context: null },
     });
   });
 

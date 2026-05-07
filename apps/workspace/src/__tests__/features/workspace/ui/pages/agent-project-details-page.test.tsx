@@ -74,7 +74,7 @@ describe("AgentProjectDetailsPage", () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
-      description: "Campaign automations",
+      context: "Campaign automations",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -94,7 +94,7 @@ describe("AgentProjectDetailsPage", () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
-      description: "Campaign automations",
+      context: "Campaign automations",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -121,7 +121,7 @@ describe("AgentProjectDetailsPage", () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
-      description: "Campaign automations",
+      context: "Campaign automations",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -148,7 +148,7 @@ describe("AgentProjectDetailsPage", () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
-      description: "Campaign automations",
+      context: "Campaign automations",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -185,7 +185,7 @@ describe("AgentProjectDetailsPage", () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
-      description: "Campaign automations",
+      context: "Campaign automations",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -252,7 +252,7 @@ describe("AgentProjectDetailsPage", () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
-      description: "Campaign automations",
+      context: "Campaign automations",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -276,7 +276,7 @@ describe("AgentProjectDetailsPage", () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
-      description: "Campaign automations",
+      context: "Campaign automations",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -297,7 +297,7 @@ describe("AgentProjectDetailsPage", () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
-      description: "Campaign automations",
+      context: "Campaign automations",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -317,7 +317,7 @@ describe("AgentProjectDetailsPage", () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
-      description: "Campaign automations",
+      context: "Campaign automations",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -337,11 +337,11 @@ describe("AgentProjectDetailsPage", () => {
     expect(screen.getByText("A2")).toBeInTheDocument();
   });
 
-  it("renders fallback description when description is null", async () => {
+  it("renders fallback context when context is null", async () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
-      description: null,
+      context: null,
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -349,14 +349,29 @@ describe("AgentProjectDetailsPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("No description yet.")).toBeInTheDocument();
+    expect(await screen.findByText("No context yet.")).toBeInTheDocument();
+  });
+
+  it("renders project context with preserved line breaks", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      context: "Line one\nLine two",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+
+    renderPage();
+
+    expect(await screen.findByText(/Line one\s+Line two/)).toBeInTheDocument();
   });
 
   it("renders archived project status badge", async () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Archived Project",
-      description: "Archived description",
+      context: "Archived description",
       status: "ARCHIVED",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -371,7 +386,7 @@ describe("AgentProjectDetailsPage", () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Deleted Project",
-      description: "Deleted description",
+      context: "Deleted description",
       status: "DELETED",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -404,7 +419,7 @@ describe("AgentProjectDetailsPage", () => {
     getAgentProjectMock.mockResolvedValueOnce({
       id: "project-1",
       name: "Recovered Project",
-      description: "Recovered",
+      context: "Recovered",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -424,7 +439,7 @@ describe("AgentProjectDetailsPage", () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
-      description: "Campaign automations",
+      context: "Campaign automations",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -451,7 +466,7 @@ describe("AgentProjectDetailsPage", () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
-      description: "Campaign automations",
+      context: "Campaign automations",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -459,7 +474,7 @@ describe("AgentProjectDetailsPage", () => {
     patchAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Updated Marketing Automation",
-      description: "Campaign automations",
+      context: "Campaign automations",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:05:00Z",
@@ -483,7 +498,7 @@ describe("AgentProjectDetailsPage", () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
-      description: "Campaign automations",
+      context: "Campaign automations",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -499,11 +514,11 @@ describe("AgentProjectDetailsPage", () => {
     expect(patchAgentProjectMock).not.toHaveBeenCalled();
   });
 
-  it("patches project description inline", async () => {
+  it("patches project context inline", async () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
-      description: "Campaign automations",
+      context: "Campaign automations",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -511,7 +526,7 @@ describe("AgentProjectDetailsPage", () => {
     patchAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
-      description: "Updated description",
+      context: "Updated description",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:05:00Z",
@@ -521,21 +536,84 @@ describe("AgentProjectDetailsPage", () => {
     renderPage();
     await screen.findByText("Marketing Automation");
 
-    await user.click(screen.getAllByRole("button", { name: "Edit project description" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Edit project context" })[0]);
     const textarea = screen.getByDisplayValue("Campaign automations");
     await user.clear(textarea);
     await user.type(textarea, "  Updated description  ");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(patchAgentProjectMock).toHaveBeenCalledWith("project-1", { description: "Updated description" });
+    expect(patchAgentProjectMock).toHaveBeenCalledWith("project-1", { context: "Updated description" });
     expect(await screen.findByText("Updated description")).toBeInTheDocument();
+  });
+
+  it("does not patch unchanged project context", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      context: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Marketing Automation");
+
+    await user.click(screen.getAllByRole("button", { name: "Edit project context" })[0]);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(patchAgentProjectMock).not.toHaveBeenCalled();
+  });
+
+  it("shows error when patch project context fails", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      context: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    patchAgentProjectMock.mockRejectedValue(new Error("Unable to save context"));
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Marketing Automation");
+
+    await user.click(screen.getAllByRole("button", { name: "Edit project context" })[0]);
+    const textarea = screen.getByDisplayValue("Campaign automations");
+    await user.type(textarea, " updated");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(patchAgentProjectMock).toHaveBeenCalledWith("project-1", { context: "Campaign automations updated" });
+    expect(await screen.findByText("Unable to save context")).toBeInTheDocument();
+  });
+
+  it("enforces context textarea max length", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      context: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Marketing Automation");
+
+    await user.click(screen.getAllByRole("button", { name: "Edit project context" })[0]);
+    const textarea = screen.getByDisplayValue("Campaign automations");
+    expect(textarea).toHaveAttribute("maxLength", "5000");
   });
 
   it("shows error when patch project name fails", async () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
-      description: "Campaign automations",
+      context: "Campaign automations",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",
@@ -560,7 +638,7 @@ describe("AgentProjectDetailsPage", () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
-      description: "Campaign automations",
+      context: "Campaign automations",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
       updatedAt: "2026-05-05T12:00:00Z",

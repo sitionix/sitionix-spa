@@ -19,7 +19,7 @@ import { getStatusBadgeClass } from "../model/statusBadge";
 import type { AgentProject, AutomationAgent, ProjectAgent } from "../model/types";
 
 type AgentProjectDetailsPageState = "idle" | "loading" | "ready" | "not_found" | "error";
-type EditableField = "name" | "description" | null;
+type EditableField = "name" | "context" | null;
 type EditableNonNullField = Exclude<EditableField, null>;
 type FieldKind = "input" | "textarea";
 
@@ -31,7 +31,7 @@ export function AgentProjectDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<EditableField>(null);
   const [nameDraft, setNameDraft] = useState("");
-  const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [contextDraft, setContextDraft] = useState("");
   const [savingField, setSavingField] = useState<EditableField>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -51,9 +51,9 @@ export function AgentProjectDetailsPage() {
   const [isRemovingAgent, setIsRemovingAgent] = useState(false);
   const [removeAgentError, setRemoveAgentError] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
-  const descriptionInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const contextInputRef = useRef<HTMLTextAreaElement | null>(null);
   const nameEditorRef = useRef<HTMLDivElement | null>(null);
-  const descriptionEditorRef = useRef<HTMLDivElement | null>(null);
+  const contextEditorRef = useRef<HTMLDivElement | null>(null);
 
   const loadProject = useCallback(async () => {
     if (!projectId?.trim()) {
@@ -148,7 +148,7 @@ export function AgentProjectDetailsPage() {
     if (field === "name") {
       setNameDraft(project.name);
     } else {
-      setDescriptionDraft(project.description ?? "");
+      setContextDraft(project.context ?? "");
     }
     setEditingField(field);
   }, [editingField, isDeleting, project, savingField]);
@@ -165,8 +165,8 @@ export function AgentProjectDetailsPage() {
     }
 
     const isName = field === "name";
-    const draftValue = isName ? nameDraft : descriptionDraft;
-    const currentValue = isName ? project.name : (project.description ?? "");
+    const draftValue = isName ? nameDraft : contextDraft;
+    const currentValue = isName ? project.name : (project.context ?? "");
     const normalizedDraft = draftValue.trim();
 
     if (normalizedDraft === currentValue) {
@@ -181,7 +181,7 @@ export function AgentProjectDetailsPage() {
     try {
       const updatedProject = await patchAgentProject(project.id, isName
         ? { name: normalizedDraft }
-        : { description: normalizedDraft || null });
+        : { context: normalizedDraft || null });
       setProject(updatedProject);
       setEditingField(null);
       setLifecycleError(null);
@@ -190,7 +190,7 @@ export function AgentProjectDetailsPage() {
     } finally {
       setSavingField(null);
     }
-  }, [descriptionDraft, isDeleting, nameDraft, project, savingField]);
+  }, [contextDraft, isDeleting, nameDraft, project, savingField]);
 
   const confirmDeleteAction = useCallback(async () => {
     if (!project || isDeleting || savingField) {
@@ -268,8 +268,8 @@ export function AgentProjectDetailsPage() {
   useEffect(() => {
     const activeInput = editingField === "name"
       ? nameInputRef.current
-      : editingField === "description"
-        ? descriptionInputRef.current
+      : editingField === "context"
+        ? contextInputRef.current
         : null;
     if (!activeInput) {
       return;
@@ -283,7 +283,7 @@ export function AgentProjectDetailsPage() {
       return;
     }
 
-    const activeEditorRef = editingField === "name" ? nameEditorRef : descriptionEditorRef;
+    const activeEditorRef = editingField === "name" ? nameEditorRef : contextEditorRef;
     const onDocumentMouseDown = (event: MouseEvent) => {
       const currentEditor = activeEditorRef.current;
       if (!currentEditor) {
@@ -335,7 +335,7 @@ export function AgentProjectDetailsPage() {
         <>
           <PageHeader
             title="Project overview"
-            subtitle="Workspace view and lifecycle controls for this automation project."
+            subtitle="Workspace view, project context, and lifecycle controls for this automation project."
             actions={<span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${getStatusBadgeClass(project.status)}`}>{project.status}</span>}
           />
 
@@ -361,24 +361,28 @@ export function AgentProjectDetailsPage() {
                 editorClassName="w-full rounded-xl border border-zinc-300 px-4 py-2 text-3xl font-semibold text-zinc-900 outline-none ring-blue-100 focus:ring"
               />
 
+              <div className="mt-5">
+                <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-zinc-500">Project context</h2>
+              </div>
               <EditableField
-                className="mt-3 inline-flex max-w-3xl items-start gap-2"
-                textClassName="text-left text-sm leading-6 text-zinc-600"
-                ariaLabel="Edit project description"
-                field="description"
+                className="mt-2 inline-flex max-w-3xl items-start gap-2"
+                textClassName="whitespace-pre-wrap break-words text-left text-sm leading-6 text-zinc-600"
+                ariaLabel="Edit project context"
+                field="context"
                 editingField={editingField}
                 onStartEditing={startEditing}
-                value={project.description ?? "No description yet."}
-                draftValue={descriptionDraft}
-                disabled={savingField === "description"}
-                isSaving={savingField === "description"}
-                inputRef={descriptionInputRef}
-                editorRef={descriptionEditorRef}
-                onDraftChange={setDescriptionDraft}
-                onSave={() => void saveField("description")}
+                value={project.context ?? "No context yet."}
+                draftValue={contextDraft}
+                disabled={savingField === "context"}
+                isSaving={savingField === "context"}
+                inputRef={contextInputRef}
+                editorRef={contextEditorRef}
+                onDraftChange={setContextDraft}
+                onSave={() => void saveField("context")}
                 onCancel={cancelEditing}
-                onKeyDown={handleFieldKeyDown("description", "textarea")}
+                onKeyDown={handleFieldKeyDown("context", "textarea")}
                 kind="textarea"
+                textareaMaxLength={5000}
                 editorClassName="w-full resize-none rounded-xl border border-zinc-300 px-3 py-2 text-sm leading-6 text-zinc-800 outline-none ring-blue-100 focus:ring"
               />
 
@@ -536,6 +540,7 @@ type EditableDescriptionProps = {
   isSaving?: boolean;
   kind: FieldKind;
   editorClassName: string;
+  textareaMaxLength?: number;
   inputRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>;
   editorRef: React.RefObject<HTMLDivElement | null>;
   onStartEditing: (field: EditableNonNullField) => void;
@@ -781,6 +786,7 @@ function EditableField({
   isSaving = false,
   kind,
   editorClassName,
+  textareaMaxLength,
   inputRef,
   editorRef,
   onStartEditing,
@@ -808,6 +814,7 @@ function EditableField({
             onChange={(event) => onDraftChange(event.target.value)}
             onKeyDown={onKeyDown as (event: KeyboardEvent<HTMLTextAreaElement>) => void}
             disabled={disabled}
+            maxLength={textareaMaxLength}
             rows={3}
             className={editorClassName}
           />
