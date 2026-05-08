@@ -5,9 +5,11 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AgentProjectDetailsPage } from "../../../../../features/workspace/modules/automation/pages/AgentProjectDetailsPage";
 import {
   addAgentToProject,
+  createProjectConversation,
   deleteAgentProject,
   getAgents,
   getAgentProject,
+  getProjectConversations,
   getErrorHttpStatus,
   listAgentProjectAgents,
   patchAgentProject,
@@ -16,6 +18,8 @@ import {
 
 vi.mock("../../../../../features/workspace/modules/automation/api/agentsApi", () => ({
   deleteAgentProject: vi.fn(),
+  createProjectConversation: vi.fn(),
+  getProjectConversations: vi.fn(),
   addAgentToProject: vi.fn(),
   getAgents: vi.fn(),
   getAgentProject: vi.fn(),
@@ -26,6 +30,8 @@ vi.mock("../../../../../features/workspace/modules/automation/api/agentsApi", ()
 }));
 
 const getAgentProjectMock = vi.mocked(getAgentProject);
+const getProjectConversationsMock = vi.mocked(getProjectConversations);
+const createProjectConversationMock = vi.mocked(createProjectConversation);
 const listAgentProjectAgentsMock = vi.mocked(listAgentProjectAgents);
 const getAgentsMock = vi.mocked(getAgents);
 const addAgentToProjectMock = vi.mocked(addAgentToProject);
@@ -65,9 +71,12 @@ describe("AgentProjectDetailsPage", () => {
     listAgentProjectAgentsMock.mockReset();
     getAgentsMock.mockReset();
     addAgentToProjectMock.mockReset();
+    getProjectConversationsMock.mockReset();
+    createProjectConversationMock.mockReset();
     removeAgentFromProjectMock.mockReset();
     getErrorHttpStatusMock.mockReturnValue(null);
     listAgentProjectAgentsMock.mockResolvedValue([]);
+    getProjectConversationsMock.mockResolvedValue({ items: [] });
   });
 
   it("renders project details when loaded", async () => {
@@ -91,8 +100,58 @@ describe("AgentProjectDetailsPage", () => {
     expect(screen.getByText("Workspace view, project context, and lifecycle controls for this automation project.")).toBeInTheDocument();
     expect(screen.getByText("ACTIVE")).toBeInTheDocument();
     expect(screen.getByText("Agents")).toBeInTheDocument();
-    expect(screen.getByText("Conversations")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New Chat" })).toBeInTheDocument();
+    expect(await screen.findByText("No conversations yet.")).toBeInTheDocument();
     expect(await screen.findByText("No agents attached yet")).toBeInTheDocument();
+  });
+
+  it("opens new chat sheet, toggles selection, creates conversation and navigates", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      context: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    listAgentProjectAgentsMock.mockResolvedValue([
+      {
+        id: "agent-1",
+        name: "Writer",
+        description: "Writes copy",
+        status: "ACTIVE",
+        createdAt: "2026-05-05T12:00:00Z",
+        updatedAt: "2026-05-05T12:00:00Z",
+        attachedAt: "2026-05-06T12:00:00Z",
+      },
+    ]);
+    createProjectConversationMock.mockResolvedValue({
+      id: "conv-1",
+      projectId: "project-1",
+      title: "Chat with Writer",
+      type: "DIRECT",
+      status: "ACTIVE",
+      participants: [{ type: "AGENT", agentId: "agent-1", name: "Writer", description: "Writes copy", status: "ACTIVE" }],
+      canSendMessages: false,
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+      lastMessageAt: null,
+      messages: [],
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Marketing Automation");
+    await user.click(screen.getByRole("button", { name: "New Chat" }));
+    const writerButtons = await screen.findAllByRole("button", { name: /Writer/ });
+    const writerCard = writerButtons.find((button) => button.hasAttribute("aria-pressed"));
+    expect(writerCard).toBeDefined();
+    expect(screen.getByRole("button", { name: "Create chat" })).toBeDisabled();
+    await user.click(writerCard as HTMLElement);
+    expect(screen.getByRole("button", { name: "Create chat" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Create chat" }));
+
+    expect(createProjectConversationMock).toHaveBeenCalledWith("project-1", ["agent-1"]);
   });
 
   it("renders attached project agents", async () => {

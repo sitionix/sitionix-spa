@@ -32,6 +32,8 @@ import type {
   PatchAgentProjectRequest,
   ProjectAgent,
   ProjectAgentsResponse,
+  ProjectConversationDetails,
+  ProjectConversationsResponse,
   SubmitChatExecutionResponse,
 } from "../model/types";
 
@@ -291,6 +293,59 @@ export async function removeAgentFromProject(projectId: string, agentId: string)
   if (!result.ok) {
     throw createHttpStatusError(result.status, "Unable to remove agent from project");
   }
+}
+
+export async function createProjectConversation(projectId: string, agentIds: string[]): Promise<ProjectConversationDetails> {
+  const normalizedAgentIds = agentIds.map((value) => value.trim()).filter(Boolean);
+  if (normalizedAgentIds.length === 0) {
+    throw new Error("At least one agent must be selected");
+  }
+  if (new Set(normalizedAgentIds).size !== normalizedAgentIds.length) {
+    throw new Error("Agent selection must be unique");
+  }
+  const result = await requestJson<ProjectConversationDetails, unknown, { agentIds: string[] }>({
+    method: "POST",
+    path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}/conversations`,
+    body: { agentIds: normalizedAgentIds },
+  });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to create project conversation");
+  }
+  return {
+    ...result.data,
+    participants: Array.isArray(result.data.participants) ? result.data.participants : [],
+    messages: Array.isArray(result.data.messages) ? result.data.messages : [],
+    canSendMessages: false,
+  };
+}
+
+export async function getProjectConversations(projectId: string): Promise<ProjectConversationsResponse> {
+  const result = await requestJson<ProjectConversationsResponse, unknown, never>({
+    method: "GET",
+    path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}/conversations`,
+  });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to load project conversations");
+  }
+  return {
+    items: Array.isArray(result.data.items) ? result.data.items : [],
+  };
+}
+
+export async function getProjectConversation(projectId: string, conversationId: string): Promise<ProjectConversationDetails> {
+  const result = await requestJson<ProjectConversationDetails, unknown, never>({
+    method: "GET",
+    path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}/conversations/${encodeURIComponent(conversationId)}`,
+  });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to load project conversation");
+  }
+  return {
+    ...result.data,
+    participants: Array.isArray(result.data.participants) ? result.data.participants : [],
+    messages: Array.isArray(result.data.messages) ? result.data.messages : [],
+    canSendMessages: false,
+  };
 }
 
 export async function createAgent(payload: CreateAgentRequest): Promise<AutomationAgent> {
@@ -703,6 +758,9 @@ export const agentsApi = {
   getChatAgentExecution,
   submitChatExecution,
   getChatExecutionStatus,
+  createProjectConversation,
+  getProjectConversations,
+  getProjectConversation,
   getAgentRules,
   createAgentRule,
   patchAgentRule,

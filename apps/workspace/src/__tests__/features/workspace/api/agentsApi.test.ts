@@ -9,6 +9,7 @@ import {
   addAgentToProject,
   chatAgent,
   createAgentProject,
+  createProjectConversation,
   deleteAgentProject,
   createAgentRule,
   createAgent,
@@ -17,6 +18,8 @@ import {
   deleteAgentConversation,
   getAgentById,
   getAgentProject,
+  getProjectConversation,
+  getProjectConversations,
   getAgentConversation,
   getAgentConversations,
   getAgentProjects,
@@ -442,6 +445,81 @@ describe("agentsApi.projectAgents", () => {
     await expect(removeAgentFromProject("project-1", "agent-1")).rejects.toThrow(
       "Unable to remove agent from project"
     );
+  });
+});
+
+describe("agentsApi.projectConversations", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("creates project conversation with selected agents", async () => {
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        id: "conv-1",
+        projectId: "project-1",
+        title: "Team chat",
+        type: "MULTI_AGENT",
+        status: "ACTIVE",
+        participants: [{ type: "AGENT", agentId: "agent-1", name: "Writer", status: "ACTIVE" }],
+        canSendMessages: false,
+        createdAt: "2026-05-08T10:00:00Z",
+        updatedAt: "2026-05-08T10:00:00Z",
+        lastMessageAt: null,
+        messages: [],
+      },
+    });
+
+    await createProjectConversation("project-1", ["agent-1"]);
+
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "POST",
+      path: "/api/v1/agent-projects/project-1/conversations",
+      body: { agentIds: ["agent-1"] },
+    });
+  });
+
+  it("lists project conversations", async () => {
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: { items: [{ id: "conv-1" }] },
+    });
+
+    const result = await getProjectConversations("project-1");
+
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "GET",
+      path: "/api/v1/agent-projects/project-1/conversations",
+    });
+    expect(result.items).toHaveLength(1);
+  });
+
+  it("loads project conversation details", async () => {
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        id: "conv-1",
+        projectId: "project-1",
+        title: "Team chat",
+        type: "MULTI_AGENT",
+        status: "ACTIVE",
+        participants: [],
+        canSendMessages: false,
+        createdAt: "2026-05-08T10:00:00Z",
+        updatedAt: "2026-05-08T10:00:00Z",
+        lastMessageAt: null,
+        messages: [],
+      },
+    });
+
+    const result = await getProjectConversation("project-1", "conv-1");
+
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "GET",
+      path: "/api/v1/agent-projects/project-1/conversations/conv-1",
+    });
+    expect(result.id).toBe("conv-1");
   });
 });
 

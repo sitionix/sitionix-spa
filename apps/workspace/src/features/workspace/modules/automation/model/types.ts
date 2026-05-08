@@ -96,10 +96,10 @@ export type DeleteAgentRuleResponse = {
 export type AgentConversation = {
   id: string;
   title: string;
-  type: "DIRECT";
+  type: "DIRECT" | "MULTI_AGENT";
   createdAt: string;
   updatedAt: string;
-  lastMessageAt: string;
+  lastMessageAt: string | null;
 };
 
 export type AgentConversationsResponse = {
@@ -109,10 +109,10 @@ export type AgentConversationsResponse = {
 export type AgentConversationDetails = {
   id: string;
   title: string;
-  type: "DIRECT";
+  type: "DIRECT" | "MULTI_AGENT";
   createdAt: string;
   updatedAt: string;
-  lastMessageAt: string;
+  lastMessageAt: string | null;
   messages: ChatAgentMessage[];
   executions: Array<{
     executionId: string;
@@ -124,6 +124,40 @@ export type AgentConversationDetails = {
     errorMessage?: string;
     assistantMessage?: ChatAgentMessage;
   }>;
+};
+
+export type ProjectConversationParticipant = {
+  type: "USER" | "AGENT";
+  agentId?: string;
+  name: string;
+  description?: string | null;
+  status: "DRAFT" | "ACTIVE" | "ARCHIVED" | "DELETED";
+};
+
+export type ProjectConversation = {
+  id: string;
+  projectId: string;
+  title: string;
+  type: "DIRECT" | "MULTI_AGENT";
+  status: "ACTIVE" | "DELETED";
+  participants: ProjectConversationParticipant[];
+  canSendMessages: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastMessageAt: string | null;
+};
+
+export type ProjectConversationsResponse = {
+  items: ProjectConversation[];
+};
+
+export type ProjectConversationDetails = ProjectConversation & {
+  project?: {
+    id: string;
+    name: string;
+    context?: string | null;
+  };
+  messages: ChatAgentMessage[];
 };
 
 
