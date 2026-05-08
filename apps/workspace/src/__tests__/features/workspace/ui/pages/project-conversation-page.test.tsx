@@ -156,4 +156,62 @@ describe("ProjectConversationPage", () => {
     expect(screen.queryByText("Owner")).not.toBeInTheDocument();
     expect(screen.getByText("No description yet.")).toBeInTheDocument();
   });
+
+  it("navigates back when project id is missing in params", async () => {
+    getProjectConversationMock.mockResolvedValue({
+      id: "conv-2",
+      projectId: "project-2",
+      project: null,
+      title: "",
+      type: "DIRECT",
+      status: "ACTIVE",
+      participants: [],
+      messages: [],
+      canSendMessages: false,
+      createdAt: "2026-05-08T10:00:00Z",
+      updatedAt: "2026-05-08T10:00:00Z",
+      lastMessageAt: null,
+    });
+
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/automation/projects/conversations/conv-2"]}>
+        <Routes>
+          <Route path="/automation/projects/conversations/:conversationId" element={<ProjectConversationPage />} />
+          <Route path="/automation/projects/" element={<div>Project list page</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText("Conversation not found");
+    await user.click(screen.getByRole("button", { name: "Back to Project" }));
+    expect(await screen.findByText("Project list page")).toBeInTheDocument();
+  });
+
+  it("renders agent participant when agent id is null", async () => {
+    getProjectConversationMock.mockResolvedValue({
+      id: "conv-3",
+      projectId: "project-3",
+      project: { id: "project-3", name: "Sitionix", context: "Context" },
+      title: "Team chat",
+      type: "MULTI_AGENT",
+      status: "ACTIVE",
+      participants: [{ type: "AGENT", agentId: null, name: "Planner", description: "Plans tasks", status: "ACTIVE" }],
+      messages: [],
+      canSendMessages: false,
+      createdAt: "2026-05-08T10:00:00Z",
+      updatedAt: "2026-05-08T10:00:00Z",
+      lastMessageAt: null,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/automation/projects/project-3/conversations/conv-3"]}>
+        <Routes>
+          <Route path="/automation/projects/:projectId/conversations/:conversationId" element={<ProjectConversationPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Planner")).toBeInTheDocument();
+  });
 });
