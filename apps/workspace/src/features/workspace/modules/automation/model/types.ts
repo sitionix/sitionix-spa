@@ -1,7 +1,10 @@
 import type {
+  AddAgentToProjectRequestDTO,
   AgentDTO,
   AgentProjectDTO,
   AgentProjectsPageResponseDTO,
+  ProjectAgentResponseDTO,
+  ProjectAgentsResponseDTO,
   AgentRuleDTO,
   CreateAgentProjectRequestDTO,
   CreateAgentRuleRequestDTO,
@@ -9,11 +12,6 @@ import type {
   CreateAgentRequestDTO,
   PatchAgentRequestDTO,
 } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
-import type {
-  AddAgentToProjectRequestDTO,
-  ProjectAgentResponseDTO,
-  ProjectAgentsResponseDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-sitionix-133-unstable/models";
 
 export type AutomationAgent = AgentDTO;
 export type CreateAgentRequest = CreateAgentRequestDTO;
@@ -21,6 +19,7 @@ export type PatchAgentRequest = PatchAgentRequestDTO;
 export type PatchAgentProjectRequest = {
   name?: string;
   description?: string | null;
+  context?: string | null;
 };
 
 export type ChatAgentRequest = {

@@ -1,4 +1,4 @@
-import { AgentApi, AgentChatApi, AgentConversationApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentApi, AgentChatApi, AgentConversationApi, AgentRuleApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
 import type {
   AcceptAgentRuleRequestDTO,
   CreateAgentRequestDTO,
@@ -38,10 +38,14 @@ import type {
 const agentApi = new AgentApi(bffApiConfiguration);
 const agentConversationApi = new AgentConversationApi(bffApiConfiguration);
 const agentChatApi = new AgentChatApi(bffApiConfiguration);
+const agentRuleApi = new AgentRuleApi(bffApiConfiguration);
 type RuleTextPayload = { title?: string; content?: string };
 type ExtendedAgentApi = {
   restoreAgent(request: { agentId: string }): Promise<AutomationAgent>;
   deleteAgent(request: { agentId: string }): Promise<AutomationAgent>;
+};
+
+type ExtendedAgentRuleApi = {
   getAgentRules(request: { agentId: string; status?: AgentRuleStatus; authorType?: AgentRuleAuthorType }): Promise<{ items?: AgentRule[] }>;
   createAgentRule(request: { agentId: string; createAgentRuleRequestDTO: CreateAgentRuleRequestDTO }): Promise<AgentRule>;
   patchAgentRule(request: { agentId: string; ruleId: string; patchAgentRuleRequestDTO: PatchAgentRuleRequestDTO }): Promise<AgentRule>;
@@ -51,6 +55,7 @@ type ExtendedAgentApi = {
 };
 
 const agentApiExtended = agentApi as unknown as ExtendedAgentApi;
+const agentRuleApiExtended = agentRuleApi as unknown as ExtendedAgentRuleApi;
 const agentConversationApiExtended = agentConversationApi as unknown as {
   getAgentConversations(request: { agentId: string }): Promise<AgentConversationsResponse>;
   getAgentConversation(request: { conversationId: string }): Promise<AgentConversationDetails>;
@@ -210,6 +215,16 @@ export async function patchAgentProject(projectId: string, payload: PatchAgentPr
     requestBody.name = name;
   }
 
+  if (hasOwn(payload, "context")) {
+    const rawContext = payload.context;
+    if (rawContext === null) {
+      requestBody.context = null;
+    } else {
+      const context = rawContext?.trim() ?? "";
+      requestBody.context = context || null;
+    }
+  }
+
   if (hasOwn(payload, "description")) {
     const rawDescription = payload.description;
     if (rawDescription === null) {
@@ -220,8 +235,8 @@ export async function patchAgentProject(projectId: string, payload: PatchAgentPr
     }
   }
 
-  if (!hasOwn(requestBody, "name") && !hasOwn(requestBody, "description")) {
-    throw new Error("At least one field (name or description) must be provided");
+  if (!hasOwn(requestBody, "name") && !hasOwn(requestBody, "context") && !hasOwn(requestBody, "description")) {
+    throw new Error("At least one field (name, description or context) must be provided");
   }
 
   const result = await requestJson<AgentProject, unknown, PatchAgentProjectRequest>({
@@ -551,18 +566,41 @@ export async function getAgentRules(
   agentId: string,
   filters?: { status?: AgentRuleStatus; authorType?: AgentRuleAuthorType },
 ): Promise<AgentRule[]> {
-  const response = await agentApiExtended.getAgentRules({
-    agentId,
-    status: filters?.status,
-    authorType: filters?.authorType,
+  if (typeof agentRuleApiExtended.getAgentRules === "function") {
+    const response = await agentRuleApiExtended.getAgentRules({
+      agentId,
+      status: filters?.status,
+      authorType: filters?.authorType,
+    });
+    return Array.isArray(response.items) ? response.items : [];
+  }
+
+  const query = new URLSearchParams();
+  if (filters?.status) {
+    query.set("status", filters.status);
+  }
+  if (filters?.authorType) {
+    query.set("authorType", filters.authorType);
+  }
+
+  const path = query.size > 0
+    ? `/api/v1/agents/${encodeURIComponent(agentId)}/rules?${query.toString()}`
+    : `/api/v1/agents/${encodeURIComponent(agentId)}/rules`;
+
+  const result = await requestJson<{ items?: AgentRule[] }, unknown, never>({
+    method: "GET",
+    path,
   });
-  return Array.isArray(response.items) ? response.items : [];
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to load rules");
+  }
+  return Array.isArray(result.data.items) ? result.data.items : [];
 }
 
 export async function createAgentRule(agentId: string, payload: CreateAgentRuleRequest): Promise<AgentRule> {
   const title = getRequiredTrimmed(payload.title, "Rule title is required");
   const content = getRequiredTrimmed(payload.content, "Rule content is required");
-  return agentApiExtended.createAgentRule({
+  return agentRuleApiExtended.createAgentRule({
     agentId,
     createAgentRuleRequestDTO: { title, content },
   });
@@ -582,7 +620,7 @@ export async function patchAgentRule(agentId: string, ruleId: string, payload: P
     && !hasOwn(requestBody, "content")) {
     throw new Error("At least one field (title or content) must be provided");
   }
-  return agentApiExtended.patchAgentRule({
+  return agentRuleApiExtended.patchAgentRule({
     agentId,
     ruleId,
     patchAgentRuleRequestDTO: requestBody,
@@ -607,7 +645,7 @@ export async function acceptAgentRule(
       requestBody.content = content;
     }
   }
-  return agentApiExtended.acceptAgentRule({
+  return agentRuleApiExtended.acceptAgentRule({
     agentId,
     ruleId,
     acceptAgentRuleRequestDTO: requestBody,
@@ -615,11 +653,11 @@ export async function acceptAgentRule(
 }
 
 export async function rejectAgentRule(agentId: string, ruleId: string): Promise<AgentRule> {
-  return agentApiExtended.rejectAgentRule({ agentId, ruleId });
+  return agentRuleApiExtended.rejectAgentRule({ agentId, ruleId });
 }
 
 export async function deleteAgentRule(agentId: string, ruleId: string): Promise<DeleteAgentRuleResponse> {
-  return agentApiExtended.deleteAgentRule({ agentId, ruleId });
+  return agentRuleApiExtended.deleteAgentRule({ agentId, ruleId });
 }
 
 type ErrorWithStatus = {

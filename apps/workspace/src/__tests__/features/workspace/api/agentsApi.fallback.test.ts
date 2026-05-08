@@ -12,6 +12,9 @@ vi.mock("@sitionix/app-afesox-bffssox-frontend-stable/apis", () => ({
   AgentChatApi: class AgentChatApi {
     constructor(_: unknown) {}
   },
+  AgentRuleApi: class AgentRuleApi {
+    constructor(_: unknown) {}
+  },
 }));
 
 vi.mock("../../../../shared/http/httpClient", () => ({
