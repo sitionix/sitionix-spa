@@ -235,6 +235,110 @@ describe("AgentProjectDetailsPage", () => {
     expect(screen.getAllByText("No description yet.").length).toBeGreaterThan(0);
   });
 
+  it("renders project conversations list and opens selected conversation", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      context: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    listAgentProjectAgentsMock.mockResolvedValue([
+      {
+        id: "agent-1",
+        name: "Writer",
+        description: "Writes copy",
+        status: "ACTIVE",
+        createdAt: "2026-05-05T12:00:00Z",
+        updatedAt: "2026-05-05T12:00:00Z",
+        attachedAt: "2026-05-06T12:00:00Z",
+      },
+    ]);
+    getProjectConversationsMock.mockResolvedValue({
+      items: [
+        {
+          id: "conv-1",
+          projectId: "project-1",
+          title: "Team chat",
+          type: "MULTI_AGENT",
+          status: "ACTIVE",
+          participants: [{ type: "AGENT", agentId: "agent-1", name: "Writer", description: "Writes copy", status: "ACTIVE" }],
+          canSendMessages: false,
+          createdAt: "2026-05-05T12:00:00Z",
+          updatedAt: "2026-05-05T12:00:00Z",
+          lastMessageAt: null,
+        },
+      ],
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Marketing Automation");
+    await user.click(await screen.findByRole("button", { name: /Team chat/i }));
+
+    expect(await screen.findByText("Project conversation page")).toBeInTheDocument();
+  });
+
+  it("shows conversations loading state", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      context: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    listAgentProjectAgentsMock.mockResolvedValue([]);
+    getProjectConversationsMock.mockImplementation(() => new Promise(() => {}));
+
+    renderPage();
+
+    expect(await screen.findByText("Loading conversations...")).toBeInTheDocument();
+  });
+
+  it("shows conversations load error and retries", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      context: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    listAgentProjectAgentsMock.mockResolvedValue([]);
+    getProjectConversationsMock
+      .mockRejectedValueOnce(new Error("Unable to load conversations"))
+      .mockResolvedValueOnce({ items: [] });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    expect(await screen.findByText("Unable to load conversations")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByText("No conversations yet.")).toBeInTheDocument();
+  });
+
+  it("opens new chat and shows empty attached agents hint", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      context: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    listAgentProjectAgentsMock.mockResolvedValue([]);
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Marketing Automation");
+    await user.click(screen.getByRole("button", { name: "New Chat" }));
+
+    expect(await screen.findByText("No agents attached yet.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create chat" })).toBeDisabled();
+  });
+
   it("opens add agents sheet and filters already attached agents", async () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
