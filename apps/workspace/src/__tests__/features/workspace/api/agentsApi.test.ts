@@ -495,6 +495,30 @@ describe("agentsApi.projectConversations", () => {
     expect(result.items).toHaveLength(1);
   });
 
+  it("throws when create project conversation request fails", async () => {
+    vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: false,
+      status: 400,
+      data: undefined,
+    });
+
+    await expect(createProjectConversation("project-1", ["agent-1"])).rejects.toThrow(
+      "Unable to create project conversation"
+    );
+  });
+
+  it("throws when list project conversations request fails", async () => {
+    vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: false,
+      status: 404,
+      data: undefined,
+    });
+
+    await expect(getProjectConversations("project-1")).rejects.toThrow(
+      "Unable to load project conversations"
+    );
+  });
+
   it("loads project conversation details", async () => {
     const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
       ok: true,
@@ -520,6 +544,18 @@ describe("agentsApi.projectConversations", () => {
       path: "/api/v1/agent-projects/project-1/conversations/conv-1",
     });
     expect(result.id).toBe("conv-1");
+  });
+
+  it("throws when get project conversation request fails", async () => {
+    vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: false,
+      status: 404,
+      data: undefined,
+    });
+
+    await expect(getProjectConversation("project-1", "conv-1")).rejects.toThrow(
+      "Unable to load project conversation"
+    );
   });
 });
 
