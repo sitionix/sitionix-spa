@@ -225,8 +225,18 @@ export async function patchAgentProject(projectId: string, payload: PatchAgentPr
     }
   }
 
-  if (!hasOwn(requestBody, "name") && !hasOwn(requestBody, "context")) {
-    throw new Error("At least one field (name or context) must be provided");
+  if (hasOwn(payload, "description")) {
+    const rawDescription = payload.description;
+    if (rawDescription === null) {
+      requestBody.description = null;
+    } else {
+      const description = rawDescription?.trim() ?? "";
+      requestBody.description = description || null;
+    }
+  }
+
+  if (!hasOwn(requestBody, "name") && !hasOwn(requestBody, "context") && !hasOwn(requestBody, "description")) {
+    throw new Error("At least one field (name, description or context) must be provided");
   }
 
   const result = await requestJson<AgentProject, unknown, PatchAgentProjectRequest>({

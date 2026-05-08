@@ -18,6 +18,7 @@ export type CreateAgentRequest = CreateAgentRequestDTO;
 export type PatchAgentRequest = PatchAgentRequestDTO;
 export type PatchAgentProjectRequest = {
   name?: string;
+  description?: string | null;
   context?: string | null;
 };
 

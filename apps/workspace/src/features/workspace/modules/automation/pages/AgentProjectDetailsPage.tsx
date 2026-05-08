@@ -19,7 +19,7 @@ import { getStatusBadgeClass } from "../model/statusBadge";
 import type { AgentProject, AutomationAgent, ProjectAgent } from "../model/types";
 
 type AgentProjectDetailsPageState = "idle" | "loading" | "ready" | "not_found" | "error";
-type EditableField = "name" | "context" | null;
+type EditableField = "name" | "description" | "context" | null;
 type EditableNonNullField = Exclude<EditableField, null>;
 type FieldKind = "input" | "textarea";
 
@@ -31,6 +31,7 @@ export function AgentProjectDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<EditableField>(null);
   const [nameDraft, setNameDraft] = useState("");
+  const [descriptionDraft, setDescriptionDraft] = useState("");
   const [contextDraft, setContextDraft] = useState("");
   const [savingField, setSavingField] = useState<EditableField>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -51,8 +52,10 @@ export function AgentProjectDetailsPage() {
   const [isRemovingAgent, setIsRemovingAgent] = useState(false);
   const [removeAgentError, setRemoveAgentError] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const descriptionInputRef = useRef<HTMLTextAreaElement | null>(null);
   const contextInputRef = useRef<HTMLTextAreaElement | null>(null);
   const nameEditorRef = useRef<HTMLDivElement | null>(null);
+  const descriptionEditorRef = useRef<HTMLDivElement | null>(null);
   const contextEditorRef = useRef<HTMLDivElement | null>(null);
 
   const loadProject = useCallback(async () => {
@@ -147,6 +150,8 @@ export function AgentProjectDetailsPage() {
     setLifecycleError(null);
     if (field === "name") {
       setNameDraft(project.name);
+    } else if (field === "description") {
+      setDescriptionDraft(project.description ?? "");
     } else {
       setContextDraft(project.context ?? "");
     }
@@ -164,9 +169,16 @@ export function AgentProjectDetailsPage() {
       return;
     }
 
-    const isName = field === "name";
-    const draftValue = isName ? nameDraft : contextDraft;
-    const currentValue = isName ? project.name : (project.context ?? "");
+    const draftValue = field === "name"
+      ? nameDraft
+      : field === "description"
+        ? descriptionDraft
+        : contextDraft;
+    const currentValue = field === "name"
+      ? project.name
+      : field === "description"
+        ? (project.description ?? "")
+        : (project.context ?? "");
     const normalizedDraft = draftValue.trim();
 
     if (normalizedDraft === currentValue) {
@@ -179,9 +191,12 @@ export function AgentProjectDetailsPage() {
     setSaveError(null);
 
     try {
-      const updatedProject = await patchAgentProject(project.id, isName
+      const payload = field === "name"
         ? { name: normalizedDraft }
-        : { context: normalizedDraft || null });
+        : field === "description"
+          ? { description: normalizedDraft || null }
+          : { context: normalizedDraft || null };
+      const updatedProject = await patchAgentProject(project.id, payload);
       setProject(updatedProject);
       setEditingField(null);
       setLifecycleError(null);
@@ -190,7 +205,7 @@ export function AgentProjectDetailsPage() {
     } finally {
       setSavingField(null);
     }
-  }, [contextDraft, isDeleting, nameDraft, project, savingField]);
+  }, [contextDraft, descriptionDraft, isDeleting, nameDraft, project, savingField]);
 
   const confirmDeleteAction = useCallback(async () => {
     if (!project || isDeleting || savingField) {
@@ -268,6 +283,8 @@ export function AgentProjectDetailsPage() {
   useEffect(() => {
     const activeInput = editingField === "name"
       ? nameInputRef.current
+      : editingField === "description"
+        ? descriptionInputRef.current
       : editingField === "context"
         ? contextInputRef.current
         : null;
@@ -359,9 +376,26 @@ export function AgentProjectDetailsPage() {
                 editorClassName="w-full rounded-xl border border-zinc-300 px-4 py-2 text-3xl font-semibold text-zinc-900 outline-none ring-blue-100 focus:ring"
               />
 
-              <p className="mt-3 max-w-3xl whitespace-pre-wrap break-words text-sm leading-6 text-zinc-600">
-                {project.description?.trim() ? project.description : "No description yet."}
-              </p>
+              <EditableField
+                className="mt-3 inline-flex max-w-3xl items-start gap-2"
+                textClassName="whitespace-pre-wrap break-words text-left text-sm leading-6 text-zinc-600"
+                ariaLabel="Edit project description"
+                field="description"
+                editingField={editingField}
+                onStartEditing={startEditing}
+                value={project.description ?? "No description yet."}
+                draftValue={descriptionDraft}
+                disabled={savingField === "description"}
+                isSaving={savingField === "description"}
+                inputRef={descriptionInputRef}
+                editorRef={descriptionEditorRef}
+                onDraftChange={setDescriptionDraft}
+                onSave={() => void saveField("description")}
+                onCancel={cancelEditing}
+                onKeyDown={handleFieldKeyDown("description", "textarea")}
+                kind="textarea"
+                editorClassName="w-full resize-none rounded-xl border border-zinc-300 px-3 py-2 text-sm leading-6 text-zinc-800 outline-none ring-blue-100 focus:ring"
+              />
 
               <div className="mt-4 grid gap-2 text-sm text-zinc-600">
                 <div>Created {formatDate(project.createdAt)}</div>

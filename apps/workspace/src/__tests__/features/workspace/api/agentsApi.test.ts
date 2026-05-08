@@ -290,13 +290,35 @@ describe("agentsApi.projects", () => {
     });
   });
 
+  it("patches project description only and trims value", async () => {
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        id: "project-1",
+        name: "Name",
+        description: "Updated description",
+        status: "ACTIVE",
+        createdAt: "2026-05-05T12:00:00Z",
+        updatedAt: "2026-05-05T12:10:00Z",
+      },
+    });
+
+    await patchAgentProject("project-1", { description: "  Updated description  " });
+
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "PATCH",
+      path: "/api/v1/agent-projects/project-1",
+      body: { description: "Updated description" },
+    });
+  });
+
   it("rejects blank project name while patching", async () => {
     await expect(patchAgentProject("project-1", { name: "   " })).rejects.toThrow("Project name is required");
   });
 
-  it("rejects patch payload without name or context", async () => {
+  it("rejects patch payload without name, description or context", async () => {
     await expect(patchAgentProject("project-1", {})).rejects.toThrow(
-      "At least one field (name or context) must be provided"
+      "At least one field (name, description or context) must be provided"
     );
   });
 

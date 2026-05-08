@@ -517,6 +517,40 @@ describe("AgentProjectDetailsPage", () => {
     expect(await screen.findByText("Updated Marketing Automation")).toBeInTheDocument();
   });
 
+  it("patches project description inline", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "Campaign project",
+      context: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    patchAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "Updated campaign description",
+      context: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:05:00Z",
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Marketing Automation");
+
+    await user.click(screen.getAllByRole("button", { name: "Edit project description" })[0]);
+    const textarea = screen.getByDisplayValue("Campaign project");
+    await user.clear(textarea);
+    await user.type(textarea, "  Updated campaign description  ");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(patchAgentProjectMock).toHaveBeenCalledWith("project-1", { description: "Updated campaign description" });
+    expect(await screen.findByText("Updated campaign description")).toBeInTheDocument();
+  });
+
   it("does not patch unchanged project name", async () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
@@ -533,6 +567,27 @@ describe("AgentProjectDetailsPage", () => {
 
     await user.click(screen.getAllByRole("button", { name: "Edit project name" })[0]);
     await user.keyboard("{Enter}");
+
+    expect(patchAgentProjectMock).not.toHaveBeenCalled();
+  });
+
+  it("does not patch unchanged project description", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "Campaign project",
+      context: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Marketing Automation");
+
+    await user.click(screen.getAllByRole("button", { name: "Edit project description" })[0]);
+    await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(patchAgentProjectMock).not.toHaveBeenCalled();
   });
