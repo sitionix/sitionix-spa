@@ -480,6 +480,36 @@ describe("agentsApi.projectConversations", () => {
     });
   });
 
+  it("normalizes selected agent ids and response payload while creating project conversation", async () => {
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        id: "conv-1",
+        projectId: "project-1",
+        title: "Team chat",
+        type: "MULTI_AGENT",
+        status: "ACTIVE",
+        participants: undefined,
+        canSendMessages: true,
+        createdAt: "2026-05-08T10:00:00Z",
+        updatedAt: "2026-05-08T10:00:00Z",
+        lastMessageAt: null,
+        messages: undefined,
+      },
+    });
+
+    const result = await createProjectConversation("project-1", [" agent-1 ", "agent-2"]);
+
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "POST",
+      path: "/api/v1/agent-projects/project-1/conversations",
+      body: { agentIds: ["agent-1", "agent-2"] },
+    });
+    expect(result.participants).toEqual([]);
+    expect(result.messages).toEqual([]);
+    expect(result.canSendMessages).toBe(false);
+  });
+
   it("lists project conversations", async () => {
     const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
       ok: true,
@@ -504,6 +534,18 @@ describe("agentsApi.projectConversations", () => {
 
     await expect(createProjectConversation("project-1", ["agent-1"])).rejects.toThrow(
       "Unable to create project conversation"
+    );
+  });
+
+  it("throws when no selected agents provided for create project conversation", async () => {
+    await expect(createProjectConversation("project-1", [" ", ""])).rejects.toThrow(
+      "At least one agent must be selected"
+    );
+  });
+
+  it("throws when selected agents contain duplicates for create project conversation", async () => {
+    await expect(createProjectConversation("project-1", ["agent-1", " agent-1 "])).rejects.toThrow(
+      "Agent selection must be unique"
     );
   });
 
@@ -544,6 +586,31 @@ describe("agentsApi.projectConversations", () => {
       path: "/api/v1/agent-projects/project-1/conversations/conv-1",
     });
     expect(result.id).toBe("conv-1");
+  });
+
+  it("normalizes project conversation details payload", async () => {
+    vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        id: "conv-1",
+        projectId: "project-1",
+        title: "Team chat",
+        type: "MULTI_AGENT",
+        status: "ACTIVE",
+        participants: undefined,
+        canSendMessages: true,
+        createdAt: "2026-05-08T10:00:00Z",
+        updatedAt: "2026-05-08T10:00:00Z",
+        lastMessageAt: null,
+        messages: undefined,
+      },
+    });
+
+    const result = await getProjectConversation("project-1", "conv-1");
+
+    expect(result.participants).toEqual([]);
+    expect(result.messages).toEqual([]);
+    expect(result.canSendMessages).toBe(false);
   });
 
   it("throws when get project conversation request fails", async () => {
