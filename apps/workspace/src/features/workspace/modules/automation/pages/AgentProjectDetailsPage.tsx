@@ -319,8 +319,8 @@ export function AgentProjectDetailsPage() {
       const response = await createProjectConversation(projectId, selectedConversationAgentIds);
       setNewChatOpen(false);
       setSelectedConversationAgentIds([]);
-      await loadProjectConversations();
       navigate(`/automation/projects/${encodeURIComponent(projectId)}/conversations/${encodeURIComponent(response.id)}`);
+      void loadProjectConversations();
     } catch (createError) {
       setCreateConversationError(toAutomationErrorMessage(createError));
     } finally {
