@@ -1,4 +1,4 @@
-import { AgentApi, AgentChatApi, AgentConversationApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-134-unstable/apis";
+import { AgentApi, AgentChatApi, AgentConversationApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
 import type {
   AcceptAgentRuleRequestDTO,
   CreateAgentRequestDTO,
@@ -6,7 +6,7 @@ import type {
   CreateAgentRuleRequestDTO,
   PatchAgentRuleRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-sitionix-134-unstable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 import { bffApiConfiguration, requestJson } from "../../../../../shared/http/httpClient";
 import type {
   AgentConversationDetails,

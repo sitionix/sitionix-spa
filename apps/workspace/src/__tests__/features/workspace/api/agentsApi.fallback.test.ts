@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const requestJsonMock = vi.fn();
 
-vi.mock("@sitionix/app-afesox-bffssox-frontend-sitionix-134-unstable/apis", () => ({
+vi.mock("@sitionix/app-afesox-bffssox-frontend-stable/apis", () => ({
   AgentApi: class AgentApi {
     constructor(_: unknown) {}
   },
