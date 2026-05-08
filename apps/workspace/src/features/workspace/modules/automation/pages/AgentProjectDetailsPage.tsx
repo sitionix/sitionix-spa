@@ -279,13 +279,11 @@ export function AgentProjectDetailsPage() {
   }, [editingField]);
 
   useEffect(() => {
-    if (editingField === null) {
+    if (editingField !== "name") {
       return;
     }
-
-    const activeEditorRef = editingField === "name" ? nameEditorRef : contextEditorRef;
     const onDocumentMouseDown = (event: MouseEvent) => {
-      const currentEditor = activeEditorRef.current;
+      const currentEditor = nameEditorRef.current;
       if (!currentEditor) {
         return;
       }
@@ -295,7 +293,7 @@ export function AgentProjectDetailsPage() {
         return;
       }
 
-      void saveField(editingField);
+      void saveField("name");
     };
 
     window.addEventListener("mousedown", onDocumentMouseDown);
@@ -361,30 +359,9 @@ export function AgentProjectDetailsPage() {
                 editorClassName="w-full rounded-xl border border-zinc-300 px-4 py-2 text-3xl font-semibold text-zinc-900 outline-none ring-blue-100 focus:ring"
               />
 
-              <div className="mt-5">
-                <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-zinc-500">Project context</h2>
-              </div>
-              <EditableField
-                className="mt-2 inline-flex max-w-3xl items-start gap-2"
-                textClassName="whitespace-pre-wrap break-words text-left text-sm leading-6 text-zinc-600"
-                ariaLabel="Edit project context"
-                field="context"
-                editingField={editingField}
-                onStartEditing={startEditing}
-                value={project.context ?? "No context yet."}
-                draftValue={contextDraft}
-                disabled={savingField === "context"}
-                isSaving={savingField === "context"}
-                inputRef={contextInputRef}
-                editorRef={contextEditorRef}
-                onDraftChange={setContextDraft}
-                onSave={() => void saveField("context")}
-                onCancel={cancelEditing}
-                onKeyDown={handleFieldKeyDown("context", "textarea")}
-                kind="textarea"
-                textareaMaxLength={5000}
-                editorClassName="w-full resize-none rounded-xl border border-zinc-300 px-3 py-2 text-sm leading-6 text-zinc-800 outline-none ring-blue-100 focus:ring"
-              />
+              <p className="mt-3 max-w-3xl whitespace-pre-wrap break-words text-sm leading-6 text-zinc-600">
+                {project.description?.trim() ? project.description : "No description yet."}
+              </p>
 
               <div className="mt-4 grid gap-2 text-sm text-zinc-600">
                 <div>Created {formatDate(project.createdAt)}</div>
@@ -394,6 +371,67 @@ export function AgentProjectDetailsPage() {
               <InlineError message={saveError} />
               <InlineError message={lifecycleError} />
             </div>
+          </section>
+
+          <section className="mt-6 rounded-3xl border border-zinc-200 bg-white p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-zinc-900">Project context</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-600">
+                  Describe what agents should know when working inside this project.
+                </p>
+              </div>
+              {editingField !== "context" ? (
+                <button
+                  type="button"
+                  onClick={() => startEditing("context")}
+                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+                  aria-label="Edit project context"
+                >
+                  <Pencil className="h-4 w-4" />
+                  {project.context?.trim() ? "Edit" : "Add context"}
+                </button>
+              ) : null}
+            </div>
+
+            {editingField === "context" ? (
+              <div ref={contextEditorRef} className="mt-4">
+                <textarea
+                  ref={contextInputRef}
+                  value={contextDraft}
+                  onChange={(event) => setContextDraft(event.target.value)}
+                  onKeyDown={handleFieldKeyDown("context", "textarea")}
+                  disabled={savingField === "context"}
+                  rows={6}
+                  maxLength={5000}
+                  className="w-full resize-none rounded-xl border border-zinc-300 px-3 py-2 text-sm leading-6 text-zinc-800 outline-none ring-blue-100 focus:ring"
+                />
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={savingField === "context"}
+                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                    onClick={() => void saveField("context")}
+                  >
+                    {savingField === "context" ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={savingField === "context"}
+                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                    onClick={cancelEditing}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-700">
+                  {project.context?.trim() ? project.context : "No context yet."}
+                </p>
+              </div>
+            )}
           </section>
 
           <div className="mt-6 grid gap-6 xl:grid-cols-[2fr_1fr]">

@@ -74,6 +74,7 @@ describe("AgentProjectDetailsPage", () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
+      description: "Project level description",
       context: "Campaign automations",
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
@@ -83,8 +84,10 @@ describe("AgentProjectDetailsPage", () => {
     renderPage();
 
     expect(await screen.findByText("Marketing Automation")).toBeInTheDocument();
+    expect(screen.getByText("Project level description")).toBeInTheDocument();
     expect(screen.getByText("Campaign automations")).toBeInTheDocument();
     expect(screen.getByText("Project context")).toBeInTheDocument();
+    expect(screen.getByText("Describe what agents should know when working inside this project.")).toBeInTheDocument();
     expect(screen.getByText("Workspace view, project context, and lifecycle controls for this automation project.")).toBeInTheDocument();
     expect(screen.getByText("ACTIVE")).toBeInTheDocument();
     expect(screen.getByText("Agents")).toBeInTheDocument();
@@ -116,7 +119,7 @@ describe("AgentProjectDetailsPage", () => {
     renderPage();
 
     expect(await screen.findByText("Marketing Writer")).toBeInTheDocument();
-    expect(screen.getByText("No description yet.")).toBeInTheDocument();
+    expect(screen.getAllByText("No description yet.").length).toBeGreaterThan(0);
   });
 
   it("opens add agents sheet and filters already attached agents", async () => {
@@ -343,6 +346,7 @@ describe("AgentProjectDetailsPage", () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
       name: "Marketing Automation",
+      description: null,
       context: null,
       status: "ACTIVE",
       createdAt: "2026-05-05T12:00:00Z",
@@ -352,6 +356,23 @@ describe("AgentProjectDetailsPage", () => {
     renderPage();
 
     expect(await screen.findByText("No context yet.")).toBeInTheDocument();
+  });
+
+  it("does not render project context inside overview metadata", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      description: "No context in this card",
+      context: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("No context in this card")).toBeInTheDocument();
+    expect(screen.queryByText("PROJECT CONTEXT")).not.toBeInTheDocument();
   });
 
   it("renders project context with preserved line breaks", async () => {
@@ -538,7 +559,7 @@ describe("AgentProjectDetailsPage", () => {
     renderPage();
     await screen.findByText("Marketing Automation");
 
-    await user.click(screen.getAllByRole("button", { name: "Edit project context" })[0]);
+    await user.click(screen.getByRole("button", { name: "Edit project context" }));
     const textarea = screen.getByDisplayValue("Campaign automations");
     await user.clear(textarea);
     await user.type(textarea, "  Updated description  ");
@@ -562,7 +583,7 @@ describe("AgentProjectDetailsPage", () => {
     renderPage();
     await screen.findByText("Marketing Automation");
 
-    await user.click(screen.getAllByRole("button", { name: "Edit project context" })[0]);
+    await user.click(screen.getByRole("button", { name: "Edit project context" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(patchAgentProjectMock).not.toHaveBeenCalled();
@@ -583,7 +604,7 @@ describe("AgentProjectDetailsPage", () => {
     renderPage();
     await screen.findByText("Marketing Automation");
 
-    await user.click(screen.getAllByRole("button", { name: "Edit project context" })[0]);
+    await user.click(screen.getByRole("button", { name: "Edit project context" }));
     const textarea = screen.getByDisplayValue("Campaign automations");
     await user.type(textarea, " updated");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -606,7 +627,7 @@ describe("AgentProjectDetailsPage", () => {
     renderPage();
     await screen.findByText("Marketing Automation");
 
-    await user.click(screen.getAllByRole("button", { name: "Edit project context" })[0]);
+    await user.click(screen.getByRole("button", { name: "Edit project context" }));
     const textarea = screen.getByDisplayValue("Campaign automations");
     expect(textarea).toHaveAttribute("maxLength", "5000");
   });
