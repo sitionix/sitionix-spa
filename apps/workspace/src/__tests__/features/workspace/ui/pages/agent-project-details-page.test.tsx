@@ -494,6 +494,32 @@ describe("AgentProjectDetailsPage", () => {
     expect(removeAgentFromProjectMock).toHaveBeenCalledWith("project-1", "agent-2");
   });
 
+  it("keeps remove confirmation open when cancel is clicked during removing", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      context: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+    listAgentProjectAgentsMock.mockResolvedValue([
+      { id: "agent-2", name: "A2", description: "d2", status: "ACTIVE", createdAt: "2026-05-05T12:00:00Z", updatedAt: "2026-05-05T12:00:00Z", attachedAt: "2026-05-06T12:00:00Z" },
+    ]);
+    removeAgentFromProjectMock.mockImplementation(() => new Promise(() => {}));
+
+    const user = userEvent.setup();
+    renderPage();
+    expect(await screen.findByText("A2")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Remove A2" }));
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    await user.click(screen.getByRole("button", { name: "Скасувати" }));
+
+    expect(screen.getByText("Remove agent from project?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Removing..." })).toBeInTheDocument();
+  });
+
   it("shows error and retry action when attached agents loading fails", async () => {
     getAgentProjectMock.mockResolvedValue({
       id: "project-1",
@@ -732,6 +758,25 @@ describe("AgentProjectDetailsPage", () => {
 
     expect(patchAgentProjectMock).toHaveBeenCalledWith("project-1", { name: "Updated Marketing Automation" });
     expect(await screen.findByText("Updated Marketing Automation")).toBeInTheDocument();
+  });
+
+  it("starts name editing from pencil action button", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      context: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Marketing Automation");
+
+    await user.click(screen.getAllByRole("button", { name: "Edit project name" })[1]);
+
+    expect(screen.getByDisplayValue("Marketing Automation")).toBeInTheDocument();
   });
 
   it("patches project description inline", async () => {
