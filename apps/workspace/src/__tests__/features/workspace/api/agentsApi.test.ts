@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AgentApi, AgentChatApi, AgentConversationApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentApi, AgentChatApi, AgentConversationApi, AgentRuleApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
 import * as httpClient from "../../../../shared/http/httpClient";
 
 import {
@@ -1166,7 +1166,7 @@ describe("agentsApi.rules", () => {
 
   it("returns rules list and forwards optional filters", async () => {
     const getRulesSpy = vi.fn().mockResolvedValue({ items: [{ id: "rule-1" }] });
-    (AgentApi.prototype as any).getAgentRules = getRulesSpy;
+    (AgentRuleApi.prototype as any).getAgentRules = getRulesSpy;
 
     const result = await getAgentRules("agent-1", { status: "PENDING", authorType: "AI" });
 
@@ -1179,13 +1179,33 @@ describe("agentsApi.rules", () => {
   });
 
   it("returns empty list when get rules response has no items", async () => {
-    (AgentApi.prototype as any).getAgentRules = vi.fn().mockResolvedValue({});
+    (AgentRuleApi.prototype as any).getAgentRules = vi.fn().mockResolvedValue({});
     await expect(getAgentRules("agent-1")).resolves.toEqual([]);
+  });
+
+  it("falls back to direct HTTP request when sdk getAgentRules is unavailable", async () => {
+    const originalGetAgentRules = (AgentRuleApi.prototype as any).getAgentRules;
+    (AgentRuleApi.prototype as any).getAgentRules = undefined;
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        items: [{ id: "rule-2" }],
+      },
+    });
+
+    const result = await getAgentRules("agent-1", { status: "PENDING", authorType: "AI" });
+
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "GET",
+      path: "/api/v1/agents/agent-1/rules?status=PENDING&authorType=AI",
+    });
+    expect(result).toEqual([{ id: "rule-2" }]);
+    (AgentRuleApi.prototype as any).getAgentRules = originalGetAgentRules;
   });
 
   it("creates rule with trimmed title and content", async () => {
     const createRuleSpy = vi.fn().mockResolvedValue({ id: "rule-1" });
-    (AgentApi.prototype as any).createAgentRule = createRuleSpy;
+    (AgentRuleApi.prototype as any).createAgentRule = createRuleSpy;
 
     const result = await createAgentRule("agent-1", {
       title: "  Validation  ",
@@ -1210,7 +1230,7 @@ describe("agentsApi.rules", () => {
 
   it("patches rule title and content", async () => {
     const patchRuleSpy = vi.fn().mockResolvedValue({ id: "rule-1" });
-    (AgentApi.prototype as any).patchAgentRule = patchRuleSpy;
+    (AgentRuleApi.prototype as any).patchAgentRule = patchRuleSpy;
 
     await patchAgentRule("agent-1", "rule-1", {
       title: "  Updated title  ",
@@ -1235,7 +1255,7 @@ describe("agentsApi.rules", () => {
 
   it("accepts rule without body by default", async () => {
     const acceptRuleSpy = vi.fn().mockResolvedValue({ id: "rule-1" });
-    (AgentApi.prototype as any).acceptAgentRule = acceptRuleSpy;
+    (AgentRuleApi.prototype as any).acceptAgentRule = acceptRuleSpy;
 
     await acceptAgentRule("agent-1", "rule-1");
 
@@ -1248,7 +1268,7 @@ describe("agentsApi.rules", () => {
 
   it("accepts rule with trimmed update payload", async () => {
     const acceptRuleSpy = vi.fn().mockResolvedValue({ id: "rule-1" });
-    (AgentApi.prototype as any).acceptAgentRule = acceptRuleSpy;
+    (AgentRuleApi.prototype as any).acceptAgentRule = acceptRuleSpy;
 
     await acceptAgentRule("agent-1", "rule-1", {
       title: "  Updated title  ",
@@ -1267,7 +1287,7 @@ describe("agentsApi.rules", () => {
 
   it("rejects rule and forwards ids", async () => {
     const rejectRuleSpy = vi.fn().mockResolvedValue({ id: "rule-1" });
-    (AgentApi.prototype as any).rejectAgentRule = rejectRuleSpy;
+    (AgentRuleApi.prototype as any).rejectAgentRule = rejectRuleSpy;
 
     await rejectAgentRule("agent-1", "rule-1");
 
@@ -1276,7 +1296,7 @@ describe("agentsApi.rules", () => {
 
   it("deletes rule and forwards ids", async () => {
     const deleteRuleSpy = vi.fn().mockResolvedValue({ status: "DELETED" });
-    (AgentApi.prototype as any).deleteAgentRule = deleteRuleSpy;
+    (AgentRuleApi.prototype as any).deleteAgentRule = deleteRuleSpy;
 
     const result = await deleteAgentRule("agent-1", "rule-1");
 
