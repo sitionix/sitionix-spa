@@ -21,6 +21,7 @@ import { getStatusBadgeClass } from "../model/statusBadge";
 import type { AgentProject, AutomationAgent, ProjectAgent, ProjectConversation } from "../model/types";
 
 type AgentProjectDetailsPageState = "idle" | "loading" | "ready" | "not_found" | "error";
+type LoadableStatus = "idle" | "loading" | "ready" | "error";
 type EditableField = "name" | "description" | "context" | null;
 type EditableNonNullField = Exclude<EditableField, null>;
 type FieldKind = "input" | "textarea";
@@ -41,11 +42,11 @@ export function AgentProjectDetailsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
   const [projectAgents, setProjectAgents] = useState<ProjectAgent[]>([]);
-  const [projectAgentsStatus, setProjectAgentsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [projectAgentsStatus, setProjectAgentsStatus] = useState<LoadableStatus>("idle");
   const [projectAgentsError, setProjectAgentsError] = useState<string | null>(null);
   const [addAgentsOpen, setAddAgentsOpen] = useState(false);
   const [availableAgents, setAvailableAgents] = useState<AutomationAgent[]>([]);
-  const [availableAgentsStatus, setAvailableAgentsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [availableAgentsStatus, setAvailableAgentsStatus] = useState<LoadableStatus>("idle");
   const [availableAgentsError, setAvailableAgentsError] = useState<string | null>(null);
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
   const [isAddingAgents, setIsAddingAgents] = useState(false);
@@ -54,7 +55,7 @@ export function AgentProjectDetailsPage() {
   const [isRemovingAgent, setIsRemovingAgent] = useState(false);
   const [removeAgentError, setRemoveAgentError] = useState<string | null>(null);
   const [projectConversations, setProjectConversations] = useState<ProjectConversation[]>([]);
-  const [projectConversationsStatus, setProjectConversationsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [projectConversationsStatus, setProjectConversationsStatus] = useState<LoadableStatus>("idle");
   const [projectConversationsError, setProjectConversationsError] = useState<string | null>(null);
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [selectedConversationAgentIds, setSelectedConversationAgentIds] = useState<string[]>([]);
@@ -710,7 +711,7 @@ function InlineError({ message }: { message: string | null }) {
 
 type ProjectAgentsSectionProps = {
   agents: ProjectAgent[];
-  status: "idle" | "loading" | "ready" | "error";
+  status: LoadableStatus;
   error: string | null;
   removeError: string | null;
   onRetry: () => void;
@@ -877,15 +878,15 @@ function AddProjectAgentsSheet({
   );
 }
 
-type ProjectConversationsSectionProps = {
+type ProjectConversationsSectionProps = Readonly<{
   conversations: ProjectConversation[];
   attachedAgents: ProjectAgent[];
-  status: "idle" | "loading" | "ready" | "error";
+  status: LoadableStatus;
   error: string | null;
   onRetry: () => void;
   onOpenNewChat: () => void;
   onOpenConversation: (conversationId: string) => void;
-};
+}>;
 
 function ProjectConversationsSection({
   conversations,
@@ -934,7 +935,7 @@ function ProjectConversationsSection({
   );
 }
 
-type NewProjectChatSheetProps = {
+type NewProjectChatSheetProps = Readonly<{
   open: boolean;
   agents: ProjectAgent[];
   selectedAgentIds: string[];
@@ -943,7 +944,7 @@ type NewProjectChatSheetProps = {
   onClose: () => void;
   onToggleSelected: (agentId: string) => void;
   onSubmit: () => void;
-};
+}>;
 
 function NewProjectChatSheet({ open, agents, selectedAgentIds, isSubmitting, error, onClose, onToggleSelected, onSubmit }: NewProjectChatSheetProps) {
   if (!open) {
@@ -1041,24 +1042,29 @@ function EditableField({
   onCancel,
   onKeyDown,
 }: EditableDescriptionProps) {
+  const onInputKeyDown = onKeyDown as (event: KeyboardEvent<HTMLInputElement>) => void;
+  const onTextareaKeyDown = onKeyDown as (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  const textInputRef = inputRef as React.RefObject<HTMLInputElement>;
+  const textAreaRef = inputRef as React.RefObject<HTMLTextAreaElement>;
+
   if (editingField === field) {
     return (
       <div ref={editorRef} className={field === "name" ? "w-full max-w-2xl" : "max-w-3xl"}>
         {kind === "input" ? (
           <input
-            ref={inputRef as React.RefObject<HTMLInputElement>}
+            ref={textInputRef}
             value={draftValue}
             onChange={(event) => onDraftChange(event.target.value)}
-            onKeyDown={onKeyDown as (event: KeyboardEvent<HTMLInputElement>) => void}
+            onKeyDown={onInputKeyDown}
             disabled={disabled}
             className={editorClassName}
           />
         ) : (
           <textarea
-            ref={inputRef as React.RefObject<HTMLTextAreaElement>}
+            ref={textAreaRef}
             value={draftValue}
             onChange={(event) => onDraftChange(event.target.value)}
-            onKeyDown={onKeyDown as (event: KeyboardEvent<HTMLTextAreaElement>) => void}
+            onKeyDown={onTextareaKeyDown}
             disabled={disabled}
             maxLength={textareaMaxLength}
             rows={3}

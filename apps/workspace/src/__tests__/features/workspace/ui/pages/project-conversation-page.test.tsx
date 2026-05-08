@@ -123,4 +123,37 @@ describe("ProjectConversationPage", () => {
     await user.click(screen.getByRole("button", { name: "Back to Project" }));
     expect(await screen.findByText("Project details page")).toBeInTheDocument();
   });
+
+  it("renders fallback values and filters non-agent participants", async () => {
+    getProjectConversationMock.mockResolvedValue({
+      id: "conv-2",
+      projectId: "project-2",
+      project: null,
+      title: "",
+      type: "DIRECT",
+      status: "ACTIVE",
+      participants: [
+        { type: "USER", agentId: null, name: "Owner", description: null, status: "ACTIVE" },
+        { type: "AGENT", agentId: "agent-2", name: "Reviewer", description: " ", status: "ACTIVE" },
+      ],
+      messages: [],
+      canSendMessages: false,
+      createdAt: "2026-05-08T10:00:00Z",
+      updatedAt: "2026-05-08T10:00:00Z",
+      lastMessageAt: null,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/automation/projects/project-2/conversations/conv-2"]}>
+        <Routes>
+          <Route path="/automation/projects/:projectId/conversations/:conversationId" element={<ProjectConversationPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Project chat")).toBeInTheDocument();
+    expect(screen.getByText("Unknown")).toBeInTheDocument();
+    expect(screen.queryByText("Owner")).not.toBeInTheDocument();
+    expect(screen.getByText("No description yet.")).toBeInTheDocument();
+  });
 });
