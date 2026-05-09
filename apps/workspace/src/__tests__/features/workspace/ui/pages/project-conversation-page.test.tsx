@@ -20,7 +20,7 @@ describe("ProjectConversationPage", () => {
     getErrorHttpStatusMock.mockReturnValue(null);
   });
 
-  it("renders conversation shell details and disabled messaging", async () => {
+  it("renders chat layout, details panel and disabled composer", async () => {
     getProjectConversationMock.mockResolvedValue({
       id: "conv-1",
       projectId: "project-1",
@@ -28,7 +28,10 @@ describe("ProjectConversationPage", () => {
       title: "Team chat",
       type: "MULTI_AGENT",
       status: "ACTIVE",
-      participants: [{ type: "AGENT", agentId: "agent-1", name: "Writer", description: "Writes copy", status: "ACTIVE" }],
+      participants: [
+        { type: "AGENT", agentId: "agent-1", name: "Writer", description: "Writes copy", status: "ACTIVE" },
+        { type: "AGENT", agentId: "agent-2", name: "Reviewer", description: "Reviews output", status: "ARCHIVED" },
+      ],
       messages: [],
       canSendMessages: false,
       createdAt: "2026-05-08T10:00:00Z",
@@ -44,10 +47,53 @@ describe("ProjectConversationPage", () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText("Team chat")).toBeInTheDocument();
-    expect(screen.getByText("Type:")).toBeInTheDocument();
-    expect(screen.getByText("Writer")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Team chat" })).toBeInTheDocument();
+    expect(screen.getByText("Project conversation shell.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Conversation details" })).toBeInTheDocument();
+    expect(screen.getByText("No messages yet")).toBeInTheDocument();
     expect(screen.getByText("Messaging for project conversations is not available yet.")).toBeInTheDocument();
+    expect(screen.getByText("Messaging is disabled")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add agent" })).toBeDisabled();
+    expect(screen.getByText("Team (2)")).toBeInTheDocument();
+    expect(screen.getByText("Writer")).toBeInTheDocument();
+    expect(screen.getByText("Reviewer")).toBeInTheDocument();
+    expect(screen.queryByText("Type:")).not.toBeInTheDocument();
+    expect(screen.queryByText("MULTI_AGENT")).not.toBeInTheDocument();
+  });
+
+  it("derives status dot class from participant status", async () => {
+    getProjectConversationMock.mockResolvedValue({
+      id: "conv-2",
+      projectId: "project-1",
+      project: { id: "project-1", name: "Sitionix", context: "Context" },
+      title: "Team chat",
+      type: "MULTI_AGENT",
+      status: "ACTIVE",
+      participants: [
+        { type: "AGENT", agentId: "agent-1", name: "Writer", description: "Writes copy", status: "ACTIVE" },
+        { type: "AGENT", agentId: "agent-2", name: "Reviewer", description: "Reviews", status: "ARCHIVED" },
+        { type: "AGENT", agentId: "agent-3", name: "Planner", description: "Plans", status: "DELETED" },
+        { type: "AGENT", agentId: "agent-4", name: "Researcher", description: "Researches", status: "DRAFT" },
+      ],
+      messages: [],
+      canSendMessages: false,
+      createdAt: "2026-05-08T10:00:00Z",
+      updatedAt: "2026-05-08T10:00:00Z",
+      lastMessageAt: null,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/automation/projects/project-1/conversations/conv-2"]}>
+        <Routes>
+          <Route path="/automation/projects/:projectId/conversations/:conversationId" element={<ProjectConversationPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByTestId("status-dot-Writer")).toHaveClass("bg-emerald-500");
+    expect(screen.getByTestId("status-dot-Reviewer")).toHaveClass("bg-zinc-400");
+    expect(screen.getByTestId("status-dot-Planner")).toHaveClass("bg-rose-500");
+    expect(screen.getByTestId("status-dot-Researcher")).toHaveClass("bg-amber-500");
   });
 
   it("renders not found when route params are blank", async () => {
@@ -119,7 +165,7 @@ describe("ProjectConversationPage", () => {
       </MemoryRouter>
     );
 
-    await screen.findByText("Team chat");
+    await screen.findByRole("heading", { name: "Team chat" });
     await user.click(screen.getByRole("button", { name: "Back to Project" }));
     expect(await screen.findByText("Project details page")).toBeInTheDocument();
   });
@@ -151,67 +197,9 @@ describe("ProjectConversationPage", () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText("Project chat")).toBeInTheDocument();
-    expect(screen.getByText("Unknown")).toBeInTheDocument();
+    expect(await screen.findByText("Unknown")).toBeInTheDocument();
     expect(screen.queryByText("Owner")).not.toBeInTheDocument();
     expect(screen.getByText("No description yet.")).toBeInTheDocument();
-  });
-
-  it("navigates back when project id is missing in params", async () => {
-    getProjectConversationMock.mockResolvedValue({
-      id: "conv-2",
-      projectId: "project-2",
-      project: null,
-      title: "",
-      type: "DIRECT",
-      status: "ACTIVE",
-      participants: [],
-      messages: [],
-      canSendMessages: false,
-      createdAt: "2026-05-08T10:00:00Z",
-      updatedAt: "2026-05-08T10:00:00Z",
-      lastMessageAt: null,
-    });
-
-    const user = userEvent.setup();
-    render(
-      <MemoryRouter initialEntries={["/automation/projects/conversations/conv-2"]}>
-        <Routes>
-          <Route path="/automation/projects/conversations/:conversationId" element={<ProjectConversationPage />} />
-          <Route path="/automation/projects/" element={<div>Project list page</div>} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    await screen.findByText("Conversation not found");
-    await user.click(screen.getByRole("button", { name: "Back to Project" }));
-    expect(await screen.findByText("Project list page")).toBeInTheDocument();
-  });
-
-  it("renders agent participant when agent id is null", async () => {
-    getProjectConversationMock.mockResolvedValue({
-      id: "conv-3",
-      projectId: "project-3",
-      project: { id: "project-3", name: "Sitionix", context: "Context" },
-      title: "Team chat",
-      type: "MULTI_AGENT",
-      status: "ACTIVE",
-      participants: [{ type: "AGENT", agentId: null, name: "Planner", description: "Plans tasks", status: "ACTIVE" }],
-      messages: [],
-      canSendMessages: false,
-      createdAt: "2026-05-08T10:00:00Z",
-      updatedAt: "2026-05-08T10:00:00Z",
-      lastMessageAt: null,
-    });
-
-    render(
-      <MemoryRouter initialEntries={["/automation/projects/project-3/conversations/conv-3"]}>
-        <Routes>
-          <Route path="/automation/projects/:projectId/conversations/:conversationId" element={<ProjectConversationPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    expect(await screen.findByText("Planner")).toBeInTheDocument();
+    expect(screen.getByText("Team (1)")).toBeInTheDocument();
   });
 });

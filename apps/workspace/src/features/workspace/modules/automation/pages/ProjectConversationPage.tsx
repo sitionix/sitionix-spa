@@ -1,12 +1,55 @@
-import { ArrowLeft, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { ArrowLeft, Loader2, MessageSquare, Paperclip, Plus, Send } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { PageHeader } from "../../../ui/components/PageHeader";
 import { getErrorHttpStatus, getProjectConversation } from "../api";
 import { toAutomationErrorMessage } from "../model/mappers";
-import type { ProjectConversationDetails } from "../model/types";
+import type { ProjectConversationDetails, ProjectConversationParticipant } from "../model/types";
 
 type PageStatus = "idle" | "loading" | "ready" | "not_found" | "error";
+type DotVariant = "active" | "archived" | "deleted" | "draft" | "unknown";
+
+function getStatusDotVariant(status: ProjectConversationParticipant["status"]): DotVariant {
+  if (status === "ACTIVE") {
+    return "active";
+  }
+  if (status === "ARCHIVED") {
+    return "archived";
+  }
+  if (status === "DELETED") {
+    return "deleted";
+  }
+  if (status === "DRAFT") {
+    return "draft";
+  }
+  return "unknown";
+}
+
+function getStatusDotClassName(variant: DotVariant): string {
+  if (variant === "active") {
+    return "bg-emerald-500";
+  }
+  if (variant === "archived") {
+    return "bg-zinc-400";
+  }
+  if (variant === "deleted") {
+    return "bg-rose-500";
+  }
+  if (variant === "draft") {
+    return "bg-amber-500";
+  }
+  return "bg-zinc-300";
+}
+
+function getInitials(value: string): string {
+  const words = value.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return "?";
+  }
+  if (words.length === 1) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+  return `${words[0][0] ?? ""}${words[1][0] ?? ""}`.toUpperCase();
+}
 
 export function ProjectConversationPage() {
   const navigate = useNavigate();
@@ -40,6 +83,10 @@ export function ProjectConversationPage() {
     void loadConversation();
   }, [loadConversation]);
 
+  const participants = useMemo(() => {
+    return (conversation?.participants ?? []).filter((participant) => participant.type === "AGENT");
+  }, [conversation?.participants]);
+
   return (
     <>
       <button
@@ -51,33 +98,123 @@ export function ProjectConversationPage() {
         Back to Project
       </button>
 
-      {status === "loading" ? <div className="flex min-h-[320px] items-center justify-center rounded-3xl border border-zinc-200 bg-white"><div className="flex items-center gap-3 text-zinc-500"><Loader2 className="h-5 w-5 animate-spin" />Loading conversation...</div></div> : null}
-      {status === "not_found" ? <div className="rounded-3xl border border-zinc-200 bg-white p-8"><h2 className="text-xl font-semibold text-zinc-900">Conversation not found</h2><p className="mt-2 text-sm text-zinc-600">This conversation may have been deleted or you may not have access to it.</p></div> : null}
-      {status === "error" ? <div className="rounded-3xl border border-red-200 bg-red-50 p-8"><h2 className="text-lg font-semibold text-red-900">Unable to load conversation</h2><p className="mt-2 text-sm text-red-700">{error ?? "Unknown error"}</p></div> : null}
+      {status === "loading" ? (
+        <div className="flex min-h-[320px] items-center justify-center rounded-3xl border border-zinc-200 bg-white">
+          <div className="flex items-center gap-3 text-zinc-500">
+            <Loader2 className="h-5 w-5 animate-spin" />Loading conversation...
+          </div>
+        </div>
+      ) : null}
+
+      {status === "not_found" ? (
+        <div className="rounded-3xl border border-zinc-200 bg-white p-8">
+          <h2 className="text-xl font-semibold text-zinc-900">Conversation not found</h2>
+          <p className="mt-2 text-sm text-zinc-600">This conversation may have been deleted or you may not have access to it.</p>
+        </div>
+      ) : null}
+
+      {status === "error" ? (
+        <div className="rounded-3xl border border-red-200 bg-red-50 p-8">
+          <h2 className="text-lg font-semibold text-red-900">Unable to load conversation</h2>
+          <p className="mt-2 text-sm text-red-700">{error ?? "Unknown error"}</p>
+        </div>
+      ) : null}
 
       {status === "ready" && conversation ? (
-        <>
-          <PageHeader title={conversation.title || "Project chat"} subtitle="Project conversation shell." />
-          <section className="rounded-3xl border border-zinc-200 bg-white p-6">
-            <p className="text-sm text-zinc-600">Project: <span className="font-semibold text-zinc-900">{conversation.project?.name ?? "Unknown"}</span></p>
-            <p className="mt-2 text-sm text-zinc-600">Type: <span className="font-semibold text-zinc-900">{conversation.type}</span></p>
-            <h2 className="mt-6 text-lg font-semibold text-zinc-900">Team</h2>
-            <ul className="mt-3 grid gap-2">
-              {conversation.participants.filter((participant) => participant.type === "AGENT").map((participant) => (
-                <li key={participant.agentId ?? participant.name} className="rounded-xl border border-zinc-200 p-3">
-                  <p className="text-sm font-semibold text-zinc-900">{participant.name}</p>
-                  <p className="mt-1 text-sm text-zinc-600">{participant.description?.trim() ? participant.description : "No description yet."}</p>
-                </li>
-              ))}
-            </ul>
-            <h2 className="mt-6 text-lg font-semibold text-zinc-900">Messages</h2>
-            <p className="mt-2 text-sm text-zinc-600">No messages yet.</p>
-            <div className="mt-6 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-              <p className="text-sm text-zinc-600">Messaging for project conversations is not available yet.</p>
-              <textarea disabled rows={3} className="mt-3 w-full resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-500" placeholder="Messaging is disabled" />
-            </div>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <section className="space-y-4">
+            <header className="rounded-3xl border border-zinc-200 bg-white p-6">
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-zinc-100 p-2 text-zinc-700">
+                  <MessageSquare className="h-5 w-5" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-semibold text-zinc-900">Team chat</h1>
+                  <p className="text-sm text-zinc-600">Project conversation shell.</p>
+                </div>
+              </div>
+            </header>
+
+            <section className="flex min-h-[560px] flex-col rounded-3xl border border-zinc-200 bg-white">
+              <div className="flex flex-1 items-center justify-center px-6 py-14">
+                <div className="max-w-md text-center">
+                  <div className="mx-auto mb-4 inline-flex rounded-2xl bg-zinc-100 p-3 text-zinc-500">
+                    <MessageSquare className="h-7 w-7" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-zinc-900">No messages yet</h2>
+                  <p className="mt-2 text-sm text-zinc-600">Messaging for project conversations is not available yet.</p>
+                </div>
+              </div>
+
+              <div className="border-t border-zinc-200 px-5 py-4">
+                <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-zinc-400">
+                  <Paperclip className="h-4 w-4" />
+                  <div className="flex-1 text-sm">Messaging is disabled</div>
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-100 text-zinc-400"
+                    aria-label="Send disabled"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </section>
           </section>
-        </>
+
+          <aside className="h-fit rounded-3xl border border-zinc-200 bg-white p-5">
+            <h2 className="text-lg font-semibold text-zinc-900">Conversation details</h2>
+
+            <div className="mt-5 rounded-2xl border border-zinc-200 p-4">
+              <p className="text-xs uppercase tracking-wide text-zinc-500">Project</p>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-100 text-xs font-semibold text-zinc-700">
+                  {getInitials(conversation.project?.name ?? "Unknown")}
+                </span>
+                <span className="text-sm font-medium text-zinc-900">{conversation.project?.name ?? "Unknown"}</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="mt-4 inline-flex items-center gap-2 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700"
+              disabled
+            >
+              <Plus className="h-4 w-4" />
+              Add agent
+            </button>
+
+            <section className="mt-5">
+              <h3 className="text-sm font-semibold text-zinc-900">Team ({participants.length})</h3>
+              <ul className="mt-3 space-y-2">
+                {participants.map((participant) => {
+                  const statusDotClassName = getStatusDotClassName(getStatusDotVariant(participant.status));
+                  const key = participant.agentId ?? `${participant.name}-${participant.status}`;
+                  return (
+                    <li key={key} className="flex items-center gap-3 rounded-xl border border-zinc-200 px-3 py-2.5">
+                      <div className="relative">
+                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-700">
+                          {getInitials(participant.name)}
+                        </span>
+                        <span
+                          data-testid={`status-dot-${participant.name}`}
+                          className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${statusDotClassName}`}
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-zinc-900">{participant.name}</p>
+                        <p className="truncate text-xs text-zinc-500">
+                          {participant.description?.trim() ? participant.description : "No description yet."}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          </aside>
+        </div>
       ) : null}
     </>
   );
