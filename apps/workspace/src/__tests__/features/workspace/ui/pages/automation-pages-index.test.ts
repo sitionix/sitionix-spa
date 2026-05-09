@@ -5,6 +5,7 @@ import {
   AgentOverviewPage,
   AgentProjectDetailsPage,
   AutomationPage,
+  ProjectConversationPage,
 } from "../../../../../features/workspace/modules/automation/pages";
 
 describe("automation pages index exports", () => {
@@ -13,5 +14,6 @@ describe("automation pages index exports", () => {
     expect(AgentOverviewPage).toBeTypeOf("function");
     expect(AgentProjectDetailsPage).toBeTypeOf("function");
     expect(AutomationPage).toBeTypeOf("function");
+    expect(ProjectConversationPage).toBeTypeOf("function");
   });
 });
