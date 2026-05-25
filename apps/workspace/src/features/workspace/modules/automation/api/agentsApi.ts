@@ -1,6 +1,6 @@
 import { AgentApi, AgentChatApi, AgentConversationApi, AgentRuleApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
-import { AgentConversationApi as ProjectConversationApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-138-unstable/apis";
-import type { ExecutionStatusDTO } from "@sitionix/app-afesox-bffssox-frontend-sitionix-138-unstable/models";
+import { AgentConversationApi as ProjectConversationApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import type { ExecutionStatusDTO } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 import type {
   AcceptAgentRuleRequestDTO,
   CreateAgentRequestDTO,
