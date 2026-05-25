@@ -1,4 +1,6 @@
 import { AgentApi, AgentChatApi, AgentConversationApi, AgentRuleApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentConversationApi as ProjectConversationApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-138-unstable/apis";
+import type { ExecutionStatusDTO } from "@sitionix/app-afesox-bffssox-frontend-sitionix-138-unstable/models";
 import type {
   AcceptAgentRuleRequestDTO,
   CreateAgentRequestDTO,
@@ -34,11 +36,15 @@ import type {
   ProjectAgentsResponse,
   ProjectConversationDetails,
   ProjectConversationsResponse,
+  ProjectConversationExecutionStatus,
+  SubmitProjectConversationExecutionRequest,
+  SubmitProjectConversationExecutionResponse,
   SubmitChatExecutionResponse,
 } from "../model/types";
 
 const agentApi = new AgentApi(bffApiConfiguration);
 const agentConversationApi = new AgentConversationApi(bffApiConfiguration);
+const projectConversationApi = new ProjectConversationApi(bffApiConfiguration);
 const agentChatApi = new AgentChatApi(bffApiConfiguration);
 const agentRuleApi = new AgentRuleApi(bffApiConfiguration);
 type RuleTextPayload = { title?: string; content?: string };
@@ -152,6 +158,22 @@ function normalizeLifecycleStatus(
     return "FAILED";
   }
   return "PENDING";
+}
+
+function normalizeProjectConversationExecutionStatus(status: ExecutionStatusDTO | undefined): ProjectConversationExecutionStatus {
+  if (status === "DISPATCH_SKIPPED") {
+    return "DISPATCH_SKIPPED";
+  }
+  if (status === "ACCEPTED") {
+    return "ACCEPTED";
+  }
+  if (status === "IN_PROGRESS") {
+    return "RUNNING";
+  }
+  if (status === "SUCCEEDED") {
+    return "COMPLETED";
+  }
+  return normalizeLifecycleStatus(status);
 }
 
 function resolveInputMessageId(source: { inputMessageId?: string }): string | undefined {
@@ -315,7 +337,33 @@ export async function createProjectConversation(projectId: string, agentIds: str
     ...result.data,
     participants: Array.isArray(result.data.participants) ? result.data.participants : [],
     messages: Array.isArray(result.data.messages) ? result.data.messages : [],
-    canSendMessages: false,
+    canSendMessages: result.data.canSendMessages === true,
+  };
+}
+
+export async function submitProjectConversationExecution(
+  conversationId: string,
+  payload: SubmitProjectConversationExecutionRequest,
+): Promise<SubmitProjectConversationExecutionResponse> {
+  const message = payload.message.trim();
+  if (!message) {
+    throw new Error("Message is required");
+  }
+
+  const requestBody = {
+    message,
+    clientRequestId: payload.clientRequestId?.trim() || undefined,
+  };
+  const result = await projectConversationApi.submitConversationExecution({
+    conversationId,
+    submitConversationExecutionRequestDTO: requestBody,
+  });
+
+  return {
+    conversationId: result.conversationId,
+    inputMessageId: resolveInputMessageId(result),
+    executionId: result.executionId?.trim() || undefined,
+    executionStatus: normalizeProjectConversationExecutionStatus(result.executionStatus),
   };
 }
 
@@ -344,7 +392,7 @@ export async function getProjectConversation(projectId: string, conversationId: 
     ...result.data,
     participants: Array.isArray(result.data.participants) ? result.data.participants : [],
     messages: Array.isArray(result.data.messages) ? result.data.messages : [],
-    canSendMessages: false,
+    canSendMessages: result.data.canSendMessages === true,
   };
 }
 
@@ -761,6 +809,7 @@ export const agentsApi = {
   createProjectConversation,
   getProjectConversations,
   getProjectConversation,
+  submitProjectConversationExecution,
   getAgentRules,
   createAgentRule,
   patchAgentRule,

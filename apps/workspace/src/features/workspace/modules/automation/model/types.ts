@@ -160,6 +160,27 @@ export type ProjectConversationDetails = ProjectConversation & {
   messages: ChatAgentMessage[];
 };
 
+export type ProjectConversationExecutionStatus =
+  | "ACCEPTED"
+  | "QUEUED"
+  | "PENDING"
+  | "RUNNING"
+  | "COMPLETED"
+  | "FAILED"
+  | "DISPATCH_SKIPPED";
+
+export type SubmitProjectConversationExecutionRequest = {
+  message: string;
+  clientRequestId?: string;
+};
+
+export type SubmitProjectConversationExecutionResponse = {
+  conversationId: string;
+  inputMessageId?: string;
+  executionId?: string;
+  executionStatus: ProjectConversationExecutionStatus;
+};
+
 
 export type CreateAgentProjectRequest = CreateAgentProjectRequestDTO;
 export type AgentProject = AgentProjectDTO;

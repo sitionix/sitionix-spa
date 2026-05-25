@@ -507,7 +507,7 @@ describe("agentsApi.projectConversations", () => {
     });
     expect(result.participants).toEqual([]);
     expect(result.messages).toEqual([]);
-    expect(result.canSendMessages).toBe(false);
+    expect(result.canSendMessages).toBe(true);
   });
 
   it("lists project conversations", async () => {
@@ -610,7 +610,7 @@ describe("agentsApi.projectConversations", () => {
 
     expect(result.participants).toEqual([]);
     expect(result.messages).toEqual([]);
-    expect(result.canSendMessages).toBe(false);
+    expect(result.canSendMessages).toBe(true);
   });
 
   it("throws when get project conversation request fails", async () => {

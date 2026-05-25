@@ -1,26 +1,33 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ProjectConversationPage } from "../../../../../features/workspace/modules/automation/pages/ProjectConversationPage";
-import { getErrorHttpStatus, getProjectConversation } from "../../../../../features/workspace/modules/automation/api/agentsApi";
+import {
+  getErrorHttpStatus,
+  getProjectConversation,
+  submitProjectConversationExecution,
+} from "../../../../../features/workspace/modules/automation/api/agentsApi";
 
 vi.mock("../../../../../features/workspace/modules/automation/api/agentsApi", () => ({
   getProjectConversation: vi.fn(),
   getErrorHttpStatus: vi.fn(),
+  submitProjectConversationExecution: vi.fn(),
 }));
 
 const getProjectConversationMock = vi.mocked(getProjectConversation);
 const getErrorHttpStatusMock = vi.mocked(getErrorHttpStatus);
+const submitProjectConversationExecutionMock = vi.mocked(submitProjectConversationExecution);
 
 describe("ProjectConversationPage", () => {
   beforeEach(() => {
     getProjectConversationMock.mockReset();
     getErrorHttpStatusMock.mockReset();
+    submitProjectConversationExecutionMock.mockReset();
     getErrorHttpStatusMock.mockReturnValue(null);
   });
 
-  it("renders chat layout, details panel and disabled composer", async () => {
+  it("renders chat layout, details panel and composer", async () => {
     getProjectConversationMock.mockResolvedValue({
       id: "conv-1",
       projectId: "project-1",
@@ -33,7 +40,7 @@ describe("ProjectConversationPage", () => {
         { type: "AGENT", agentId: "agent-2", name: "Reviewer", description: "Reviews output", status: "ARCHIVED" },
       ],
       messages: [],
-      canSendMessages: false,
+      canSendMessages: true,
       createdAt: "2026-05-08T10:00:00Z",
       updatedAt: "2026-05-08T10:00:00Z",
       lastMessageAt: null,
@@ -48,17 +55,15 @@ describe("ProjectConversationPage", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "Team chat" })).toBeInTheDocument();
-    expect(screen.getByText("Project conversation shell.")).toBeInTheDocument();
+    expect(screen.getByText("Project conversation")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Conversation details" })).toBeInTheDocument();
     expect(screen.getByText("No messages yet")).toBeInTheDocument();
-    expect(screen.getByText("Messaging for project conversations is not available yet.")).toBeInTheDocument();
-    expect(screen.getByText("Messaging is disabled")).toBeInTheDocument();
+    expect(screen.getByText("Start the conversation with your first message.")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Type your message...")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add agent" })).toBeDisabled();
     expect(screen.getByText("Team (2)")).toBeInTheDocument();
     expect(screen.getByText("Writer")).toBeInTheDocument();
     expect(screen.getByText("Reviewer")).toBeInTheDocument();
-    expect(screen.queryByText("Type:")).not.toBeInTheDocument();
-    expect(screen.queryByText("MULTI_AGENT")).not.toBeInTheDocument();
   });
 
   it("derives status dot class from participant status", async () => {
@@ -76,7 +81,7 @@ describe("ProjectConversationPage", () => {
         { type: "AGENT", agentId: "agent-4", name: "Researcher", description: "Researches", status: "DRAFT" },
       ],
       messages: [],
-      canSendMessages: false,
+      canSendMessages: true,
       createdAt: "2026-05-08T10:00:00Z",
       updatedAt: "2026-05-08T10:00:00Z",
       lastMessageAt: null,
@@ -149,7 +154,7 @@ describe("ProjectConversationPage", () => {
       status: "ACTIVE",
       participants: [],
       messages: [],
-      canSendMessages: false,
+      canSendMessages: true,
       createdAt: "2026-05-08T10:00:00Z",
       updatedAt: "2026-05-08T10:00:00Z",
       lastMessageAt: null,
@@ -182,12 +187,27 @@ describe("ProjectConversationPage", () => {
         { type: "USER", agentId: null, name: "Owner", description: null, status: "ACTIVE" },
         { type: "AGENT", agentId: "agent-2", name: "Reviewer", description: " ", status: "ACTIVE" },
       ],
-      messages: [],
-      canSendMessages: false,
+      messages: [
+        {
+          id: "msg-1",
+          authorType: "USER",
+          authorId: "user-1",
+          content: "Hello",
+          createdAt: "2026-05-08T10:00:00Z",
+        },
+      ],
+      canSendMessages: true,
       createdAt: "2026-05-08T10:00:00Z",
       updatedAt: "2026-05-08T10:00:00Z",
       lastMessageAt: null,
     });
+    submitProjectConversationExecutionMock.mockResolvedValue({
+      conversationId: "conv-2",
+      inputMessageId: "msg-2",
+      executionId: undefined,
+      executionStatus: "DISPATCH_SKIPPED",
+    });
+    const user = userEvent.setup();
 
     render(
       <MemoryRouter initialEntries={["/automation/projects/project-2/conversations/conv-2"]}>
@@ -201,5 +221,11 @@ describe("ProjectConversationPage", () => {
     expect(screen.queryByText("Owner")).not.toBeInTheDocument();
     expect(screen.getByText("No description yet.")).toBeInTheDocument();
     expect(screen.getByText("Team (1)")).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText("Type your message..."), "Need update");
+    await user.click(screen.getByRole("button", { name: "Send message" }));
+    await waitFor(() => {
+      expect(submitProjectConversationExecutionMock).toHaveBeenCalledWith("conv-2", { message: "Need update" });
+    });
+    expect(screen.queryByText("Assistant is processing...")).not.toBeInTheDocument();
   });
 });
