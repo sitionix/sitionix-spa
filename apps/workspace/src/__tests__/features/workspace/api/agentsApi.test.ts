@@ -679,6 +679,42 @@ describe("agentsApi.projectConversations", () => {
   it("throws when execution message is blank", async () => {
     await expect(submitProjectConversationExecution("conv-1", { message: "   " })).rejects.toThrow("Message is required");
   });
+
+  it("maps accepted and succeeded execution statuses from contract", async () => {
+    const submitConversationExecutionSpy = vi.spyOn(ProjectConversationApi.prototype, "submitConversationExecution");
+    submitConversationExecutionSpy
+      .mockResolvedValueOnce({
+        conversationId: "conv-1",
+        executionStatus: "ACCEPTED",
+      })
+      .mockResolvedValueOnce({
+        conversationId: "conv-1",
+        executionStatus: "SUCCEEDED",
+      });
+
+    const acceptedResult = await submitProjectConversationExecution("conv-1", {
+      message: "Need update",
+    });
+    const succeededResult = await submitProjectConversationExecution("conv-1", {
+      message: "Need follow-up",
+    });
+
+    expect(acceptedResult.executionStatus).toBe("ACCEPTED");
+    expect(succeededResult.executionStatus).toBe("COMPLETED");
+  });
+
+  it("falls back to pending execution status when status is absent", async () => {
+    vi.spyOn(ProjectConversationApi.prototype, "submitConversationExecution").mockResolvedValue({
+      conversationId: "conv-1",
+      executionStatus: undefined,
+    });
+
+    const result = await submitProjectConversationExecution("conv-1", {
+      message: "Need update",
+    });
+
+    expect(result.executionStatus).toBe("PENDING");
+  });
 });
 
 describe("agentsApi.getAgentById", () => {

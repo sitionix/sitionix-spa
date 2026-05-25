@@ -242,4 +242,63 @@ describe("ProjectConversationPage", () => {
     expect(screen.getAllByText("Need update")).toHaveLength(1);
     expect(screen.queryByText("Assistant is processing...")).not.toBeInTheDocument();
   });
+
+  it("shows processing indicator for in-progress execution and clears it after rehydration", async () => {
+    getProjectConversationMock
+      .mockResolvedValueOnce(getProjectConversationDetails({
+        id: "conv-5",
+        messages: [],
+      }))
+      .mockImplementationOnce(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return getProjectConversationDetails({
+          id: "conv-5",
+          messages: [
+            {
+              id: "msg-backend-2",
+              authorType: "USER",
+              authorId: "user-1",
+              content: "Long run",
+              createdAt: "2026-05-08T10:00:00Z",
+            },
+          ],
+        });
+      });
+    submitProjectConversationExecutionMock.mockResolvedValue({
+      conversationId: "conv-5",
+      inputMessageId: "msg-backend-2",
+      executionId: "exec-2",
+      executionStatus: "RUNNING",
+    });
+    const user = userEvent.setup();
+
+    renderProjectConversationPage("/automation/projects/project-1/conversations/conv-5");
+
+    await screen.findByRole("heading", { name: "Team chat" });
+    await user.type(screen.getByPlaceholderText("Type your message..."), "Long run");
+    await user.click(screen.getByRole("button", { name: "Send message" }));
+
+    expect(await screen.findByText("Assistant is processing...")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText("Assistant is processing...")).not.toBeInTheDocument();
+    });
+  });
+
+  it("removes optimistic message and renders submit error when execution request fails", async () => {
+    getProjectConversationMock.mockResolvedValue(getProjectConversationDetails({
+      id: "conv-6",
+      messages: [],
+    }));
+    submitProjectConversationExecutionMock.mockRejectedValue(new Error("Submit failed"));
+    const user = userEvent.setup();
+
+    renderProjectConversationPage("/automation/projects/project-1/conversations/conv-6");
+
+    await screen.findByRole("heading", { name: "Team chat" });
+    await user.type(screen.getByPlaceholderText("Type your message..."), "Will fail");
+    await user.click(screen.getByRole("button", { name: "Send message" }));
+
+    expect(await screen.findByText("Submit failed")).toBeInTheDocument();
+    expect(screen.queryByText("Will fail")).not.toBeInTheDocument();
+  });
 });
