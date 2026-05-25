@@ -183,4 +183,63 @@ describe("ProjectConversationPage", () => {
     });
     expect(screen.queryByText("Assistant is processing...")).not.toBeInTheDocument();
   });
+
+  it("does not submit when composer is disabled by conversation permissions", async () => {
+    getProjectConversationMock.mockResolvedValue(getProjectConversationDetails({
+      id: "conv-3",
+      canSendMessages: false,
+    }));
+    const user = userEvent.setup();
+
+    renderProjectConversationPage("/automation/projects/project-1/conversations/conv-3");
+
+    const input = await screen.findByPlaceholderText("Messaging is disabled");
+    expect(input).toBeDisabled();
+    await user.type(input, "Need update");
+    await user.click(screen.getByRole("button", { name: "Send message" }));
+
+    expect(submitProjectConversationExecutionMock).not.toHaveBeenCalled();
+  });
+
+  it("rehydrates persisted user message without duplicate optimistic rows after submit", async () => {
+    getProjectConversationMock
+      .mockResolvedValueOnce(getProjectConversationDetails({
+        id: "conv-4",
+        messages: [],
+      }))
+      .mockResolvedValueOnce(getProjectConversationDetails({
+        id: "conv-4",
+        messages: [
+          {
+            id: "msg-backend-1",
+            authorType: "USER",
+            authorId: "user-1",
+            content: "Need update",
+            createdAt: "2026-05-08T10:00:00Z",
+          },
+        ],
+      }));
+    submitProjectConversationExecutionMock.mockResolvedValue({
+      conversationId: "conv-4",
+      inputMessageId: "msg-backend-1",
+      executionId: "exec-1",
+      executionStatus: "COMPLETED",
+    });
+    const user = userEvent.setup();
+
+    renderProjectConversationPage("/automation/projects/project-1/conversations/conv-4");
+
+    await screen.findByRole("heading", { name: "Team chat" });
+    await user.type(screen.getByPlaceholderText("Type your message..."), "Need update");
+    await user.click(screen.getByRole("button", { name: "Send message" }));
+
+    await waitFor(() => {
+      expect(submitProjectConversationExecutionMock).toHaveBeenCalledWith("conv-4", { message: "Need update" });
+    });
+    await waitFor(() => {
+      expect(getProjectConversationMock).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.getAllByText("Need update")).toHaveLength(1);
+    expect(screen.queryByText("Assistant is processing...")).not.toBeInTheDocument();
+  });
 });

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentApi, AgentChatApi, AgentConversationApi, AgentRuleApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentConversationApi as ProjectConversationApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-138-unstable/apis";
 import * as httpClient from "../../../../shared/http/httpClient";
 
 import {
@@ -36,6 +37,7 @@ import {
   restoreAgent,
   removeAgentFromProject,
   submitChatExecution,
+  submitProjectConversationExecution,
 } from "../../../../features/workspace/modules/automation/api/agentsApi";
 
 describe("agentsApi.getAgents", () => {
@@ -623,6 +625,59 @@ describe("agentsApi.projectConversations", () => {
     await expect(getProjectConversation("project-1", "conv-1")).rejects.toThrow(
       "Unable to load project conversation"
     );
+  });
+
+  it("submits conversation execution using generated conversation endpoint and normalizes response", async () => {
+    const submitConversationExecutionSpy = vi.spyOn(ProjectConversationApi.prototype, "submitConversationExecution").mockResolvedValue({
+      conversationId: "conv-1",
+      inputMessageId: "msg-2",
+      executionId: "exec-1",
+      executionStatus: "DISPATCH_SKIPPED",
+    });
+
+    const result = await submitProjectConversationExecution("conv-1", {
+      message: "  Need update  ",
+      clientRequestId: "  req-1  ",
+    });
+
+    expect(submitConversationExecutionSpy).toHaveBeenCalledWith({
+      conversationId: "conv-1",
+      submitConversationExecutionRequestDTO: {
+        message: "Need update",
+        clientRequestId: "req-1",
+      },
+    });
+    expect(result).toEqual({
+      conversationId: "conv-1",
+      inputMessageId: "msg-2",
+      executionId: "exec-1",
+      executionStatus: "DISPATCH_SKIPPED",
+    });
+  });
+
+  it("omits blank optional identifiers and maps in-progress status to running", async () => {
+    vi.spyOn(ProjectConversationApi.prototype, "submitConversationExecution").mockResolvedValue({
+      conversationId: "conv-1",
+      inputMessageId: "   ",
+      executionId: "   ",
+      executionStatus: "IN_PROGRESS",
+    });
+
+    const result = await submitProjectConversationExecution("conv-1", {
+      message: "Need update",
+      clientRequestId: "   ",
+    });
+
+    expect(result).toEqual({
+      conversationId: "conv-1",
+      inputMessageId: undefined,
+      executionId: undefined,
+      executionStatus: "RUNNING",
+    });
+  });
+
+  it("throws when execution message is blank", async () => {
+    await expect(submitProjectConversationExecution("conv-1", { message: "   " })).rejects.toThrow("Message is required");
   });
 });
 
