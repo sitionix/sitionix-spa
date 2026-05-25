@@ -19,6 +19,36 @@ const getProjectConversationMock = vi.mocked(getProjectConversation);
 const getErrorHttpStatusMock = vi.mocked(getErrorHttpStatus);
 const submitProjectConversationExecutionMock = vi.mocked(submitProjectConversationExecution);
 
+function getProjectConversationDetails(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    id: "conv-1",
+    projectId: "project-1",
+    project: { id: "project-1", name: "Sitionix", context: "Context" },
+    title: "Team chat",
+    type: "MULTI_AGENT",
+    status: "ACTIVE",
+    participants: [],
+    messages: [],
+    canSendMessages: true,
+    createdAt: "2026-05-08T10:00:00Z",
+    updatedAt: "2026-05-08T10:00:00Z",
+    lastMessageAt: null,
+    ...overrides,
+  };
+}
+
+function renderProjectConversationPage(path: string): void {
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path="/automation/projects/:projectId/conversations/:conversationId" element={<ProjectConversationPage />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
 describe("ProjectConversationPage", () => {
   beforeEach(() => {
     getProjectConversationMock.mockReset();
@@ -28,31 +58,14 @@ describe("ProjectConversationPage", () => {
   });
 
   it("renders chat layout, details panel and composer", async () => {
-    getProjectConversationMock.mockResolvedValue({
-      id: "conv-1",
-      projectId: "project-1",
-      project: { id: "project-1", name: "Sitionix", context: "Context" },
-      title: "Team chat",
-      type: "MULTI_AGENT",
-      status: "ACTIVE",
+    getProjectConversationMock.mockResolvedValue(getProjectConversationDetails({
       participants: [
         { type: "AGENT", agentId: "agent-1", name: "Writer", description: "Writes copy", status: "ACTIVE" },
         { type: "AGENT", agentId: "agent-2", name: "Reviewer", description: "Reviews output", status: "ARCHIVED" },
       ],
-      messages: [],
-      canSendMessages: true,
-      createdAt: "2026-05-08T10:00:00Z",
-      updatedAt: "2026-05-08T10:00:00Z",
-      lastMessageAt: null,
-    });
+    }));
 
-    render(
-      <MemoryRouter initialEntries={["/automation/projects/project-1/conversations/conv-1"]}>
-        <Routes>
-          <Route path="/automation/projects/:projectId/conversations/:conversationId" element={<ProjectConversationPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
+    renderProjectConversationPage("/automation/projects/project-1/conversations/conv-1");
 
     expect(await screen.findByRole("heading", { name: "Team chat" })).toBeInTheDocument();
     expect(screen.getByText("Project conversation")).toBeInTheDocument();
@@ -67,33 +80,17 @@ describe("ProjectConversationPage", () => {
   });
 
   it("derives status dot class from participant status", async () => {
-    getProjectConversationMock.mockResolvedValue({
+    getProjectConversationMock.mockResolvedValue(getProjectConversationDetails({
       id: "conv-2",
-      projectId: "project-1",
-      project: { id: "project-1", name: "Sitionix", context: "Context" },
-      title: "Team chat",
-      type: "MULTI_AGENT",
-      status: "ACTIVE",
       participants: [
         { type: "AGENT", agentId: "agent-1", name: "Writer", description: "Writes copy", status: "ACTIVE" },
         { type: "AGENT", agentId: "agent-2", name: "Reviewer", description: "Reviews", status: "ARCHIVED" },
         { type: "AGENT", agentId: "agent-3", name: "Planner", description: "Plans", status: "DELETED" },
         { type: "AGENT", agentId: "agent-4", name: "Researcher", description: "Researches", status: "DRAFT" },
       ],
-      messages: [],
-      canSendMessages: true,
-      createdAt: "2026-05-08T10:00:00Z",
-      updatedAt: "2026-05-08T10:00:00Z",
-      lastMessageAt: null,
-    });
+    }));
 
-    render(
-      <MemoryRouter initialEntries={["/automation/projects/project-1/conversations/conv-2"]}>
-        <Routes>
-          <Route path="/automation/projects/:projectId/conversations/:conversationId" element={<ProjectConversationPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
+    renderProjectConversationPage("/automation/projects/project-1/conversations/conv-2");
 
     expect(await screen.findByTestId("status-dot-Writer")).toHaveClass("bg-emerald-500");
     expect(screen.getByTestId("status-dot-Reviewer")).toHaveClass("bg-zinc-400");
@@ -102,13 +99,7 @@ describe("ProjectConversationPage", () => {
   });
 
   it("renders not found when route params are blank", async () => {
-    render(
-      <MemoryRouter initialEntries={["/automation/projects/%20/conversations/%20"]}>
-        <Routes>
-          <Route path="/automation/projects/:projectId/conversations/:conversationId" element={<ProjectConversationPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
+    renderProjectConversationPage("/automation/projects/%20/conversations/%20");
 
     expect(await screen.findByText("Conversation not found")).toBeInTheDocument();
     expect(getProjectConversationMock).not.toHaveBeenCalled();
@@ -118,13 +109,7 @@ describe("ProjectConversationPage", () => {
     getProjectConversationMock.mockRejectedValue(new Error("not found"));
     getErrorHttpStatusMock.mockReturnValue(404);
 
-    render(
-      <MemoryRouter initialEntries={["/automation/projects/project-1/conversations/conv-404"]}>
-        <Routes>
-          <Route path="/automation/projects/:projectId/conversations/:conversationId" element={<ProjectConversationPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
+    renderProjectConversationPage("/automation/projects/project-1/conversations/conv-404");
 
     expect(await screen.findByText("Conversation not found")).toBeInTheDocument();
   });
@@ -132,33 +117,14 @@ describe("ProjectConversationPage", () => {
   it("renders generic error when details loading fails", async () => {
     getProjectConversationMock.mockRejectedValue(new Error("Gateway timeout"));
 
-    render(
-      <MemoryRouter initialEntries={["/automation/projects/project-1/conversations/conv-1"]}>
-        <Routes>
-          <Route path="/automation/projects/:projectId/conversations/:conversationId" element={<ProjectConversationPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
+    renderProjectConversationPage("/automation/projects/project-1/conversations/conv-1");
 
     expect(await screen.findByText("Unable to load conversation")).toBeInTheDocument();
     expect(screen.getByText("Gateway timeout")).toBeInTheDocument();
   });
 
   it("navigates back to project details", async () => {
-    getProjectConversationMock.mockResolvedValue({
-      id: "conv-1",
-      projectId: "project-1",
-      project: { id: "project-1", name: "Sitionix", context: "Context" },
-      title: "Team chat",
-      type: "MULTI_AGENT",
-      status: "ACTIVE",
-      participants: [],
-      messages: [],
-      canSendMessages: true,
-      createdAt: "2026-05-08T10:00:00Z",
-      updatedAt: "2026-05-08T10:00:00Z",
-      lastMessageAt: null,
-    });
+    getProjectConversationMock.mockResolvedValue(getProjectConversationDetails());
 
     const user = userEvent.setup();
     render(
@@ -176,13 +142,12 @@ describe("ProjectConversationPage", () => {
   });
 
   it("renders fallback values and filters non-agent participants", async () => {
-    getProjectConversationMock.mockResolvedValue({
+    getProjectConversationMock.mockResolvedValue(getProjectConversationDetails({
       id: "conv-2",
       projectId: "project-2",
       project: null,
       title: "",
       type: "DIRECT",
-      status: "ACTIVE",
       participants: [
         { type: "USER", agentId: null, name: "Owner", description: null, status: "ACTIVE" },
         { type: "AGENT", agentId: "agent-2", name: "Reviewer", description: " ", status: "ACTIVE" },
@@ -196,11 +161,7 @@ describe("ProjectConversationPage", () => {
           createdAt: "2026-05-08T10:00:00Z",
         },
       ],
-      canSendMessages: true,
-      createdAt: "2026-05-08T10:00:00Z",
-      updatedAt: "2026-05-08T10:00:00Z",
-      lastMessageAt: null,
-    });
+    }));
     submitProjectConversationExecutionMock.mockResolvedValue({
       conversationId: "conv-2",
       inputMessageId: "msg-2",
@@ -209,13 +170,7 @@ describe("ProjectConversationPage", () => {
     });
     const user = userEvent.setup();
 
-    render(
-      <MemoryRouter initialEntries={["/automation/projects/project-2/conversations/conv-2"]}>
-        <Routes>
-          <Route path="/automation/projects/:projectId/conversations/:conversationId" element={<ProjectConversationPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
+    renderProjectConversationPage("/automation/projects/project-2/conversations/conv-2");
 
     expect(await screen.findByText("Unknown")).toBeInTheDocument();
     expect(screen.queryByText("Owner")).not.toBeInTheDocument();
