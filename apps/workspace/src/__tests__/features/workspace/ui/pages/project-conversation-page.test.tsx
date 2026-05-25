@@ -98,6 +98,19 @@ describe("ProjectConversationPage", () => {
     expect(screen.getByTestId("status-dot-Researcher")).toHaveClass("bg-amber-500");
   });
 
+  it("falls back to unknown status dot style for unsupported participant status", async () => {
+    getProjectConversationMock.mockResolvedValue(getProjectConversationDetails({
+      id: "conv-unknown-status",
+      participants: [
+        { type: "AGENT", agentId: "agent-99", name: "Ghost", description: "Unsupported status", status: "PAUSED" },
+      ],
+    }));
+
+    renderProjectConversationPage("/automation/projects/project-1/conversations/conv-unknown-status");
+
+    expect(await screen.findByTestId("status-dot-Ghost")).toHaveClass("bg-zinc-300");
+  });
+
   it("renders not found when route params are blank", async () => {
     renderProjectConversationPage("/automation/projects/%20/conversations/%20");
 
