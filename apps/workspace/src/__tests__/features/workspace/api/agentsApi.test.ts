@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentApi, AgentChatApi, AgentConversationApi, AgentRuleApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
-import { AgentConversationApi as ProjectConversationApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import { AgentConversationApi as ProjectConversationApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-139-unstable/apis";
 import * as httpClient from "../../../../shared/http/httpClient";
 
 import {
@@ -632,7 +632,8 @@ describe("agentsApi.projectConversations", () => {
       conversationId: "conv-1",
       inputMessageId: "msg-2",
       executionId: "exec-1",
-      executionStatus: "DISPATCH_SKIPPED",
+      executionStatus: undefined,
+      runtimeDispatched: false,
     });
 
     const result = await submitProjectConversationExecution("conv-1", {
@@ -650,8 +651,11 @@ describe("agentsApi.projectConversations", () => {
     expect(result).toEqual({
       conversationId: "conv-1",
       inputMessageId: "msg-2",
-      executionId: "exec-1",
-      executionStatus: "DISPATCH_SKIPPED",
+      runtimeDispatched: false,
+      execution: {
+        executionId: "exec-1",
+        executionStatus: "PENDING",
+      },
     });
   });
 
@@ -661,6 +665,7 @@ describe("agentsApi.projectConversations", () => {
       inputMessageId: "   ",
       executionId: "   ",
       executionStatus: "IN_PROGRESS",
+      runtimeDispatched: true,
     });
 
     const result = await submitProjectConversationExecution("conv-1", {
@@ -671,8 +676,11 @@ describe("agentsApi.projectConversations", () => {
     expect(result).toEqual({
       conversationId: "conv-1",
       inputMessageId: undefined,
-      executionId: undefined,
-      executionStatus: "RUNNING",
+      runtimeDispatched: true,
+      execution: {
+        executionId: undefined,
+        executionStatus: "RUNNING",
+      },
     });
   });
 
@@ -686,10 +694,12 @@ describe("agentsApi.projectConversations", () => {
       .mockResolvedValueOnce({
         conversationId: "conv-1",
         executionStatus: "ACCEPTED",
+        runtimeDispatched: true,
       })
       .mockResolvedValueOnce({
         conversationId: "conv-1",
         executionStatus: "SUCCEEDED",
+        runtimeDispatched: true,
       });
 
     const acceptedResult = await submitProjectConversationExecution("conv-1", {
@@ -699,21 +709,22 @@ describe("agentsApi.projectConversations", () => {
       message: "Need follow-up",
     });
 
-    expect(acceptedResult.executionStatus).toBe("ACCEPTED");
-    expect(succeededResult.executionStatus).toBe("COMPLETED");
+    expect(acceptedResult.execution?.executionStatus).toBe("ACCEPTED");
+    expect(succeededResult.execution?.executionStatus).toBe("COMPLETED");
   });
 
   it("falls back to pending execution status when status is absent", async () => {
     vi.spyOn(ProjectConversationApi.prototype, "submitConversationExecution").mockResolvedValue({
       conversationId: "conv-1",
       executionStatus: undefined,
+      runtimeDispatched: false,
     });
 
     const result = await submitProjectConversationExecution("conv-1", {
       message: "Need update",
     });
 
-    expect(result.executionStatus).toBe("PENDING");
+    expect(result.execution).toBeUndefined();
   });
 });
 

@@ -1,6 +1,6 @@
 import { AgentApi, AgentChatApi, AgentConversationApi, AgentRuleApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
-import { AgentConversationApi as ProjectConversationApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
-import type { ExecutionStatusDTO } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+import { AgentConversationApi as ProjectConversationApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-139-unstable/apis";
+import type { ExecutionStatusDTO } from "@sitionix/app-afesox-bffssox-frontend-sitionix-139-unstable/models";
 import type {
   AcceptAgentRuleRequestDTO,
   CreateAgentRequestDTO,
@@ -8,7 +8,7 @@ import type {
   CreateAgentRuleRequestDTO,
   PatchAgentRuleRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-139-unstable/models";
 import { bffApiConfiguration, requestJson } from "../../../../../shared/http/httpClient";
 import type {
   AgentConversationDetails,
@@ -161,9 +161,6 @@ function normalizeLifecycleStatus(
 }
 
 function normalizeProjectConversationExecutionStatus(status: ExecutionStatusDTO | undefined): ProjectConversationExecutionStatus {
-  if (status === "DISPATCH_SKIPPED") {
-    return "DISPATCH_SKIPPED";
-  }
   if (status === "ACCEPTED") {
     return "ACCEPTED";
   }
@@ -359,11 +356,19 @@ export async function submitProjectConversationExecution(
     submitConversationExecutionRequestDTO: requestBody,
   });
 
+  const executionId = result.executionId?.trim() || undefined;
+  const executionStatus = normalizeProjectConversationExecutionStatus(result.executionStatus);
+  const runtimeDispatched = result.runtimeDispatched === true;
+  const hasExecutionMetadata = Boolean(executionId) || Boolean(result.executionStatus);
+
   return {
     conversationId: result.conversationId,
     inputMessageId: resolveInputMessageId(result),
-    executionId: result.executionId?.trim() || undefined,
-    executionStatus: normalizeProjectConversationExecutionStatus(result.executionStatus),
+    runtimeDispatched,
+    execution: hasExecutionMetadata ? {
+      executionId,
+      executionStatus,
+    } : undefined,
   };
 }
 
