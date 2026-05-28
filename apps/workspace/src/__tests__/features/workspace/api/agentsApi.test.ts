@@ -251,6 +251,19 @@ describe("agentsApi.projects", () => {
     expect(result.nodes).toHaveLength(1);
   });
 
+  it("throws when project flow request fails", async () => {
+    vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: false,
+      status: 503,
+      error: { message: "failed" },
+    });
+
+    await expect(getProjectFlow("project-1")).rejects.toMatchObject({
+      message: "Unable to load project flow",
+      status: 503,
+    });
+  });
+
   it("loads project flow palette", async () => {
     const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
       ok: true,
@@ -269,6 +282,19 @@ describe("agentsApi.projects", () => {
       path: "/api/v1/agent-projects/project-1/flow/palette",
     });
     expect(result.sources).toHaveLength(2);
+  });
+
+  it("throws when project flow palette request fails", async () => {
+    vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: false,
+      status: 502,
+      error: { message: "failed" },
+    });
+
+    await expect(getProjectFlowPalette("project-1")).rejects.toMatchObject({
+      message: "Unable to load project flow palette",
+      status: 502,
+    });
   });
 
   it("patches project name only with trimmed value", async () => {
