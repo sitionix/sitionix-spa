@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentApi, AgentChatApi, AgentConversationApi, AgentRuleApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
-import { AgentConversationApi as ProjectConversationApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-139-unstable/apis";
+import { AgentConversationApi as ProjectConversationApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
 import * as httpClient from "../../../../shared/http/httpClient";
 
 import {

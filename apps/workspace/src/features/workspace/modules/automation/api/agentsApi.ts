@@ -1,6 +1,6 @@
 import { AgentApi, AgentChatApi, AgentConversationApi, AgentRuleApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
-import { AgentConversationApi as ProjectConversationApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-139-unstable/apis";
-import type { ExecutionStatusDTO } from "@sitionix/app-afesox-bffssox-frontend-sitionix-139-unstable/models";
+import { AgentConversationApi as ProjectConversationApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
+import type { ExecutionStatusDTO } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 import type {
   AcceptAgentRuleRequestDTO,
   CreateAgentRequestDTO,
@@ -8,7 +8,7 @@ import type {
   CreateAgentRuleRequestDTO,
   PatchAgentRuleRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-sitionix-139-unstable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
 import { bffApiConfiguration, requestJson } from "../../../../../shared/http/httpClient";
 import type {
   AgentConversationDetails,
