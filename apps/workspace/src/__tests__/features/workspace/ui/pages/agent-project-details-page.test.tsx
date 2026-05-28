@@ -45,6 +45,7 @@ function renderPage() {
     <MemoryRouter initialEntries={["/automation/projects/project-1"]}>
       <Routes>
         <Route path="/automation/projects/:projectId" element={<AgentProjectDetailsPage />} />
+        <Route path="/automation/projects/:projectId/flow" element={<div>Project flow page</div>} />
         <Route path="/automation/projects/:projectId/conversations/:conversationId" element={<div>Project conversation page</div>} />
         <Route path="/automation" element={<div>Automation projects page</div>} />
       </Routes>
@@ -57,6 +58,7 @@ function renderPageWithPath(path: string) {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/automation/projects/:projectId" element={<AgentProjectDetailsPage />} />
+        <Route path="/automation/projects/:projectId/flow" element={<div>Project flow page</div>} />
         <Route path="/automation/projects/:projectId/conversations/:conversationId" element={<div>Project conversation page</div>} />
         <Route path="/automation" element={<div>Automation projects page</div>} />
       </Routes>
@@ -105,6 +107,25 @@ describe("AgentProjectDetailsPage", () => {
     expect(screen.getByRole("button", { name: "New Chat" })).toBeInTheDocument();
     expect(await screen.findByText("No conversations yet.")).toBeInTheDocument();
     expect(await screen.findByText("No agents attached yet")).toBeInTheDocument();
+  });
+
+  it("navigates to project flow for the current project", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      context: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+
+    const user = userEvent.setup();
+    renderPageWithPath("/automation/projects/project-1");
+    await screen.findByText("Marketing Automation");
+
+    await user.click(screen.getByRole("button", { name: "Flow" }));
+
+    expect(await screen.findByText("Project flow page")).toBeInTheDocument();
   });
 
   it("opens new chat sheet, toggles selection, creates conversation and navigates", async () => {

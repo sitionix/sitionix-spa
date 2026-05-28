@@ -1,10 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { ReactNode } from "react";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
 import type { WorkspaceApi } from "../../features/workspace/api/workspaceApi";
 import { WorkspaceRoutes } from "../../app/router";
 import { WorkspaceApiProvider } from "../../features/workspace/api/WorkspaceApiProvider";
+import { getProjectFlow, getProjectFlowPalette } from "../../features/workspace/modules/automation/api/agentsApi";
 
 const { api } = vi.hoisted(() => {
   const api: WorkspaceApi = {
@@ -33,7 +34,35 @@ vi.mock("../../features/workspace/api/WorkspaceApiProvider", () => ({
   useWorkspaceApi: () => api,
 }));
 
+vi.mock("../../features/workspace/modules/automation/api/agentsApi", () => ({
+  getProjectFlow: vi.fn(),
+  getProjectFlowPalette: vi.fn(),
+}));
+
+const getProjectFlowMock = vi.mocked(getProjectFlow);
+const getProjectFlowPaletteMock = vi.mocked(getProjectFlowPalette);
+
 describe("WorkspaceRoutes", () => {
+  beforeEach(() => {
+    getProjectFlowMock.mockReset();
+    getProjectFlowPaletteMock.mockReset();
+  });
+
+  it("renders project flow page on flow route", async () => {
+    getProjectFlowMock.mockResolvedValue({ flowId: null, nodes: [], edges: [] });
+    getProjectFlowPaletteMock.mockResolvedValue({ sources: [] });
+
+    render(
+      <MemoryRouter initialEntries={["/automation/projects/project-1/flow"]}>
+        <WorkspaceApiProvider>
+          <WorkspaceRoutes />
+        </WorkspaceApiProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole("heading", { name: "Project flow" })).toBeInTheDocument();
+  });
+
   it("renders dashboard on root", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
