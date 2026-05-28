@@ -19,6 +19,8 @@ import {
   deleteAgentConversation,
   getAgentById,
   getAgentProject,
+  getProjectFlow,
+  getProjectFlowPalette,
   getProjectConversation,
   getProjectConversations,
   getAgentConversation,
@@ -227,6 +229,46 @@ describe("agentsApi.projects", () => {
       path: "/api/v1/agent-projects/project-1",
     });
     expect(result.id).toBe("project-1");
+  });
+
+  it("loads project flow", async () => {
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        flowId: "flow-1",
+        nodes: [{ id: "n1", nodeType: "USER", position: { x: 10, y: 20 } }],
+        edges: [],
+      },
+    });
+
+    const result = await getProjectFlow("project-1");
+
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "GET",
+      path: "/api/v1/agent-projects/project-1/flow",
+    });
+    expect(result.flowId).toBe("flow-1");
+    expect(result.nodes).toHaveLength(1);
+  });
+
+  it("loads project flow palette", async () => {
+    const requestJsonSpy = vi.spyOn(httpClient, "requestJson").mockResolvedValue({
+      ok: true,
+      data: {
+        sources: [
+          { sourceType: "USER", sourceId: "user", sourceName: "You" },
+          { sourceType: "AGENT", sourceId: "agent-1", sourceName: "Writer" },
+        ],
+      },
+    });
+
+    const result = await getProjectFlowPalette("project-1");
+
+    expect(requestJsonSpy).toHaveBeenCalledWith({
+      method: "GET",
+      path: "/api/v1/agent-projects/project-1/flow/palette",
+    });
+    expect(result.sources).toHaveLength(2);
   });
 
   it("patches project name only with trimmed value", async () => {

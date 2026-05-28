@@ -3,6 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AgentProjectDetailsPage } from "../../../../../features/workspace/modules/automation/pages/AgentProjectDetailsPage";
+import { ProjectFlowPage } from "../../../../../features/workspace/modules/automation/pages/ProjectFlowPage";
 import {
   addAgentToProject,
   createProjectConversation,
@@ -11,6 +12,8 @@ import {
   getAgentProject,
   getProjectConversations,
   getErrorHttpStatus,
+  getProjectFlow,
+  getProjectFlowPalette,
   listAgentProjectAgents,
   patchAgentProject,
   removeAgentFromProject,
@@ -24,6 +27,8 @@ vi.mock("../../../../../features/workspace/modules/automation/api/agentsApi", ()
   getAgents: vi.fn(),
   getAgentProject: vi.fn(),
   getErrorHttpStatus: vi.fn(),
+  getProjectFlow: vi.fn(),
+  getProjectFlowPalette: vi.fn(),
   listAgentProjectAgents: vi.fn(),
   patchAgentProject: vi.fn(),
   removeAgentFromProject: vi.fn(),
@@ -37,6 +42,8 @@ const getAgentsMock = vi.mocked(getAgents);
 const addAgentToProjectMock = vi.mocked(addAgentToProject);
 const removeAgentFromProjectMock = vi.mocked(removeAgentFromProject);
 const getErrorHttpStatusMock = vi.mocked(getErrorHttpStatus);
+const getProjectFlowMock = vi.mocked(getProjectFlow);
+const getProjectFlowPaletteMock = vi.mocked(getProjectFlowPalette);
 const patchAgentProjectMock = vi.mocked(patchAgentProject);
 const deleteAgentProjectMock = vi.mocked(deleteAgentProject);
 
@@ -45,6 +52,7 @@ function renderPage() {
     <MemoryRouter initialEntries={["/automation/projects/project-1"]}>
       <Routes>
         <Route path="/automation/projects/:projectId" element={<AgentProjectDetailsPage />} />
+        <Route path="/automation/projects/:projectId/flow" element={<div>Project flow page</div>} />
         <Route path="/automation/projects/:projectId/conversations/:conversationId" element={<div>Project conversation page</div>} />
         <Route path="/automation" element={<div>Automation projects page</div>} />
       </Routes>
@@ -57,6 +65,7 @@ function renderPageWithPath(path: string) {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/automation/projects/:projectId" element={<AgentProjectDetailsPage />} />
+        <Route path="/automation/projects/:projectId/flow" element={<div>Project flow page</div>} />
         <Route path="/automation/projects/:projectId/conversations/:conversationId" element={<div>Project conversation page</div>} />
         <Route path="/automation" element={<div>Automation projects page</div>} />
       </Routes>
@@ -76,6 +85,8 @@ describe("AgentProjectDetailsPage", () => {
     getProjectConversationsMock.mockReset();
     createProjectConversationMock.mockReset();
     removeAgentFromProjectMock.mockReset();
+    getProjectFlowMock.mockReset();
+    getProjectFlowPaletteMock.mockReset();
     getErrorHttpStatusMock.mockReturnValue(null);
     listAgentProjectAgentsMock.mockResolvedValue([]);
     getProjectConversationsMock.mockResolvedValue({ items: [] });
@@ -105,6 +116,24 @@ describe("AgentProjectDetailsPage", () => {
     expect(screen.getByRole("button", { name: "New Chat" })).toBeInTheDocument();
     expect(await screen.findByText("No conversations yet.")).toBeInTheDocument();
     expect(await screen.findByText("No agents attached yet")).toBeInTheDocument();
+  });
+
+  it("navigates to project flow page", async () => {
+    getAgentProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Marketing Automation",
+      context: "Campaign automations",
+      status: "ACTIVE",
+      createdAt: "2026-05-05T12:00:00Z",
+      updatedAt: "2026-05-05T12:00:00Z",
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Marketing Automation");
+    await user.click(screen.getByRole("button", { name: "Flow" }));
+
+    expect(await screen.findByText("Project flow page")).toBeInTheDocument();
   });
 
   it("opens new chat sheet, toggles selection, creates conversation and navigates", async () => {
@@ -998,5 +1027,78 @@ describe("AgentProjectDetailsPage", () => {
 
     expect(deleteAgentProjectMock).toHaveBeenCalledWith("project-1");
     expect(await screen.findByText("Automation projects page")).toBeInTheDocument();
+  });
+});
+
+describe("ProjectFlowPage", () => {
+  beforeEach(() => {
+    getProjectFlowMock.mockReset();
+    getProjectFlowPaletteMock.mockReset();
+  });
+
+  it("renders empty flow state and palette sources", async () => {
+    getProjectFlowMock.mockResolvedValue({ flowId: null, nodes: [], edges: [] });
+    getProjectFlowPaletteMock.mockResolvedValue({
+      sources: [
+        { sourceType: "USER", sourceId: "user", sourceName: "You" },
+        { sourceType: "AGENT", sourceId: "agent-1", sourceName: "Writer" },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/automation/projects/project-1/flow"]}>
+        <Routes>
+          <Route path="/automation/projects/:projectId/flow" element={<ProjectFlowPage />} />
+          <Route path="/automation/projects/:projectId" element={<div>Project details page</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Flow is empty for this project.")).toBeInTheDocument();
+    expect(await screen.findByText("You")).toBeInTheDocument();
+    expect(screen.getByText("Writer")).toBeInTheDocument();
+  });
+
+  it("renders saved flow nodes and keeps canvas visible when palette fails", async () => {
+    getProjectFlowMock.mockResolvedValue({
+      flowId: "flow-1",
+      nodes: [
+        { id: "node-1", nodeType: "USER", referenceId: "user", position: { x: 10, y: 20 }, config: { label: "User Node" } },
+        { id: "node-2", nodeType: "AGENT", referenceId: "agent-1", position: { x: 120, y: 150 }, config: { label: "Writer" } },
+      ],
+      edges: [{ id: "edge-1", sourceNodeId: "node-1", targetNodeId: "node-2", edgeType: "TRANSITION" }],
+    });
+    getProjectFlowPaletteMock.mockRejectedValue(new Error("Palette unavailable"));
+
+    render(
+      <MemoryRouter initialEntries={["/automation/projects/project-1/flow"]}>
+        <Routes>
+          <Route path="/automation/projects/:projectId/flow" element={<ProjectFlowPage />} />
+          <Route path="/automation/projects/:projectId" element={<div>Project details page</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("User Node")).toBeInTheDocument();
+    expect(screen.getByText("AGENT")).toBeInTheDocument();
+    expect(screen.getByText("Palette unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Nodes: 2 • Edges: 1")).toBeInTheDocument();
+  });
+
+  it("renders page-level flow error", async () => {
+    getProjectFlowMock.mockRejectedValue(new Error("Flow unavailable"));
+    getProjectFlowPaletteMock.mockResolvedValue({ sources: [] });
+
+    render(
+      <MemoryRouter initialEntries={["/automation/projects/project-1/flow"]}>
+        <Routes>
+          <Route path="/automation/projects/:projectId/flow" element={<ProjectFlowPage />} />
+          <Route path="/automation/projects/:projectId" element={<div>Project details page</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Unable to load flow")).toBeInTheDocument();
+    expect(screen.getByText("Flow unavailable")).toBeInTheDocument();
   });
 });

@@ -542,6 +542,9 @@ export function AgentProjectDetailsPage() {
                   setSelectedConversationAgentIds([]);
                   setNewChatOpen(true);
                 }}
+                onOpenFlow={() => {
+                  navigate(`/automation/projects/${encodeURIComponent(projectId ?? "")}/flow`);
+                }}
                 onOpenConversation={(conversationId) => {
                   navigate(`/automation/projects/${encodeURIComponent(projectId ?? "")}/conversations/${encodeURIComponent(conversationId)}`);
                 }}
@@ -885,6 +888,7 @@ type ProjectConversationsSectionProps = Readonly<{
   error: string | null;
   onRetry: () => void;
   onOpenNewChat: () => void;
+  onOpenFlow: () => void;
   onOpenConversation: (conversationId: string) => void;
 }>;
 
@@ -895,15 +899,21 @@ function ProjectConversationsSection({
   error,
   onRetry,
   onOpenNewChat,
+  onOpenFlow,
   onOpenConversation,
 }: ProjectConversationsSectionProps) {
   return (
     <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-zinc-900">Conversations</h2>
-        <button type="button" className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50" onClick={onOpenNewChat}>
-          New Chat
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50" onClick={onOpenFlow}>
+            Flow
+          </button>
+          <button type="button" className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50" onClick={onOpenNewChat}>
+            New Chat
+          </button>
+        </div>
       </div>
       {status === "loading" ? <div className="mt-4 flex items-center gap-2 text-sm text-zinc-500"><Loader2 className="h-4 w-4 animate-spin" />Loading conversations...</div> : null}
       {status === "error" ? <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"><p>{error ?? "Unable to load conversations."}</p><button type="button" className="mt-2 font-semibold underline" onClick={onRetry}>Retry</button></div> : null}

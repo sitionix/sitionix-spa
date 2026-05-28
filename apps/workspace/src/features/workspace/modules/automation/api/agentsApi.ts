@@ -26,6 +26,8 @@ import type {
   CreateAgentProjectRequest,
   CreateAgentRuleRequest,
   AgentProject,
+  AgentProjectFlow,
+  AgentProjectFlowPalette,
   AgentProjectsPage,
   DeleteAgentRuleResponse,
   PatchAgentRuleRequest,
@@ -223,6 +225,35 @@ export async function getAgentProject(projectId: string): Promise<AgentProject> 
     throw createHttpStatusError(result.status, "Unable to load project");
   }
   return result.data;
+}
+
+export async function getProjectFlow(projectId: string): Promise<AgentProjectFlow> {
+  const result = await requestJson<AgentProjectFlow, unknown, never>({
+    method: "GET",
+    path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}/flow`,
+  });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to load project flow");
+  }
+  return {
+    ...result.data,
+    nodes: Array.isArray(result.data.nodes) ? result.data.nodes : [],
+    edges: Array.isArray(result.data.edges) ? result.data.edges : [],
+  };
+}
+
+export async function getProjectFlowPalette(projectId: string): Promise<AgentProjectFlowPalette> {
+  const result = await requestJson<AgentProjectFlowPalette, unknown, never>({
+    method: "GET",
+    path: `/api/v1/agent-projects/${encodeURIComponent(projectId)}/flow/palette`,
+  });
+  if (!result.ok) {
+    throw createHttpStatusError(result.status, "Unable to load project flow palette");
+  }
+  return {
+    ...result.data,
+    sources: Array.isArray(result.data.sources) ? result.data.sources : [],
+  };
 }
 
 export async function patchAgentProject(projectId: string, payload: PatchAgentProjectRequest): Promise<AgentProject> {
@@ -796,6 +827,8 @@ export const agentsApi = {
   getAgents,
   getAgentById,
   getAgentProject,
+  getProjectFlow,
+  getProjectFlowPalette,
   patchAgentProject,
   deleteAgentProject,
   createAgent,
