@@ -11,7 +11,7 @@ import type {
   PatchAgentRuleRequestDTO,
   CreateAgentRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-140-unstable/models";
 
 export type AutomationAgent = AgentDTO;
 export type CreateAgentRequest = CreateAgentRequestDTO;
@@ -191,3 +191,9 @@ export type AddAgentToProjectRequest = AddAgentToProjectRequestDTO;
 export type ProjectAgent = ProjectAgentResponseDTO;
 export type ProjectAgentsResponse = ProjectAgentsResponseDTO;
 export type AutomationPageStatus = "idle" | "loading" | "ready" | "error";
+
+export type AgentProjectFlow = import("@sitionix/app-afesox-bffssox-frontend-sitionix-140-unstable/models").AgentProjectFlowResponseDTO;
+export type AgentProjectFlowPalette = import("@sitionix/app-afesox-bffssox-frontend-sitionix-140-unstable/models").AgentProjectFlowPaletteResponseDTO;
+export type AgentProjectFlowNode = import("@sitionix/app-afesox-bffssox-frontend-sitionix-140-unstable/models").AgentProjectFlowNodeDTO;
+export type AgentProjectFlowEdge = import("@sitionix/app-afesox-bffssox-frontend-sitionix-140-unstable/models").AgentProjectFlowEdgeDTO;
+export type AgentProjectFlowPaletteSource = import("@sitionix/app-afesox-bffssox-frontend-sitionix-140-unstable/models").AgentProjectFlowPaletteSourceDTO;

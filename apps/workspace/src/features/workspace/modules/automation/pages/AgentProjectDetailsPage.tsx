@@ -400,7 +400,18 @@ export function AgentProjectDetailsPage() {
           <PageHeader
             title="Project overview"
             subtitle="Workspace view, project context, and lifecycle controls for this automation project."
-            actions={<span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${getStatusBadgeClass(project.status)}`}>{project.status}</span>}
+            actions={(
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-700 transition hover:bg-zinc-50"
+                  onClick={() => navigate(`/automation/projects/${encodeURIComponent(project.id)}/flow`)}
+                >
+                  Flow
+                </button>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${getStatusBadgeClass(project.status)}`}>{project.status}</span>
+              </div>
+            )}
           />
 
           <section className="rounded-3xl border border-zinc-200 bg-white p-6">

@@ -1,6 +1,6 @@
-import { AgentApi, AgentChatApi, AgentConversationApi, AgentRuleApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
-import { AgentConversationApi as ProjectConversationApi } from "@sitionix/app-afesox-bffssox-frontend-stable/apis";
-import type { ExecutionStatusDTO } from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+import { AgentApi, AgentChatApi, AgentConversationApi, AgentProjectApi, AgentRuleApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-140-unstable/apis";
+import { AgentConversationApi as ProjectConversationApi } from "@sitionix/app-afesox-bffssox-frontend-sitionix-140-unstable/apis";
+import type { ExecutionStatusDTO } from "@sitionix/app-afesox-bffssox-frontend-sitionix-140-unstable/models";
 import type {
   AcceptAgentRuleRequestDTO,
   CreateAgentRequestDTO,
@@ -8,7 +8,7 @@ import type {
   CreateAgentRuleRequestDTO,
   PatchAgentRuleRequestDTO,
   PatchAgentRequestDTO,
-} from "@sitionix/app-afesox-bffssox-frontend-stable/models";
+} from "@sitionix/app-afesox-bffssox-frontend-sitionix-140-unstable/models";
 import { bffApiConfiguration, requestJson } from "../../../../../shared/http/httpClient";
 import type {
   AgentConversationDetails,
@@ -37,6 +37,8 @@ import type {
   ProjectConversationDetails,
   ProjectConversationsResponse,
   ProjectConversationExecutionStatus,
+  AgentProjectFlow,
+  AgentProjectFlowPalette,
   SubmitProjectConversationExecutionRequest,
   SubmitProjectConversationExecutionResponse,
   SubmitChatExecutionResponse,
@@ -45,6 +47,7 @@ import type {
 const agentApi = new AgentApi(bffApiConfiguration);
 const agentConversationApi = new AgentConversationApi(bffApiConfiguration);
 const projectConversationApi = new ProjectConversationApi(bffApiConfiguration);
+const agentProjectApi = new AgentProjectApi(bffApiConfiguration);
 const agentChatApi = new AgentChatApi(bffApiConfiguration);
 const agentRuleApi = new AgentRuleApi(bffApiConfiguration);
 type RuleTextPayload = { title?: string; content?: string };
@@ -223,6 +226,14 @@ export async function getAgentProject(projectId: string): Promise<AgentProject> 
     throw createHttpStatusError(result.status, "Unable to load project");
   }
   return result.data;
+}
+
+export async function getProjectFlow(projectId: string): Promise<AgentProjectFlow> {
+  return agentProjectApi.getAgentProjectFlow({ projectId });
+}
+
+export async function getProjectFlowPalette(projectId: string): Promise<AgentProjectFlowPalette> {
+  return agentProjectApi.getAgentProjectFlowPalette({ projectId });
 }
 
 export async function patchAgentProject(projectId: string, payload: PatchAgentProjectRequest): Promise<AgentProject> {
