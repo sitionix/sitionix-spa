@@ -1085,6 +1085,56 @@ describe("ProjectFlowPage", () => {
     expect(screen.getByText("Nodes: 2 • Edges: 1")).toBeInTheDocument();
   });
 
+  it("renders all nodes when node type and reference id are repeated", async () => {
+    getProjectFlowMock.mockResolvedValue({
+      flowId: "flow-1",
+      nodes: [
+        { id: "node-1", nodeType: "AGENT", referenceId: "agent-1", position: { x: 10, y: 20 }, config: { label: "Writer A" } },
+        { id: "node-2", nodeType: "AGENT", referenceId: "agent-1", position: { x: 120, y: 150 }, config: { label: "Writer B" } },
+      ],
+      edges: [{ id: "edge-1", sourceNodeId: "node-1", targetNodeId: "node-2", edgeType: "TRANSITION" }],
+    });
+    getProjectFlowPaletteMock.mockResolvedValue({ sources: [] });
+
+    render(
+      <MemoryRouter initialEntries={["/automation/projects/project-1/flow"]}>
+        <Routes>
+          <Route path="/automation/projects/:projectId/flow" element={<ProjectFlowPage />} />
+          <Route path="/automation/projects/:projectId" element={<div>Project details page</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Writer A")).toBeInTheDocument();
+    expect(screen.getByText("Writer B")).toBeInTheDocument();
+    expect(screen.getByText("Nodes: 2 • Edges: 1")).toBeInTheDocument();
+  });
+
+  it("renders palette entries with repeated labels and distinct source ids", async () => {
+    getProjectFlowMock.mockResolvedValue({ flowId: null, nodes: [], edges: [] });
+    getProjectFlowPaletteMock.mockResolvedValue({
+      sources: [
+        { sourceType: "USER", sourceId: "user-1", sourceName: "Operator" },
+        { sourceType: "USER", sourceId: "user-2", sourceName: "Operator" },
+        { sourceType: "AGENT", sourceId: "agent-1", sourceName: "Writer" },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/automation/projects/project-1/flow"]}>
+        <Routes>
+          <Route path="/automation/projects/:projectId/flow" element={<ProjectFlowPage />} />
+          <Route path="/automation/projects/:projectId" element={<div>Project details page</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findAllByText("Operator")).toHaveLength(2);
+    expect(screen.getByText("Writer")).toBeInTheDocument();
+    expect(screen.getAllByText("USER")).toHaveLength(2);
+    expect(screen.getByText("AGENT")).toBeInTheDocument();
+  });
+
   it("renders page-level flow error", async () => {
     getProjectFlowMock.mockRejectedValue(new Error("Flow unavailable"));
     getProjectFlowPaletteMock.mockResolvedValue({ sources: [] });
@@ -1100,5 +1150,67 @@ describe("ProjectFlowPage", () => {
 
     expect(await screen.findByText("Unable to load flow")).toBeInTheDocument();
     expect(screen.getByText("Flow unavailable")).toBeInTheDocument();
+  });
+
+  it("shows missing project id error when route param is blank", async () => {
+    render(
+      <MemoryRouter initialEntries={["/automation/projects/%20/flow"]}>
+        <Routes>
+          <Route path="/automation/projects/:projectId/flow" element={<ProjectFlowPage />} />
+          <Route path="/automation/projects/:projectId" element={<div>Project details page</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Unable to load flow")).toBeInTheDocument();
+    expect(screen.getAllByText("Project id is missing.")).toHaveLength(1);
+  });
+
+  it("navigates back to project details from flow page", async () => {
+    getProjectFlowMock.mockResolvedValue({ flowId: null, nodes: [], edges: [] });
+    getProjectFlowPaletteMock.mockResolvedValue({ sources: [] });
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={["/automation/projects/project-1/flow"]}>
+        <Routes>
+          <Route path="/automation/projects/:projectId/flow" element={<ProjectFlowPage />} />
+          <Route path="/automation/projects/:projectId" element={<div>Project details page</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText("Flow is empty for this project.");
+    await user.click(screen.getByRole("button", { name: "Back to Project" }));
+
+    expect(await screen.findByText("Project details page")).toBeInTheDocument();
+  });
+
+  it("resolves node label from config name, title, reference id, and id fallback", async () => {
+    getProjectFlowMock.mockResolvedValue({
+      flowId: "flow-1",
+      nodes: [
+        { id: "node-1", nodeType: "USER", referenceId: "user-1", position: { x: 10, y: 20 }, config: { name: "Name Label" } },
+        { id: "node-2", nodeType: "AGENT", referenceId: "agent-2", position: { x: 120, y: 150 }, config: { title: "Title Label" } },
+        { id: "node-3", nodeType: "AGENT", referenceId: "agent-3", position: { x: 220, y: 250 }, config: {} },
+        { id: "node-4", nodeType: "AGENT", position: { x: 320, y: 350 }, config: {} },
+      ],
+      edges: [],
+    });
+    getProjectFlowPaletteMock.mockResolvedValue({ sources: [] });
+
+    render(
+      <MemoryRouter initialEntries={["/automation/projects/project-1/flow"]}>
+        <Routes>
+          <Route path="/automation/projects/:projectId/flow" element={<ProjectFlowPage />} />
+          <Route path="/automation/projects/:projectId" element={<div>Project details page</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Name Label")).toBeInTheDocument();
+    expect(screen.getByText("Title Label")).toBeInTheDocument();
+    expect(screen.getByText("agent-3")).toBeInTheDocument();
+    expect(screen.getByText("node-4")).toBeInTheDocument();
   });
 });
