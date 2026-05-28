@@ -264,8 +264,8 @@ importers:
   apps/workspace:
     dependencies:
       '@sitionix/app-afesox-bffssox-frontend-sitionix-140-unstable':
-        specifier: 0.0.43
-        version: 0.0.43
+        specifier: file:../../vendor/sitionix-app-afesox-bffssox-frontend-sitionix-140-unstable-0.0.43.tgz
+        version: file:vendor/sitionix-app-afesox-bffssox-frontend-sitionix-140-unstable-0.0.43.tgz
       '@sitionix/app-afesox-bffssox-frontend-stable':
         specifier: 0.0.42
         version: 0.0.42
@@ -892,8 +892,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@sitionix/app-afesox-bffssox-frontend-sitionix-140-unstable@0.0.43':
-    resolution: {integrity: sha512-xTX5s7Uta0OnhQfirep0+UMD1nqh9LHehjIhXu2EhmjstAO8Y21pokFffSpE59HEpdBq9K8EIjDYND/3xUY3Ww==, tarball: https://npm.pkg.github.com/download/@sitionix/app-afesox-bffssox-frontend-sitionix-140-unstable/0.0.43/c97fc4c1efcd897f189a9b27df5f99a0deda8bc8}
+  '@sitionix/app-afesox-bffssox-frontend-sitionix-140-unstable@file:vendor/sitionix-app-afesox-bffssox-frontend-sitionix-140-unstable-0.0.43.tgz':
+    resolution: {integrity: sha512-+F32CyEFSqF7fLtV9UUxB9LjTu/rNHR3d/+7fDZEOie1qElqcYaxVXGkomAN/ULcy5WVDi48Q5YlPljdjPnyBQ==, tarball: file:vendor/sitionix-app-afesox-bffssox-frontend-sitionix-140-unstable-0.0.43.tgz}
+    version: 0.0.43
 
   '@sitionix/app-afesox-bffssox-frontend-stable@0.0.37':
     resolution: {integrity: sha512-RxDKgj/z0tTdgv6iNnRUWZVXl5ueUYVH9b8G6y8b7Q2AXCCeMV2n99J+opWKoYsrw7j3tnj7ctX5DajgMbta0A==, tarball: https://npm.pkg.github.com/download/@sitionix/app-afesox-bffssox-frontend-stable/0.0.37/73eb2fd17b47ea22942bf8879612c30a0d14e7c6}
@@ -2380,7 +2381,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.54.0':
     optional: true
 
-  '@sitionix/app-afesox-bffssox-frontend-sitionix-140-unstable@0.0.43': {}
+  '@sitionix/app-afesox-bffssox-frontend-sitionix-140-unstable@file:vendor/sitionix-app-afesox-bffssox-frontend-sitionix-140-unstable-0.0.43.tgz': {}
 
   '@sitionix/app-afesox-bffssox-frontend-stable@0.0.37': {}
 
