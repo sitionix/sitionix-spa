@@ -161,9 +161,6 @@ function normalizeLifecycleStatus(
 }
 
 function normalizeProjectConversationExecutionStatus(status: ExecutionStatusDTO | undefined): ProjectConversationExecutionStatus {
-  if (status === "DISPATCH_SKIPPED") {
-    return "DISPATCH_SKIPPED";
-  }
   if (status === "ACCEPTED") {
     return "ACCEPTED";
   }
@@ -359,11 +356,19 @@ export async function submitProjectConversationExecution(
     submitConversationExecutionRequestDTO: requestBody,
   });
 
+  const executionId = result.executionId?.trim() || undefined;
+  const executionStatus = normalizeProjectConversationExecutionStatus(result.executionStatus);
+  const runtimeDispatched = result.runtimeDispatched === true;
+  const hasExecutionMetadata = Boolean(executionId) || Boolean(result.executionStatus);
+
   return {
     conversationId: result.conversationId,
     inputMessageId: resolveInputMessageId(result),
-    executionId: result.executionId?.trim() || undefined,
-    executionStatus: normalizeProjectConversationExecutionStatus(result.executionStatus),
+    runtimeDispatched,
+    execution: hasExecutionMetadata ? {
+      executionId,
+      executionStatus,
+    } : undefined,
   };
 }
 

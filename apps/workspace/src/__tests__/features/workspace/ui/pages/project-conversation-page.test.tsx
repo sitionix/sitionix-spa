@@ -178,8 +178,8 @@ describe("ProjectConversationPage", () => {
     submitProjectConversationExecutionMock.mockResolvedValue({
       conversationId: "conv-2",
       inputMessageId: "msg-2",
-      executionId: undefined,
-      executionStatus: "DISPATCH_SKIPPED",
+      runtimeDispatched: false,
+      execution: undefined,
     });
     const user = userEvent.setup();
 
@@ -235,8 +235,11 @@ describe("ProjectConversationPage", () => {
     submitProjectConversationExecutionMock.mockResolvedValue({
       conversationId: "conv-4",
       inputMessageId: "msg-backend-1",
-      executionId: "exec-1",
-      executionStatus: "COMPLETED",
+      runtimeDispatched: true,
+      execution: {
+        executionId: "exec-1",
+        executionStatus: "COMPLETED",
+      },
     });
     const user = userEvent.setup();
 
@@ -249,9 +252,7 @@ describe("ProjectConversationPage", () => {
     await waitFor(() => {
       expect(submitProjectConversationExecutionMock).toHaveBeenCalledWith("conv-4", { message: "Need update" });
     });
-    await waitFor(() => {
-      expect(getProjectConversationMock).toHaveBeenCalledTimes(2);
-    });
+    expect(getProjectConversationMock).toHaveBeenCalledTimes(2);
     expect(screen.getAllByText("Need update")).toHaveLength(1);
     expect(screen.queryByText("Assistant is processing...")).not.toBeInTheDocument();
   });
@@ -280,8 +281,11 @@ describe("ProjectConversationPage", () => {
     submitProjectConversationExecutionMock.mockResolvedValue({
       conversationId: "conv-5",
       inputMessageId: "msg-backend-2",
-      executionId: "exec-2",
-      executionStatus: "RUNNING",
+      runtimeDispatched: true,
+      execution: {
+        executionId: "exec-2",
+        executionStatus: "RUNNING",
+      },
     });
     const user = userEvent.setup();
 

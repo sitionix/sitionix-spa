@@ -3,12 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getErrorHttpStatus, getProjectConversation, submitProjectConversationExecution } from "../api";
 import { toAutomationErrorMessage } from "../model/mappers";
-import type {
-  ChatAgentMessage,
-  ProjectConversationDetails,
-  ProjectConversationExecutionStatus,
-  ProjectConversationParticipant,
-} from "../model/types";
+import type { ChatAgentMessage, ProjectConversationDetails, ProjectConversationExecutionStatus, ProjectConversationParticipant } from "../model/types";
 
 type PageStatus = "idle" | "loading" | "ready" | "not_found" | "error";
 type DotVariant = "active" | "archived" | "deleted" | "draft" | "unknown";
@@ -57,7 +52,7 @@ function dedupeAndSortMessages(messages: ChatAgentMessage[]): ChatAgentMessage[]
 }
 
 function isTerminalExecutionStatus(status: ProjectConversationExecutionStatus): boolean {
-  return status === "COMPLETED" || status === "FAILED" || status === "DISPATCH_SKIPPED";
+  return status === "COMPLETED" || status === "FAILED";
 }
 
 function StatusBlock({
@@ -221,9 +216,16 @@ export function ProjectConversationPage() {
         ))));
       }
 
-      setIsAwaitingExecution(!isTerminalExecutionStatus(response.executionStatus));
-      const updatedConversation = await getProjectConversation(projectId ?? "", response.conversationId);
-      applyConversation(updatedConversation);
+      const executionStatus = response.execution?.executionStatus;
+      const shouldRunExecutionFlow = response.runtimeDispatched === true
+        && Boolean(response.execution?.executionId)
+        && Boolean(executionStatus);
+
+      if (shouldRunExecutionFlow && executionStatus) {
+        setIsAwaitingExecution(!isTerminalExecutionStatus(executionStatus));
+        const updatedConversation = await getProjectConversation(projectId ?? "", response.conversationId);
+        applyConversation(updatedConversation);
+      }
       setIsAwaitingExecution(false);
     } catch (submitExecutionError) {
       setSubmitError(toAutomationErrorMessage(submitExecutionError));

@@ -166,8 +166,7 @@ export type ProjectConversationExecutionStatus =
   | "PENDING"
   | "RUNNING"
   | "COMPLETED"
-  | "FAILED"
-  | "DISPATCH_SKIPPED";
+  | "FAILED";
 
 export type SubmitProjectConversationExecutionRequest = {
   message: string;
@@ -177,8 +176,11 @@ export type SubmitProjectConversationExecutionRequest = {
 export type SubmitProjectConversationExecutionResponse = {
   conversationId: string;
   inputMessageId?: string;
-  executionId?: string;
-  executionStatus: ProjectConversationExecutionStatus;
+  runtimeDispatched: boolean;
+  execution?: {
+    executionId?: string;
+    executionStatus?: ProjectConversationExecutionStatus;
+  };
 };
 
 
